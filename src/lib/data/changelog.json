@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.0.31",
+    "date": "2026-05-30",
+    "changes": [
+      { "type": "fix", "text": "502 Bad Gateway behind nginx-based reverse proxies — SvelteKit 2.51+ bloated the Link response header, pinned to 2.50.0 (#1114)" }
+    ],
+    "imageTag": "fnsys/dockhand:v1.0.31"
+  },
+  {
     "version": "1.0.30",
     "date": "2026-05-30",
     "changes": [

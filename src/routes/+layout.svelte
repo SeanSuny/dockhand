@@ -18,6 +18,7 @@
 	import { themeStore, applyTheme } from '$lib/stores/theme';
 	import { gridPreferencesStore } from '$lib/stores/grid-preferences';
 import { loadLocaleFromStorage, setActiveLocale } from '$lib/i18n';
+import * as m from '$lib/paraglide/messages';
 	import { shouldShowWhatsNew } from '$lib/utils/version';
 	import { AlertTriangle, Search } from 'lucide-svelte';
 
@@ -154,7 +155,7 @@ import { loadLocaleFromStorage, setActiveLocale } from '$lib/i18n';
 						class="flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-md hover:bg-muted/50 transition-colors"
 					>
 						<Search class="w-3.5 h-3.5" />
-						<span class="hidden sm:inline">Search...</span>
+						<span class="hidden sm:inline">{m.common_search_placeholder()}</span>
 						<kbd class="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-2xs font-medium text-muted-foreground">
 							{#if isMac}
 								<span class="text-xs">⌘</span>

@@ -33,6 +33,7 @@
 	import { currentEnvironment } from '$lib/stores/environment';
 	import { themeStore, onDarkModeChange } from '$lib/stores/theme';
 	import { lightThemes, darkThemes, fonts } from '$lib/themes';
+	import * as m from '$lib/paraglide/messages';
 
 	interface Props {
 		open?: boolean;
@@ -193,11 +194,11 @@
 	});
 </script>
 
-<Command.Dialog bind:open title="Command Palette" description="Search for pages and actions">
-	<Command.Input placeholder="Search..." />
+<Command.Dialog bind:open title={m.command_palette_title()} description={m.command_palette_description()}>
+	<Command.Input placeholder={m.common_search_placeholder()} />
 	<Command.List>
-		<Command.Empty>No results found.</Command.Empty>
-		<Command.Group heading="Navigation">
+		<Command.Empty>{m.command_palette_empty()}</Command.Empty>
+		<Command.Group heading={m.command_palette_group_navigation()}>
 			{#each filteredItems as item (item.href)}
 				<Command.Item
 					value={item.name + ' ' + (item.keywords?.join(' ') || '')}
@@ -210,18 +211,18 @@
 		</Command.Group>
 		{#if $licenseStore.isEnterprise && $authStore.authEnabled}
 			<Command.Separator />
-			<Command.Group heading="Enterprise">
+			<Command.Group heading={m.command_palette_group_enterprise()}>
 				<Command.Item
 					value="Audit log compliance"
 					onSelect={() => handleSelect('/audit')}
 				>
 					<ClipboardList class="mr-2 h-4 w-4" />
-					<span>Audit log</span>
+					<span>{m.sidebar_audit_log()}</span>
 				</Command.Item>
 			</Command.Group>
 		{/if}
 		<Command.Separator />
-		<Command.Group heading="Light theme">
+		<Command.Group heading={m.command_palette_group_light_theme()}>
 			{#each lightThemes as theme (theme.id)}
 				<Command.Item
 					value={`light theme ${theme.name}`}
@@ -242,7 +243,7 @@
 			{/each}
 		</Command.Group>
 		<Command.Separator />
-		<Command.Group heading="Dark theme">
+		<Command.Group heading={m.command_palette_group_dark_theme()}>
 			{#each darkThemes as theme (theme.id)}
 				<Command.Item
 					value={`dark theme ${theme.name}`}
@@ -263,7 +264,7 @@
 			{/each}
 		</Command.Group>
 		<Command.Separator />
-		<Command.Group heading="Font">
+		<Command.Group heading={m.command_palette_group_font()}>
 			{#each fonts as font (font.id)}
 				<Command.Item
 					value={`font ${font.name}`}
@@ -279,7 +280,7 @@
 		</Command.Group>
 		{#if environments.length > 0}
 			<Command.Separator />
-			<Command.Group heading="Switch environment">
+			<Command.Group heading={m.command_palette_group_switch_environment()}>
 				{#each environments as env (env.id)}
 					<Command.Item
 						value={`environment ${env.name}`}
@@ -296,7 +297,7 @@
 		{/if}
 		{#if containers.length > 0}
 			<Command.Separator />
-			<Command.Group heading="Containers">
+			<Command.Group heading={m.command_palette_group_containers()}>
 				{#each containers as container (container.id)}
 					<Command.Item
 						value={`container ${container.name} ${container.image} ${container.envName}`}

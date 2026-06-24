@@ -3,6 +3,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getUserThemePreferences, setUserThemePreferences } from '$lib/server/db';
 import { validateSession, isAuthEnabled } from '$lib/server/auth';
 import { lightThemes, darkThemes, fonts, monospaceFonts } from '$lib/themes';
+import { locales } from '$lib/paraglide/runtime';
+
+const VALID_LOCALES = locales as readonly string[];
 
 // GET /api/profile/preferences - Get current user's theme preferences
 export const GET: RequestHandler = async ({ cookies }) => {
@@ -45,7 +48,14 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 		const validTerminalFontIds = monospaceFonts.map(f => f.id);
 		const validFontSizes = ['xsmall', 'small', 'normal', 'medium', 'large', 'xlarge'];
 
-		const updates: { lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean } = {};
+		const updates: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean } = {};
+
+		if (data.locale !== undefined) {
+			if (!VALID_LOCALES.includes(data.locale)) {
+				return json({ error: 'Invalid locale' }, { status: 400 });
+			}
+			updates.locale = data.locale;
+		}
 
 		if (data.lightTheme !== undefined) {
 			if (!validLightThemeIds.includes(data.lightTheme)) {

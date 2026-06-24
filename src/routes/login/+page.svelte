@@ -8,6 +8,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Loader2, LogIn, Shield, AlertCircle, Network, User, KeyRound, TriangleAlert } from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
+	import * as m from '$lib/paraglide/messages';
 	import { environments } from '$lib/stores/environment';
 	import { appSettings } from '$lib/stores/settings';
 	import * as Alert from '$lib/components/ui/alert';
@@ -167,12 +168,12 @@
 					class="h-16 w-auto object-contain hidden dark:block"
 				/>
 			</div>
-			<Card.Title class="text-2xl font-bold">Welcome back</Card.Title>
+			<Card.Title class="text-2xl font-bold">{m.login_title()}</Card.Title>
 			<Card.Description>
 				{#if requiresMfa}
-					Enter your two-factor authentication code
+					{m.login_mfa_title()}
 				{:else}
-					Sign in to your Dockhand account
+					{m.login_subtitle()}
 				{/if}
 			</Card.Description>
 		</Card.Header>
@@ -257,7 +258,7 @@
 						{/if}
 
 						<div class="space-y-2">
-							<Label for="username">Username</Label>
+							<Label for="username">{m.login_username()}</Label>
 							<Input
 								id="username"
 								type="text"
@@ -271,7 +272,7 @@
 						</div>
 
 						<div class="space-y-2">
-							<Label for="password">Password</Label>
+							<Label for="password">{m.login_password()}</Label>
 							<Input
 								id="password"
 								type="password"
@@ -288,7 +289,7 @@
 								<Shield class="h-4 w-4" />
 								<span>Two-factor authentication required</span>
 							</div>
-							<Label for="mfaToken">Authentication code</Label>
+							<Label for="mfaToken">{m.login_mfa_code()}</Label>
 							<Input
 								id="mfaToken"
 								name="totp"

@@ -29,6 +29,7 @@
 	import { authStore, hasAnyAccess } from '$lib/stores/auth';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as m from '$lib/paraglide/messages';
 
 	const appVersion = __APP_VERSION__ || 'unknown';
 	const buildCommit = __BUILD_COMMIT__ ?? null;
@@ -94,20 +95,20 @@
 	}
 
 	const menuItems: readonly MenuItem[] = [
-		{ href: '/', Icon: LayoutDashboard, label: 'Dashboard', permission: 'always' },
-		{ href: '/containers', Icon: Box, label: 'Containers', permission: 'containers' },
-		{ href: '/logs', Icon: ScrollText, label: 'Logs', permission: 'containers' },
-		{ href: '/terminal', Icon: Terminal, label: 'Shell', permission: 'containers' },
-		{ href: '/stacks', Icon: Layers, label: 'Stacks', permission: 'stacks' },
-		{ href: '/images', Icon: Images, label: 'Images', permission: 'images' },
-		{ href: '/volumes', Icon: HardDrive, label: 'Volumes', permission: 'volumes' },
-		{ href: '/networks', Icon: Network, label: 'Networks', permission: 'networks' },
-		{ href: '/templates', Icon: LibraryBig, label: 'Templates', permission: 'templates' },
-		{ href: '/registry', Icon: Download, label: 'Registry', permission: 'registries' },
-		{ href: '/activity', Icon: Activity, label: 'Activity', permission: 'activity' },
-		{ href: '/schedules', Icon: Timer, label: 'Schedules', permission: 'schedules' },
-		{ href: '/audit', Icon: ClipboardList, label: 'Audit log', permission: 'audit_logs', enterpriseOnly: true },
-		{ href: '/settings', Icon: Settings, label: 'Settings', permission: 'settings' }
+		{ href: '/', Icon: LayoutDashboard, label: m.sidebar_dashboard(), permission: 'always' },
+		{ href: '/containers', Icon: Box, label: m.sidebar_containers(), permission: 'containers' },
+		{ href: '/logs', Icon: ScrollText, label: m.sidebar_logs(), permission: 'containers' },
+		{ href: '/terminal', Icon: Terminal, label: m.sidebar_shell(), permission: 'containers' },
+		{ href: '/stacks', Icon: Layers, label: m.sidebar_stacks(), permission: 'stacks' },
+		{ href: '/images', Icon: Images, label: m.sidebar_images(), permission: 'images' },
+		{ href: '/volumes', Icon: HardDrive, label: m.sidebar_volumes(), permission: 'volumes' },
+		{ href: '/networks', Icon: Network, label: m.sidebar_networks(), permission: 'networks' },
+		{ href: '/templates', Icon: LibraryBig, label: m.sidebar_templates(), permission: 'templates' },
+		{ href: '/registry', Icon: Download, label: m.sidebar_registry(), permission: 'registries' },
+		{ href: '/activity', Icon: Activity, label: m.sidebar_activity(), permission: 'activity' },
+		{ href: '/schedules', Icon: Timer, label: m.sidebar_schedules(), permission: 'schedules' },
+		{ href: '/audit', Icon: ClipboardList, label: m.sidebar_audit_log(), permission: 'audit_logs', enterpriseOnly: true },
+		{ href: '/settings', Icon: Settings, label: m.sidebar_settings(), permission: 'settings' }
 	] as const;
 </script>
 

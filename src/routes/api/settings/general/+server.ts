@@ -42,6 +42,7 @@ export type DownloadFormat = 'tar' | 'tar.gz' | 'raw';
 export type EventCollectionMode = 'stream' | 'poll';
 
 export interface GeneralSettings {
+	locale: string;
 	confirmDestructive: boolean;
 	showStoppedContainers: boolean;
 	highlightUpdates: boolean;
@@ -105,6 +106,7 @@ export interface GeneralSettings {
 }
 
 const DEFAULT_SETTINGS: Omit<GeneralSettings, 'scheduleRetentionDays' | 'eventRetentionDays' | 'scheduleCleanupCron' | 'eventCleanupCron' | 'scheduleCleanupEnabled' | 'eventCleanupEnabled' | 'scannerCleanupCron' | 'scannerCleanupEnabled'> = {
+	locale: 'en',
 	confirmDestructive: true,
 	showStoppedContainers: true,
 	highlightUpdates: true,
@@ -178,6 +180,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// Fetch all settings in parallel for better performance
 		const [
+			locale,
 			confirmDestructive,
 			showStoppedContainers,
 			highlightUpdates,
@@ -221,7 +224,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			animateIcons,
 			protectScannerImages
 		] = await Promise.all([
-			getSetting('confirm_destructive'),
+			getSetting('locale'),
 			getSetting('show_stopped_containers'),
 			getSetting('highlight_updates'),
 			getSetting('time_format'),
@@ -266,6 +269,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 		]);
 
 		const settings: GeneralSettings = {
+			locale: locale ?? 'en',
 			confirmDestructive: confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
 			showStoppedContainers: showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
 			highlightUpdates: highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
@@ -327,8 +331,11 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	try {
 		const body = await request.json();
-		const { confirmDestructive, showStoppedContainers, highlightUpdates, timeFormat, dateFormat, downloadFormat, defaultGrypeArgs, defaultTrivyArgs, scheduleRetentionDays, eventRetentionDays, scheduleCleanupCron, eventCleanupCron, scheduleCleanupEnabled, eventCleanupEnabled, scannerCleanupCron, scannerCleanupEnabled, logBufferSizeKb, logMaxLines, defaultTimezone, eventCollectionMode, eventPollInterval, metricsCollectionInterval, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, compactPorts, showExposedPorts, formatLogTimestamps, externalStackPaths, primaryStackLocation, defaultGrypeImage, defaultTrivyImage, defaultComposeTemplate, labelFilterMode, honorProxyLabels, showImageChangelogLinks, animateIcons, protectScannerImages } = body;
+		const { locale, confirmDestructive, showStoppedContainers, highlightUpdates, timeFormat, dateFormat, downloadFormat, defaultGrypeArgs, defaultTrivyArgs, scheduleRetentionDays, eventRetentionDays, scheduleCleanupCron, eventCleanupCron, scheduleCleanupEnabled, eventCleanupEnabled, scannerCleanupCron, scannerCleanupEnabled, logBufferSizeKb, logMaxLines, defaultTimezone, eventCollectionMode, eventPollInterval, metricsCollectionInterval, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, compactPorts, showExposedPorts, formatLogTimestamps, externalStackPaths, primaryStackLocation, defaultGrypeImage, defaultTrivyImage, defaultComposeTemplate, labelFilterMode, honorProxyLabels, showImageChangelogLinks, animateIcons, protectScannerImages } = body;
 
+		if (locale !== undefined && typeof locale === 'string') {
+			await setSetting('locale', locale);
+		}
 		if (confirmDestructive !== undefined) {
 			await setSetting('confirm_destructive', confirmDestructive);
 		}
@@ -482,6 +489,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		// Fetch all settings in parallel for the response
 		const [
+			localeVal,
 			confirmDestructiveVal,
 			showStoppedContainersVal,
 			highlightUpdatesVal,
@@ -525,6 +533,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			animateIconsVal,
 			protectScannerImagesVal
 		] = await Promise.all([
+			getSetting('locale'),
 			getSetting('confirm_destructive'),
 			getSetting('show_stopped_containers'),
 			getSetting('highlight_updates'),
@@ -570,6 +579,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		]);
 
 		const settings: GeneralSettings = {
+			locale: localeVal ?? DEFAULT_SETTINGS.locale,
 			confirmDestructive: confirmDestructiveVal ?? DEFAULT_SETTINGS.confirmDestructive,
 			showStoppedContainers: showStoppedContainersVal ?? DEFAULT_SETTINGS.showStoppedContainers,
 			highlightUpdates: highlightUpdatesVal ?? DEFAULT_SETTINGS.highlightUpdates,

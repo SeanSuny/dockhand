@@ -9,6 +9,7 @@
 
 import { writable, get } from 'svelte/store';
 import { getFont, getMonospaceFont, type FontMeta } from '$lib/themes';
+import { setActiveLocale } from '$lib/i18n';
 
 export type FontSize = 'xsmall' | 'small' | 'normal' | 'medium' | 'large' | 'xlarge';
 
@@ -95,6 +96,12 @@ function createThemeStore() {
 				const res = await fetch(url);
 				if (res.ok) {
 					const data = await res.json();
+
+					// Apply per-user locale from profile preferences without re-persisting
+					if (userId && data.locale) {
+						setActiveLocale(data.locale, { userId, skipPersist: true });
+					}
+
 					const prefs: ThemePreferences = {
 						lightTheme: data.lightTheme || data.theme_light || 'default',
 						darkTheme: data.darkTheme || data.theme_dark || 'default',

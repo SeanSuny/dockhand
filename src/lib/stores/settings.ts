@@ -1,0 +1,636 @@
+import { writable, derived, get } from 'svelte/store';
+import { browser } from '$app/environment';
+import { setActiveLocale, type SupportedLocale } from '$lib/i18n';
+import { authStore } from '$lib/stores/auth';
+
+export type TimeFormat = '12h' | '24h';
+export type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'DD.MM.YYYY';
+export type DownloadFormat = 'tar' | 'tar.gz' | 'raw';
+export type EventCollectionMode = 'stream' | 'poll';
+export type LabelFilterMode = 'any' | 'all';
+
+export interface AppSettings {
+	locale: SupportedLocale;
+	confirmDestructive: boolean;
+	showStoppedContainers: boolean;
+	highlightUpdates: boolean;
+	timeFormat: TimeFormat;
+	dateFormat: DateFormat;
+	downloadFormat: DownloadFormat;
+	defaultGrypeArgs: string;
+	defaultTrivyArgs: string;
+	scheduleRetentionDays: number;
+	eventRetentionDays: number;
+	scheduleCleanupCron: string;
+	eventCleanupCron: string;
+	scheduleCleanupEnabled: boolean;
+	eventCleanupEnabled: boolean;
+	scannerCleanupCron: string;
+	scannerCleanupEnabled: boolean;
+	logBufferSizeKb: number;  // legacy, retained for migration — UI uses logMaxLines
+	logMaxLines: number;       // line-count cap for the log buffer (replaces KB-based limit)
+	defaultTimezone: string;
+	eventCollectionMode: EventCollectionMode;
+	eventPollInterval: number;
+	metricsCollectionInterval: number;
+	compactPorts: boolean;
+	showExposedPorts: boolean;
+	formatLogTimestamps: boolean;
+	externalStackPaths: string[];
+	primaryStackLocation: string | null;
+	defaultGrypeImage: string;
+	defaultTrivyImage: string;
+	defaultComposeTemplate: string;
+	labelFilterMode: LabelFilterMode;
+	honorProxyLabels: boolean;
+	showImageChangelogLinks: boolean;
+	protectScannerImages: boolean;
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+	locale: 'en',
+	confirmDestructive: true,
+	showStoppedContainers: true,
+	highlightUpdates: true,
+	timeFormat: '24h',
+	dateFormat: 'DD.MM.YYYY',
+	downloadFormat: 'tar',
+	defaultGrypeArgs: '-o json -v {image}',
+	defaultTrivyArgs: 'image --format json {image}',
+	scheduleRetentionDays: 30,
+	eventRetentionDays: 30,
+	scheduleCleanupCron: '0 3 * * *',
+	eventCleanupCron: '30 3 * * *',
+	scheduleCleanupEnabled: true,
+	eventCleanupEnabled: true,
+	scannerCleanupCron: '0 3 * * 0',
+	scannerCleanupEnabled: true,
+	logBufferSizeKb: 500,
+	logMaxLines: 2000,
+	defaultTimezone: 'UTC',
+	eventCollectionMode: 'stream',
+	eventPollInterval: 60000,
+	metricsCollectionInterval: 30000,
+	compactPorts: false,
+	showExposedPorts: false,
+	formatLogTimestamps: false,
+	externalStackPaths: [],
+	primaryStackLocation: null,
+	defaultGrypeImage: 'anchore/grype:v0.110.0',
+	defaultTrivyImage: 'aquasec/trivy:0.69.3',
+	labelFilterMode: 'any',
+	honorProxyLabels: true,
+	showImageChangelogLinks: true,
+	protectScannerImages: true,
+	defaultComposeTemplate: `version: "3.8"
+
+services:
+  app:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    environment:
+      - APP_ENV=\${APP_ENV:-production}
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+# Add more services as needed
+# networks:
+#   default:
+#     driver: bridge
+`
+};
+
+// Derive logMaxLines from a settings payload — prefers the new field; if absent
+// (older DB), converts the legacy KB value at ~8 lines/KB (Docker log lines
+// average ~120 chars). Clamps to a sensible range.
+function deriveLogMaxLines(s: { logMaxLines?: number; logBufferSizeKb?: number }): number {
+	// Cap at 2000 — anything larger thrashes the browser when rendering with no
+	// virtualization. Old DBs may have absurd values from when the cap was 50K;
+	// snap them down here so users don't get a stuck page after upgrade.
+	if (typeof s.logMaxLines === 'number' && s.logMaxLines > 0) {
+		return Math.min(2000, Math.max(100, s.logMaxLines));
+	}
+	const kb = s.logBufferSizeKb ?? DEFAULT_SETTINGS.logBufferSizeKb;
+	return Math.min(2000, Math.max(100, Math.round(kb * 8)));
+}
+
+// Create a writable store for app settings
+function createSettingsStore() {
+	const { subscribe, set, update } = writable<AppSettings>(DEFAULT_SETTINGS);
+	let initialized = false;
+
+	// Load settings from database on initialization
+	async function loadSettings() {
+		if (!browser || initialized) return;
+		initialized = true;
+
+		try {
+			const response = await fetch('/api/settings/general');
+			if (response.ok) {
+				const settings = await response.json();
+
+				// Apply server-persisted locale without re-persisting it
+				if (settings.locale) {
+					setActiveLocale(settings.locale, { skipPersist: true });
+				}
+
+				set({
+					locale: settings.locale ?? DEFAULT_SETTINGS.locale,
+					confirmDestructive: settings.confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
+					showStoppedContainers: settings.showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
+					highlightUpdates: settings.highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
+					timeFormat: settings.timeFormat ?? DEFAULT_SETTINGS.timeFormat,
+					dateFormat: settings.dateFormat ?? DEFAULT_SETTINGS.dateFormat,
+					downloadFormat: settings.downloadFormat ?? DEFAULT_SETTINGS.downloadFormat,
+					defaultGrypeArgs: settings.defaultGrypeArgs ?? DEFAULT_SETTINGS.defaultGrypeArgs,
+					defaultTrivyArgs: settings.defaultTrivyArgs ?? DEFAULT_SETTINGS.defaultTrivyArgs,
+					scheduleRetentionDays: settings.scheduleRetentionDays ?? DEFAULT_SETTINGS.scheduleRetentionDays,
+					eventRetentionDays: settings.eventRetentionDays ?? DEFAULT_SETTINGS.eventRetentionDays,
+					scheduleCleanupCron: settings.scheduleCleanupCron ?? DEFAULT_SETTINGS.scheduleCleanupCron,
+					eventCleanupCron: settings.eventCleanupCron ?? DEFAULT_SETTINGS.eventCleanupCron,
+					scheduleCleanupEnabled: settings.scheduleCleanupEnabled ?? DEFAULT_SETTINGS.scheduleCleanupEnabled,
+					eventCleanupEnabled: settings.eventCleanupEnabled ?? DEFAULT_SETTINGS.eventCleanupEnabled,
+					scannerCleanupCron: settings.scannerCleanupCron ?? DEFAULT_SETTINGS.scannerCleanupCron,
+					scannerCleanupEnabled: settings.scannerCleanupEnabled ?? DEFAULT_SETTINGS.scannerCleanupEnabled,
+					logBufferSizeKb: settings.logBufferSizeKb ?? DEFAULT_SETTINGS.logBufferSizeKb,
+					logMaxLines: deriveLogMaxLines(settings),
+					defaultTimezone: settings.defaultTimezone ?? DEFAULT_SETTINGS.defaultTimezone,
+					eventCollectionMode: settings.eventCollectionMode ?? DEFAULT_SETTINGS.eventCollectionMode,
+					eventPollInterval: settings.eventPollInterval ?? DEFAULT_SETTINGS.eventPollInterval,
+					metricsCollectionInterval: settings.metricsCollectionInterval ?? DEFAULT_SETTINGS.metricsCollectionInterval,
+					compactPorts: settings.compactPorts ?? DEFAULT_SETTINGS.compactPorts,
+					showExposedPorts: settings.showExposedPorts ?? DEFAULT_SETTINGS.showExposedPorts,
+					formatLogTimestamps: settings.formatLogTimestamps ?? DEFAULT_SETTINGS.formatLogTimestamps,
+					externalStackPaths: settings.externalStackPaths ?? DEFAULT_SETTINGS.externalStackPaths,
+					primaryStackLocation: settings.primaryStackLocation ?? DEFAULT_SETTINGS.primaryStackLocation,
+					defaultGrypeImage: settings.defaultGrypeImage ?? DEFAULT_SETTINGS.defaultGrypeImage,
+					defaultTrivyImage: settings.defaultTrivyImage ?? DEFAULT_SETTINGS.defaultTrivyImage,
+					defaultComposeTemplate: settings.defaultComposeTemplate ?? DEFAULT_SETTINGS.defaultComposeTemplate,
+				labelFilterMode: settings.labelFilterMode ?? DEFAULT_SETTINGS.labelFilterMode,
+				honorProxyLabels: settings.honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
+				showImageChangelogLinks: settings.showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
+				protectScannerImages: settings.protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages
+				});
+			}
+		} catch {
+			// Silently use defaults if settings can't be loaded
+		}
+	}
+
+	// Save settings to database
+	async function saveSettings(settings: Partial<AppSettings>) {
+		if (!browser) return;
+
+		try {
+			const response = await fetch('/api/settings/general', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(settings)
+			});
+			if (response.ok) {
+				const updatedSettings = await response.json();
+				set({
+					locale: updatedSettings.locale ?? DEFAULT_SETTINGS.locale,
+					confirmDestructive: updatedSettings.confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
+					showStoppedContainers: updatedSettings.showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
+					highlightUpdates: updatedSettings.highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
+					timeFormat: updatedSettings.timeFormat ?? DEFAULT_SETTINGS.timeFormat,
+					dateFormat: updatedSettings.dateFormat ?? DEFAULT_SETTINGS.dateFormat,
+					downloadFormat: updatedSettings.downloadFormat ?? DEFAULT_SETTINGS.downloadFormat,
+					defaultGrypeArgs: updatedSettings.defaultGrypeArgs ?? DEFAULT_SETTINGS.defaultGrypeArgs,
+					defaultTrivyArgs: updatedSettings.defaultTrivyArgs ?? DEFAULT_SETTINGS.defaultTrivyArgs,
+					scheduleRetentionDays: updatedSettings.scheduleRetentionDays ?? DEFAULT_SETTINGS.scheduleRetentionDays,
+					eventRetentionDays: updatedSettings.eventRetentionDays ?? DEFAULT_SETTINGS.eventRetentionDays,
+					scheduleCleanupCron: updatedSettings.scheduleCleanupCron ?? DEFAULT_SETTINGS.scheduleCleanupCron,
+					eventCleanupCron: updatedSettings.eventCleanupCron ?? DEFAULT_SETTINGS.eventCleanupCron,
+					scheduleCleanupEnabled: updatedSettings.scheduleCleanupEnabled ?? DEFAULT_SETTINGS.scheduleCleanupEnabled,
+					eventCleanupEnabled: updatedSettings.eventCleanupEnabled ?? DEFAULT_SETTINGS.eventCleanupEnabled,
+					scannerCleanupCron: updatedSettings.scannerCleanupCron ?? DEFAULT_SETTINGS.scannerCleanupCron,
+					scannerCleanupEnabled: updatedSettings.scannerCleanupEnabled ?? DEFAULT_SETTINGS.scannerCleanupEnabled,
+					logBufferSizeKb: updatedSettings.logBufferSizeKb ?? DEFAULT_SETTINGS.logBufferSizeKb,
+					logMaxLines: deriveLogMaxLines(updatedSettings),
+					defaultTimezone: updatedSettings.defaultTimezone ?? DEFAULT_SETTINGS.defaultTimezone,
+					eventCollectionMode: updatedSettings.eventCollectionMode ?? DEFAULT_SETTINGS.eventCollectionMode,
+					eventPollInterval: updatedSettings.eventPollInterval ?? DEFAULT_SETTINGS.eventPollInterval,
+					metricsCollectionInterval: updatedSettings.metricsCollectionInterval ?? DEFAULT_SETTINGS.metricsCollectionInterval,
+					compactPorts: updatedSettings.compactPorts ?? DEFAULT_SETTINGS.compactPorts,
+					showExposedPorts: updatedSettings.showExposedPorts ?? DEFAULT_SETTINGS.showExposedPorts,
+					formatLogTimestamps: updatedSettings.formatLogTimestamps ?? DEFAULT_SETTINGS.formatLogTimestamps,
+					externalStackPaths: updatedSettings.externalStackPaths ?? DEFAULT_SETTINGS.externalStackPaths,
+					primaryStackLocation: updatedSettings.primaryStackLocation ?? DEFAULT_SETTINGS.primaryStackLocation,
+					defaultGrypeImage: updatedSettings.defaultGrypeImage ?? DEFAULT_SETTINGS.defaultGrypeImage,
+					defaultTrivyImage: updatedSettings.defaultTrivyImage ?? DEFAULT_SETTINGS.defaultTrivyImage,
+					defaultComposeTemplate: updatedSettings.defaultComposeTemplate ?? DEFAULT_SETTINGS.defaultComposeTemplate,
+				labelFilterMode: updatedSettings.labelFilterMode ?? DEFAULT_SETTINGS.labelFilterMode,
+				honorProxyLabels: updatedSettings.honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
+				showImageChangelogLinks: updatedSettings.showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
+				protectScannerImages: updatedSettings.protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages
+				});
+			}
+		} catch (error) {
+			console.error('Failed to save settings:', error);
+		}
+	}
+
+	// Load settings on store creation
+	if (browser) {
+		loadSettings();
+	}
+
+	return {
+		subscribe,
+		set: (value: AppSettings) => {
+			set(value);
+			saveSettings(value);
+		},
+		update: (fn: (settings: AppSettings) => AppSettings) => {
+			update((current) => {
+				const newSettings = fn(current);
+				saveSettings(newSettings);
+				return newSettings;
+			});
+		},
+		// Convenience methods for individual settings
+		setConfirmDestructive: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, confirmDestructive: value };
+				saveSettings({ confirmDestructive: value });
+				return newSettings;
+			});
+		},
+		setShowStoppedContainers: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, showStoppedContainers: value };
+				saveSettings({ showStoppedContainers: value });
+				return newSettings;
+			});
+		},
+		setHighlightUpdates: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, highlightUpdates: value };
+				saveSettings({ highlightUpdates: value });
+				return newSettings;
+			});
+		},
+		setTimeFormat: (value: TimeFormat) => {
+			update((current) => {
+				const newSettings = { ...current, timeFormat: value };
+				saveSettings({ timeFormat: value });
+				return newSettings;
+			});
+		},
+		setDateFormat: (value: DateFormat) => {
+			update((current) => {
+				const newSettings = { ...current, dateFormat: value };
+				saveSettings({ dateFormat: value });
+				return newSettings;
+			});
+		},
+		setDownloadFormat: (value: DownloadFormat) => {
+			update((current) => {
+				const newSettings = { ...current, downloadFormat: value };
+				saveSettings({ downloadFormat: value });
+				return newSettings;
+			});
+		},
+		setDefaultGrypeArgs: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, defaultGrypeArgs: value };
+				saveSettings({ defaultGrypeArgs: value });
+				return newSettings;
+			});
+		},
+		setDefaultTrivyArgs: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, defaultTrivyArgs: value };
+				saveSettings({ defaultTrivyArgs: value });
+				return newSettings;
+			});
+		},
+		setScheduleRetentionDays: (value: number) => {
+			update((current) => {
+				const newSettings = { ...current, scheduleRetentionDays: value };
+				saveSettings({ scheduleRetentionDays: value });
+				return newSettings;
+			});
+		},
+		setEventRetentionDays: (value: number) => {
+			update((current) => {
+				const newSettings = { ...current, eventRetentionDays: value };
+				saveSettings({ eventRetentionDays: value });
+				return newSettings;
+			});
+		},
+		setScheduleCleanupCron: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, scheduleCleanupCron: value };
+				saveSettings({ scheduleCleanupCron: value });
+				return newSettings;
+			});
+		},
+		setEventCleanupCron: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, eventCleanupCron: value };
+				saveSettings({ eventCleanupCron: value });
+				return newSettings;
+			});
+		},
+		setScheduleCleanupEnabled: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, scheduleCleanupEnabled: value };
+				saveSettings({ scheduleCleanupEnabled: value });
+				return newSettings;
+			});
+		},
+		setEventCleanupEnabled: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, eventCleanupEnabled: value };
+				saveSettings({ eventCleanupEnabled: value });
+				return newSettings;
+			});
+		},
+		setScannerCleanupCron: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, scannerCleanupCron: value };
+				saveSettings({ scannerCleanupCron: value });
+				return newSettings;
+			});
+		},
+		setScannerCleanupEnabled: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, scannerCleanupEnabled: value };
+				saveSettings({ scannerCleanupEnabled: value });
+				return newSettings;
+			});
+		},
+		setLogBufferSizeKb: (value: number) => {
+			update((current) => {
+				const newSettings = { ...current, logBufferSizeKb: value };
+				saveSettings({ logBufferSizeKb: value });
+				return newSettings;
+			});
+		},
+		setLogMaxLines: (value: number) => {
+			update((current) => {
+				const newSettings = { ...current, logMaxLines: value };
+				saveSettings({ logMaxLines: value });
+				return newSettings;
+			});
+		},
+		setDefaultTimezone: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, defaultTimezone: value };
+				saveSettings({ defaultTimezone: value });
+				return newSettings;
+			});
+		},
+		setEventCollectionMode: (value: EventCollectionMode) => {
+			update((current) => {
+				const newSettings = { ...current, eventCollectionMode: value };
+				saveSettings({ eventCollectionMode: value });
+				return newSettings;
+			});
+		},
+		setEventPollInterval: (value: number) => {
+			update((current) => {
+				const newSettings = { ...current, eventPollInterval: value };
+				saveSettings({ eventPollInterval: value });
+				return newSettings;
+			});
+		},
+		setMetricsCollectionInterval: (value: number) => {
+			update((current) => {
+				const newSettings = { ...current, metricsCollectionInterval: value };
+				saveSettings({ metricsCollectionInterval: value });
+				return newSettings;
+			});
+		},
+		setCompactPorts: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, compactPorts: value };
+				saveSettings({ compactPorts: value });
+				return newSettings;
+			});
+		},
+		setShowExposedPorts: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, showExposedPorts: value };
+				saveSettings({ showExposedPorts: value });
+				return newSettings;
+			});
+		},
+		setFormatLogTimestamps: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, formatLogTimestamps: value };
+				saveSettings({ formatLogTimestamps: value });
+				return newSettings;
+			});
+		},
+		setExternalStackPaths: (value: string[]) => {
+			update((current) => {
+				const newSettings = { ...current, externalStackPaths: value };
+				saveSettings({ externalStackPaths: value });
+				return newSettings;
+			});
+		},
+		setPrimaryStackLocation: (value: string | null) => {
+			update((current) => {
+				const newSettings = { ...current, primaryStackLocation: value };
+				saveSettings({ primaryStackLocation: value });
+				return newSettings;
+			});
+		},
+		setDefaultGrypeImage: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, defaultGrypeImage: value };
+				saveSettings({ defaultGrypeImage: value });
+				return newSettings;
+			});
+		},
+		setDefaultTrivyImage: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, defaultTrivyImage: value };
+				saveSettings({ defaultTrivyImage: value });
+				return newSettings;
+			});
+		},
+		setDefaultComposeTemplate: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, defaultComposeTemplate: value };
+				saveSettings({ defaultComposeTemplate: value });
+				return newSettings;
+			});
+		},
+		setLabelFilterMode: (value: LabelFilterMode) => {
+			update((current) => {
+				const newSettings = { ...current, labelFilterMode: value };
+				saveSettings({ labelFilterMode: value });
+				return newSettings;
+			});
+		},
+		setHonorProxyLabels: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, honorProxyLabels: value };
+				saveSettings({ honorProxyLabels: value });
+				return newSettings;
+			});
+		},
+		setProtectScannerImages: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, protectScannerImages: value };
+				saveSettings({ protectScannerImages: value });
+				return newSettings;
+			});
+		},
+		setShowImageChangelogLinks: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, showImageChangelogLinks: value };
+				saveSettings({ showImageChangelogLinks: value });
+				return newSettings;
+			});
+		},
+		setLocale: (value: SupportedLocale) => {
+			update((current) => {
+				const userId = get(authStore).user?.id;
+				const newSettings = { ...current, locale: value };
+				setActiveLocale(value, { userId });
+				saveSettings({ locale: value });
+				return newSettings;
+			});
+		},
+		// Manual refresh from database
+		refresh: () => {
+			initialized = false;
+			return loadSettings();
+		}
+	};
+}
+
+export const appSettings = createSettingsStore();
+
+// Cache current settings for synchronous access (updated reactively)
+let cachedTimeFormat: TimeFormat = DEFAULT_SETTINGS.timeFormat;
+let cachedDateFormat: DateFormat = DEFAULT_SETTINGS.dateFormat;
+
+// Subscribe once to keep cache updated
+if (browser) {
+	appSettings.subscribe((s) => {
+		cachedTimeFormat = s.timeFormat;
+		cachedDateFormat = s.dateFormat;
+	});
+}
+
+/**
+ * Format a date part according to user's date format preference.
+ * This is a low-level helper - prefer formatDateTime for most uses.
+ */
+function formatDatePart(d: Date): string {
+	const day = d.getDate().toString().padStart(2, '0');
+	const month = (d.getMonth() + 1).toString().padStart(2, '0');
+	const year = d.getFullYear();
+
+	switch (cachedDateFormat) {
+		case 'MM/DD/YYYY':
+			return `${month}/${day}/${year}`;
+		case 'DD/MM/YYYY':
+			return `${day}/${month}/${year}`;
+		case 'YYYY-MM-DD':
+			return `${year}-${month}-${day}`;
+		case 'DD.MM.YYYY':
+		default:
+			return `${day}.${month}.${year}`;
+	}
+}
+
+/**
+ * Format a time part according to user's time format preference.
+ * This is a low-level helper - prefer formatDateTime for most uses.
+ */
+function formatTimePart(d: Date, includeSeconds = false): string {
+	const hours = d.getHours();
+	const minutes = d.getMinutes().toString().padStart(2, '0');
+	const seconds = d.getSeconds().toString().padStart(2, '0');
+
+	if (cachedTimeFormat === '12h') {
+		const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+		const ampm = hours >= 12 ? 'PM' : 'AM';
+		return includeSeconds
+			? `${hour12}:${minutes}:${seconds} ${ampm}`
+			: `${hour12}:${minutes} ${ampm}`;
+	} else {
+		const hour24 = hours.toString().padStart(2, '0');
+		return includeSeconds
+			? `${hour24}:${minutes}:${seconds}`
+			: `${hour24}:${minutes}`;
+	}
+}
+
+/**
+ * Format a timestamp according to user's time and date format preferences.
+ * Performant: uses cached settings, no store subscription per call.
+ *
+ * @param date - Date object, ISO string, or timestamp
+ * @param options - Formatting options
+ * @returns Formatted string
+ */
+export function formatTime(
+	date: Date | string | number,
+	options: { includeDate?: boolean; includeSeconds?: boolean } = {}
+): string {
+	const d = date instanceof Date ? date : new Date(date);
+	const { includeDate = false, includeSeconds = false } = options;
+
+	if (includeDate) {
+		return `${formatDatePart(d)} ${formatTimePart(d, includeSeconds)}`;
+	}
+
+	return formatTimePart(d, includeSeconds);
+}
+
+/**
+ * Format a timestamp with date according to user's preferences.
+ * Convenience wrapper around formatTime.
+ */
+export function formatDateTime(date: Date | string | number, includeSeconds = false): string {
+	return formatTime(date, { includeDate: true, includeSeconds });
+}
+
+/**
+ * Format just the date part according to user's preferences.
+ */
+export function formatDate(date: Date | string | number): string {
+	const d = date instanceof Date ? date : new Date(date);
+	return formatDatePart(d);
+}
+
+/**
+ * Get the current time format setting (for components that need it).
+ */
+export function getTimeFormat(): TimeFormat {
+	return cachedTimeFormat;
+}
+
+/**
+ * Get the current date format setting (for components that need it).
+ */
+export function getDateFormat(): DateFormat {
+	return cachedDateFormat;
+}
+
+// Regex matching ISO 8601 timestamps at the start of log lines (after optional container prefix)
+// Matches: 2026-01-12T07:47:44.449821093Z or 2026-01-12T07:47:44Z
+const ISO_TIMESTAMP_RE = /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?Z/g;
+
+/**
+ * Replace ISO 8601 timestamps in log text with formatted local timestamps.
+ * Uses the user's configured date/time format settings.
+ */
+export function formatLogTimestamps(text: string): string {
+	return text.replace(ISO_TIMESTAMP_RE, (_match, dateTimePart) => {
+		const d = new Date(_match);
+		if (isNaN(d.getTime())) return _match;
+		return `${formatDatePart(d)} ${formatTimePart(d, true)}`;
+	});
+}

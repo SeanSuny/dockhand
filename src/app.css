@@ -1,7 +1,9 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
 
-@source "../node_modules/layerchart/**/*.svelte";
+/* Tailwind v4 auto-detects content files and would scan node_modules.
+   Disable auto-detection and only scan our own source files. */
+@source "../src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

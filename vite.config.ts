@@ -1,5 +1,4 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { execSync } from 'child_process';
@@ -1207,7 +1206,6 @@ async function handleHawserMessage(ws: any, msg: any) {
 
 export default defineConfig({
 	plugins: [
-		tailwindcss(),
 		paraglideVitePlugin({
 			project: './project.inlang',
 			outdir: './src/lib/paraglide'
@@ -1222,7 +1220,8 @@ export default defineConfig({
 		__APP_VERSION__: JSON.stringify(getGitTag())
 	},
 	optimizeDeps: {
-		include: ['lucide-svelte', '@xterm/xterm', '@xterm/addon-fit']
+		include: ['lucide-svelte', '@xterm/xterm', '@xterm/addon-fit', 'layercake'],
+		exclude: ['layerchart']
 	},
 	resolve: {
 		dedupe: [

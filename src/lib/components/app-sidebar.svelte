@@ -246,8 +246,8 @@
 				type="button"
 				onclick={() => sidebar.toggle()}
 				class="absolute right-1 p-1.5 rounded-md hover:bg-sidebar-accent text-gray-300 hover:text-gray-400 transition-colors"
-				title="Collapse sidebar"
-				aria-label="Collapse sidebar"
+				title={m.sidebar_collapse()}
+				aria-label={m.sidebar_collapse()}
 			>
 				<PanelLeftClose class="w-4 h-4" aria-hidden="true" />
 			</button>
@@ -257,8 +257,8 @@
 			type="button"
 			onclick={() => sidebar.toggle()}
 			class="hidden group-data-[state=collapsed]:flex p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors"
-			title="Expand sidebar"
-			aria-label="Expand sidebar"
+			title={m.sidebar_expand()}
+			aria-label={m.sidebar_expand()}
 		>
 			<PanelLeft class="w-4 h-4" aria-hidden="true" />
 		</button>

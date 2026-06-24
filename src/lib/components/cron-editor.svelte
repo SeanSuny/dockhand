@@ -3,7 +3,9 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Calendar, CalendarDays, Clock } from 'lucide-svelte';
 	import { appSettings } from '$lib/stores/settings';
-	import cronstrue from 'cronstrue';
+	import cronstrue from 'cronstrue/i18n';
+	import { getLocale } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	// Reactive time format from settings
 	let is12Hour = $derived($appSettings.timeFormat === '12h');
@@ -151,6 +153,9 @@
 		return parts.every((part) => cronFieldPattern.test(part));
 	}
 
+	// Map Paraglide locale to cronstrue locale
+	let cronLocale = $derived(getLocale() === 'zh-CN' ? 'zh_CN' : 'en');
+
 	// Human-readable description using cronstrue
 	let humanReadable = $derived(() => {
 		if (!cronValue) return '';
@@ -158,7 +163,7 @@
 
 		// Validate first
 		if (!isValidCron(cronValue)) {
-			return 'Invalid';
+			return m.cron_invalid();
 		}
 
 		try {
@@ -167,11 +172,11 @@
 			const description = cronstrue.toString(cronValue, {
 				use24HourTimeFormat: !is12Hour,
 				throwExceptionOnParseError: true,
-				locale: 'en' // You can add user locale preference here if needed
+				locale: cronLocale
 			});
 			return description;
 		} catch (error) {
-			return 'Invalid';
+			return m.cron_invalid();
 		}
 	});
 
@@ -195,13 +200,13 @@
 	}));
 
 	const daysOfWeek = [
-		{ value: '1', label: 'Monday' },
-		{ value: '2', label: 'Tuesday' },
-		{ value: '3', label: 'Wednesday' },
-		{ value: '4', label: 'Thursday' },
-		{ value: '5', label: 'Friday' },
-		{ value: '6', label: 'Saturday' },
-		{ value: '0', label: 'Sunday' }
+		{ value: '1', label: m.cron_monday() },
+		{ value: '2', label: m.cron_tuesday() },
+		{ value: '3', label: m.cron_wednesday() },
+		{ value: '4', label: m.cron_thursday() },
+		{ value: '5', label: m.cron_friday() },
+		{ value: '6', label: m.cron_saturday() },
+		{ value: '0', label: m.cron_sunday() }
 	];
 </script>
 
@@ -212,13 +217,13 @@
 			<div class="flex items-center gap-2">
 				{#if scheduleType === 'daily'}
 					<Calendar class="w-4 h-4" />
-					<span>Daily</span>
+					<span>{m.cron_daily()}</span>
 				{:else if scheduleType === 'weekly'}
 					<CalendarDays class="w-4 h-4" />
-					<span>Weekly</span>
+					<span>{m.cron_weekly()}</span>
 				{:else}
 					<Clock class="w-4 h-4" />
-					<span>Custom</span>
+					<span>{m.cron_custom()}</span>
 				{/if}
 			</div>
 		</Select.Trigger>
@@ -226,19 +231,19 @@
 			<Select.Item value="daily">
 				<div class="flex items-center gap-2">
 					<Calendar class="w-4 h-4" />
-					<span>Daily</span>
+					<span>{m.cron_daily()}</span>
 				</div>
 			</Select.Item>
 			<Select.Item value="weekly">
 				<div class="flex items-center gap-2">
 					<CalendarDays class="w-4 h-4" />
-					<span>Weekly</span>
+					<span>{m.cron_weekly()}</span>
 				</div>
 			</Select.Item>
 			<Select.Item value="custom">
 				<div class="flex items-center gap-2">
 					<Clock class="w-4 h-4" />
-					<span>Custom</span>
+					<span>{m.cron_custom()}</span>
 				</div>
 			</Select.Item>
 		</Select.Content>
@@ -246,7 +251,7 @@
 
 	{#if scheduleType === 'daily' || scheduleType === 'weekly'}
 		<!-- Time Selectors -->
-		<span class="text-sm text-muted-foreground">at</span>
+		<span class="text-sm text-muted-foreground">{m.cron_at()}</span>
 		<Select.Root type="single" value={hour} onValueChange={handleHourChange} {disabled}>
 			<Select.Trigger class="w-[100px] h-9">
 				<span>{hours.find((h: { value: string; label: string }) => h.value === hour)?.label || hour}</span>
@@ -269,7 +274,7 @@
 		</Select.Root>
 
 		{#if scheduleType === 'weekly'}
-			<span class="text-sm text-muted-foreground">on</span>
+			<span class="text-sm text-muted-foreground">{m.cron_on()}</span>
 			<Select.Root type="single" value={dayOfWeek} onValueChange={handleDayOfWeekChange} {disabled}>
 				<Select.Trigger class="w-[110px] h-9">
 					<span>{daysOfWeek.find(d => d.value === dayOfWeek)?.label || dayOfWeek}</span>
@@ -285,11 +290,11 @@
 	{:else}
 		<!-- Custom cron input -->
 		{@const readable = humanReadable()}
-		{@const isInvalid = readable === 'Invalid'}
+		{@const isInvalid = readable === m.cron_invalid()}
 		<Input
 			value={cronValue}
 			oninput={handleCustomCronInput}
-			placeholder="0 3 * * *"
+			placeholder={m.cron_placeholder()}
 			class="h-9 font-mono flex-1 min-w-[200px] {isInvalid ? 'border-destructive focus-visible:ring-destructive' : ''}"
 			{disabled}
 		/>
@@ -300,7 +305,7 @@
 <div class="min-h-[20px] mt-1">
 	{#if cronValue}
 		{@const readable = humanReadable()}
-		{@const isInvalid = readable === 'Invalid'}
+		{@const isInvalid = readable === m.cron_invalid()}
 		<p class="text-xs {isInvalid ? 'text-destructive' : 'text-muted-foreground'}">
 			{readable}
 		</p>

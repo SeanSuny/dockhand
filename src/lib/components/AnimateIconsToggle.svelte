@@ -4,6 +4,7 @@
 	import { themeStore } from '$lib/stores/theme';
 	import { authStore } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';
+	import * as m from '$lib/paraglide/messages';
 
 	interface Props {
 		userId?: number; // omit for global default (login page / auth-disabled)
@@ -24,14 +25,14 @@
 	function onToggle(value: boolean) {
 		checked = value;
 		themeStore.setPreference('animateIcons', value, userId, skipApply);
-		toast.success(value ? 'Icon animation enabled' : 'Icon animation disabled');
+		toast.success(value ? m.toast_setting_enabled() : m.toast_setting_disabled());
 	}
 </script>
 
 <div class="space-y-1">
 	<div class="flex items-center gap-3">
-		<Label>Animate icons</Label>
+		<Label>{m.appearance_animate_icons()}</Label>
 		<TogglePill {checked} onchange={onToggle} />
 	</div>
-	<p class="text-xs text-muted-foreground">Spinners during pulls, scans and updates.</p>
+	<p class="text-xs text-muted-foreground">{m.appearance_animate_icons_desc()}</p>
 </div>

@@ -7,25 +7,39 @@
 	import { themeStore, applyTheme, type FontSize, type ActionIconSize } from '$lib/stores/theme';
 	import { authStore } from '$lib/stores/auth';
 
+	import * as m from '$lib/paraglide/messages';
+	import type { ThemeMeta, FontMeta } from '$lib/themes';
+
 	// Preload all monospace Google Fonts so dropdown previews render correctly
 	let monoFontsLoaded = $state(false);
 
 	// Font size options
 	const fontSizes: { id: FontSize; name: string }[] = [
-		{ id: 'xsmall', name: 'Extra Small' },
+		{ id: 'xsmall', name: m.appearance_font_size_xsmall() },
+		{ id: 'small', name: m.appearance_font_size_small() },
+		{ id: 'normal', name: m.appearance_font_size_normal() },
+		{ id: 'medium', name: m.appearance_font_size_medium() },
+		{ id: 'large', name: m.appearance_font_size_large() },
+		{ id: 'xlarge', name: m.appearance_font_size_xlarge() }
+	];
+
+const actionIconSizes: { id: ActionIconSize; name: string }[] = [
 		{ id: 'small', name: 'Small' },
 		{ id: 'normal', name: 'Normal' },
-		{ id: 'medium', name: 'Medium' },
 		{ id: 'large', name: 'Large' },
 		{ id: 'xlarge', name: 'Extra Large' }
 	];
 
-	const actionIconSizes: { id: ActionIconSize; name: string }[] = [
-		{ id: 'small', name: 'Small' },
-		{ id: 'normal', name: 'Normal' },
-		{ id: 'large', name: 'Large' },
-		{ id: 'xlarge', name: 'Extra Large' }
-	];
+	function themeLabel(theme: ThemeMeta) {
+		if (theme.id === 'default') return m.appearance_theme_default();
+		return theme.name;
+	}
+
+	function fontLabel(font: FontMeta) {
+		if (font.id === 'system') return m.appearance_font_system_ui();
+		if (font.id === 'system-mono') return m.appearance_font_system_mono();
+		return font.name;
+	}
 
 	interface Props {
 		userId?: number; // Pass userId for per-user settings, undefined for global
@@ -167,7 +181,7 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<Sun class="w-4 h-4 text-muted-foreground" />
-			<Label>Light theme</Label>
+			<Label>{m.appearance_light_theme()}</Label>
 		</div>
 		<Select.Root type="single" value={selectedLightTheme} onValueChange={handleLightThemeChange}>
 			<Select.Trigger class="w-56">
@@ -178,7 +192,7 @@
 								class="w-3 h-3 rounded-full border border-border"
 								style="background-color: {theme.preview}"
 							></span>
-							<span>{theme.name}</span>
+							<span>{themeLabel(theme)}</span>
 						{/if}
 					{/each}
 				</div>
@@ -191,7 +205,7 @@
 								class="w-3 h-3 rounded-full border border-border"
 								style="background-color: {theme.preview}"
 							></span>
-							<span>{theme.name}</span>
+							<span>{themeLabel(theme)}</span>
 						</div>
 					</Select.Item>
 				{/each}
@@ -203,7 +217,7 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<Moon class="w-4 h-4 text-muted-foreground" />
-			<Label>Dark theme</Label>
+			<Label>{m.appearance_dark_theme()}</Label>
 		</div>
 		<Select.Root type="single" value={selectedDarkTheme} onValueChange={handleDarkThemeChange}>
 			<Select.Trigger class="w-56">
@@ -214,7 +228,7 @@
 								class="w-3 h-3 rounded-full border border-border"
 								style="background-color: {theme.preview}"
 							></span>
-							<span>{theme.name}</span>
+							<span>{themeLabel(theme)}</span>
 						{/if}
 					{/each}
 				</div>
@@ -227,7 +241,7 @@
 								class="w-3 h-3 rounded-full border border-border"
 								style="background-color: {theme.preview}"
 							></span>
-							<span>{theme.name}</span>
+							<span>{themeLabel(theme)}</span>
 						</div>
 					</Select.Item>
 				{/each}
@@ -239,20 +253,20 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<Type class="w-4 h-4 text-muted-foreground" />
-			<Label>Font</Label>
+			<Label>{m.appearance_font()}</Label>
 		</div>
 		<Select.Root type="single" value={selectedFont} onValueChange={handleFontChange}>
 			<Select.Trigger class="w-56">
 				{#each fonts as font}
 					{#if font.id === selectedFont}
-						<span>{font.name}</span>
+						<span>{fontLabel(font)}</span>
 					{/if}
 				{/each}
 			</Select.Trigger>
 			<Select.Content>
 				{#each fonts as font}
 					<Select.Item value={font.id}>
-						<span style="font-family: {font.family}">{font.name}</span>
+						<span style="font-family: {font.family}">{fontLabel(font)}</span>
 					</Select.Item>
 				{/each}
 			</Select.Content>
@@ -263,7 +277,7 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<AArrowUp class="w-4 h-4 text-muted-foreground" />
-			<Label>Font size</Label>
+			<Label>{m.appearance_font_size()}</Label>
 		</div>
 		<Select.Root type="single" value={selectedFontSize} onValueChange={handleFontSizeChange}>
 			<Select.Trigger class="w-56">
@@ -287,7 +301,7 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<Table class="w-4 h-4 text-muted-foreground" />
-			<Label>Grid font size</Label>
+			<Label>{m.appearance_grid_font_size()}</Label>
 		</div>
 		<Select.Root type="single" value={selectedGridFontSize} onValueChange={handleGridFontSizeChange}>
 			<Select.Trigger class="w-56">
@@ -335,20 +349,20 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<Terminal class="w-4 h-4 text-muted-foreground" />
-			<Label>Terminal font</Label>
+			<Label>{m.appearance_terminal_font()}</Label>
 		</div>
 		<Select.Root type="single" value={selectedTerminalFont} onValueChange={handleTerminalFontChange}>
 			<Select.Trigger class="w-56">
 				{#each monospaceFonts as font}
 					{#if font.id === selectedTerminalFont}
-						<span style="font-family: {font.family}">{font.name}</span>
+						<span style="font-family: {font.family}">{fontLabel(font)}</span>
 					{/if}
 				{/each}
 			</Select.Trigger>
 			<Select.Content>
 				{#each monospaceFonts as font}
 					<Select.Item value={font.id}>
-						<span style="font-family: {font.family}">{font.name}</span>
+						<span style="font-family: {font.family}">{fontLabel(font)}</span>
 					</Select.Item>
 				{/each}
 			</Select.Content>
@@ -359,20 +373,20 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<CodeXml class="w-4 h-4 text-muted-foreground" />
-			<Label>Editor font</Label>
+			<Label>{m.appearance_editor_font()}</Label>
 		</div>
 		<Select.Root type="single" value={selectedEditorFont} onValueChange={handleEditorFontChange}>
 			<Select.Trigger class="w-56">
 				{#each monospaceFonts as font}
 					{#if font.id === selectedEditorFont}
-						<span style="font-family: {font.family}">{font.name}</span>
+						<span style="font-family: {font.family}">{fontLabel(font)}</span>
 					{/if}
 				{/each}
 			</Select.Trigger>
 			<Select.Content>
 				{#each monospaceFonts as font}
 					<Select.Item value={font.id}>
-						<span style="font-family: {font.family}">{font.name}</span>
+						<span style="font-family: {font.family}">{fontLabel(font)}</span>
 					</Select.Item>
 				{/each}
 			</Select.Content>

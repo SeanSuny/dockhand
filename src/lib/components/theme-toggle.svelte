@@ -4,6 +4,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { onDarkModeChange } from '$lib/stores/theme';
 
+	import * as m from '$lib/paraglide/messages';
+
 	type ThemeMode = 'light' | 'dark' | 'system';
 
 	let mode = $state<ThemeMode>('system');
@@ -48,7 +50,7 @@
 	}
 </script>
 
-<Button variant="ghost" size="icon" onclick={cycleTheme} class="h-9 w-9" title={mode === 'system' ? 'Theme: system' : mode === 'dark' ? 'Theme: dark' : 'Theme: light'}>
+<Button variant="ghost" size="icon" onclick={cycleTheme} class="h-9 w-9" title={m.theme_current({ mode })}>
 	{#if mode === 'dark'}
 		<Moon class="h-4 w-4" />
 	{:else if mode === 'light'}
@@ -56,5 +58,5 @@
 	{:else}
 		<Monitor class="h-4 w-4" />
 	{/if}
-	<span class="sr-only">Toggle theme</span>
+	<span class="sr-only">{m.theme_toggle()}</span>
 </Button>

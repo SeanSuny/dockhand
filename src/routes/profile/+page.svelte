@@ -41,6 +41,11 @@
 	import AnimateIconsToggle from '$lib/components/AnimateIconsToggle.svelte';
 	import ColoredActionsToggle from '$lib/components/ColoredActionsToggle.svelte';
 	import { themeStore } from '$lib/stores/theme';
+	import * as m from '$lib/paraglide/messages';
+	import { getLocaleOptions, type SupportedLocale } from '$lib/i18n';
+	import { appSettings } from '$lib/stores/settings';
+	import * as Select from '$lib/components/ui/select';
+	import { Globe } from 'lucide-svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	interface Profile {
@@ -61,6 +66,15 @@
 	let loading = $state(true);
 	let error = $state('');
 	let profileFetched = $state(false);
+
+	// Locale state
+	let currentLocale = $derived($appSettings.locale);
+	const localeOptions = getLocaleOptions();
+
+	function handleLocaleChange(value: string | undefined) {
+		if (!value) return;
+		appSettings.setLocale(value as SupportedLocale);
+	}
 
 	// Profile form state
 	let formEmail = $state('');
@@ -726,6 +740,27 @@
 					<Card.Description>Customize the look of the application</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
+					<div class="space-y-1">
+						<div class="flex items-center gap-3">
+							<Label>{m.language_label()}</Label>
+							<Select.Root
+								type="single"
+								value={currentLocale}
+								onValueChange={handleLocaleChange}
+							>
+								<Select.Trigger class="w-[180px]">
+									<Globe class="w-4 h-4 mr-2" />
+									<span>{localeOptions.find(o => o.value === currentLocale)?.label}</span>
+								</Select.Trigger>
+								<Select.Content>
+									{#each localeOptions as option}
+										<Select.Item value={option.value}>{option.label}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>
+					</div>
+
 					<ThemeSelector userId={profile.id} />
 					<ColoredActionsToggle userId={profile.id} />
 					<AnimateIconsToggle userId={profile.id} />

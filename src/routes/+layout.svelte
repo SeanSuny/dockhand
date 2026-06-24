@@ -18,6 +18,7 @@
 	import { themeStore, applyTheme } from '$lib/stores/theme';
 	import { gridPreferencesStore } from '$lib/stores/grid-preferences';
 	import { appSettings } from '$lib/stores/settings';
+	import { loadLocaleFromStorage, setActiveLocale } from '$lib/i18n';
 	import { shouldShowWhatsNew } from '$lib/utils/version';
 	import { AlertTriangle, Search } from 'lucide-svelte';
 
@@ -68,6 +69,12 @@
 	});
 
 	onMount(() => {
+		// Apply locale from localStorage immediately (for flash-free loading)
+		const storedLocale = loadLocaleFromStorage();
+		if (storedLocale) {
+			setActiveLocale(storedLocale, { skipPersist: true });
+		}
+
 		// Apply theme from localStorage immediately (for flash-free loading)
 		applyTheme(themeStore.get());
 

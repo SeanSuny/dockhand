@@ -1,5 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
+import { setActiveLocale, type SupportedLocale } from '$lib/i18n';
+import { authStore } from '$lib/stores/auth';
 import {
 	buildFormatters,
 	formatDatePartWith,
@@ -14,6 +16,7 @@ export type EventCollectionMode = 'stream' | 'poll';
 export type LabelFilterMode = 'any' | 'all';
 
 export interface AppSettings {
+	locale: SupportedLocale;
 	confirmDestructive: boolean;
 	showStoppedContainers: boolean;
 	highlightUpdates: boolean;
@@ -55,6 +58,7 @@ export interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
+	locale: 'en',
 	confirmDestructive: true,
 	showStoppedContainers: true,
 	highlightUpdates: true,
@@ -139,7 +143,14 @@ function createSettingsStore() {
 			const response = await fetch('/api/settings/general');
 			if (response.ok) {
 				const settings = await response.json();
+
+				// Apply server-persisted locale without re-persisting it
+				if (settings.locale) {
+					setActiveLocale(settings.locale, { skipPersist: true });
+				}
+
 				set({
+					locale: settings.locale ?? DEFAULT_SETTINGS.locale,
 					confirmDestructive: settings.confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
 					showStoppedContainers: settings.showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
 					highlightUpdates: settings.highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
@@ -197,6 +208,7 @@ function createSettingsStore() {
 			if (response.ok) {
 				const updatedSettings = await response.json();
 				set({
+					locale: updatedSettings.locale ?? DEFAULT_SETTINGS.locale,
 					confirmDestructive: updatedSettings.confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
 					showStoppedContainers: updatedSettings.showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
 					highlightUpdates: updatedSettings.highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
@@ -516,6 +528,15 @@ function createSettingsStore() {
 			update((current) => {
 				const newSettings = { ...current, showWhatsNew: value };
 				saveSettings({ showWhatsNew: value });
+				return newSettings;
+			});
+		},
+		setLocale: (value: SupportedLocale) => {
+			update((current) => {
+				const userId = get(authStore).user?.id;
+				const newSettings = { ...current, locale: value };
+				setActiveLocale(value, { userId });
+				saveSettings({ locale: value });
 				return newSettings;
 			});
 		},

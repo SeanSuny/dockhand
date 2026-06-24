@@ -17,6 +17,8 @@
 	import AnimateIconsToggle from '$lib/components/AnimateIconsToggle.svelte';
 	import ColoredActionsToggle from '$lib/components/ColoredActionsToggle.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as m from '$lib/paraglide/messages';
+	import { getLocaleOptions, type SupportedLocale } from '$lib/i18n';
 
 	// General settings state - these derive from the store
 	let confirmDestructive = $derived($appSettings.confirmDestructive);
@@ -91,6 +93,16 @@ services:
 	let eventCollectionMode = $derived($appSettings.eventCollectionMode);
 	let eventPollInterval = $derived($appSettings.eventPollInterval);
 	let metricsCollectionInterval = $derived($appSettings.metricsCollectionInterval);
+
+	let currentLocale = $derived($appSettings.locale);
+
+	const localeOptions = getLocaleOptions();
+
+	function handleLocaleChange(value: string | undefined) {
+		if (!value) return;
+		appSettings.setLocale(value as SupportedLocale);
+		toast.success(`Language changed to ${localeOptions.find(o => o.value === value)?.label}`);
+	}
 
 	let clearingCache = $state(false);
 
@@ -279,7 +291,7 @@ services:
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
 						<Eye class="w-4 h-4" />
-						Appearance
+						{m.appearance_title()}
 						<Tooltip.Provider delayDuration={100}>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
@@ -304,7 +316,7 @@ services:
 						<div class="space-y-4">
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Show stopped containers</Label>
+									<Label>{m.appearance_show_stopped()}</Label>
 									<TogglePill
 										checked={showStoppedContainers}
 										onchange={(checked) => {
@@ -314,7 +326,7 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Display stopped and exited containers in lists</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_show_stopped_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
@@ -472,6 +484,28 @@ services:
 								</div>
 								<p class="text-xs text-muted-foreground">How dates are displayed throughout the app</p>
 							</div>
+
+								<div class="space-y-1">
+									<div class="flex items-center gap-3">
+										<Label>{m.language_label()}</Label>
+										<Select.Root
+											type="single"
+											value={currentLocale}
+											onValueChange={handleLocaleChange}
+											disabled={!$canAccess('settings', 'edit')}
+										>
+											<Select.Trigger class="w-[180px]">
+												<Globe class="w-4 h-4 mr-2" />
+												<span>{localeOptions.find(o => o.value === currentLocale)?.label}</span>
+											</Select.Trigger>
+											<Select.Content>
+												{#each localeOptions as option}
+													<Select.Item value={option.value}>{option.label}</Select.Item>
+												{/each}
+											</Select.Content>
+										</Select.Root>
+									</div>
+								</div>
 						</div>
 						<!-- Right column: Theme settings (always shown, with hint when auth enabled) -->
 						<div class="space-y-4">
@@ -518,13 +552,13 @@ services:
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
 						<Bell class="w-4 h-4" />
-						Confirmations
+						{m.confirmations_title()}
 					</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-1">
 						<div class="flex items-center gap-3">
-							<Label>Confirm destructive actions</Label>
+							<Label>{m.confirmations_destructive()}</Label>
 							<TogglePill
 								checked={confirmDestructive}
 								onchange={(checked) => {
@@ -534,7 +568,7 @@ services:
 								disabled={!$canAccess('settings', 'edit')}
 							/>
 						</div>
-						<p class="text-xs text-muted-foreground">Show confirmation dialogs before deleting resources</p>
+						<p class="text-xs text-muted-foreground">{m.confirmations_destructive_desc()}</p>
 					</div>
 				</Card.Content>
 			</Card.Root>

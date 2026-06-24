@@ -1,0 +1,129 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Dockhand: Dev Server (Vite)",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "node",
+			"runtimeArgs": [
+				"--inspect",
+				"./node_modules/.bin/vite",
+				"dev"
+			],
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"skipFiles": [
+				"<node_internals>/**"
+			],
+			"preLaunchTask": "npm: prepare"
+		},
+		{
+			"name": "Dockhand: Dev Server (Bun)",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": [
+				"--inspect",
+				"run",
+				"dev"
+			],
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"preLaunchTask": "npm: prepare"
+		},
+		{
+			"name": "Dockhand: Production Server",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "node",
+			"runtimeArgs": [
+				"--inspect",
+				"./server.js"
+			],
+			"env": {
+				"NODE_ENV": "production",
+				"PORT": "3000",
+				"HOST": "0.0.0.0"
+			},
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"preLaunchTask": "npm: build"
+		},
+		{
+			"name": "Dockhand: Attach to Node Process",
+			"type": "node",
+			"request": "attach",
+			"port": 9229,
+			"restart": true,
+			"skipFiles": [
+				"<node_internals>/**"
+			]
+		},
+		{
+			"name": "Dockhand: Debug Current Bun Test",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": [
+				"--inspect",
+				"test",
+				"${relativeFile}"
+			],
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"skipFiles": [
+				"<node_internals>/**"
+			]
+		},
+		{
+			"name": "Dockhand: Debug All Bun Tests",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": [
+				"--inspect",
+				"test"
+			],
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"skipFiles": [
+				"<node_internals>/**"
+			]
+		},
+		{
+			"name": "Dockhand: Go Collector",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/collector/main.go",
+			"cwd": "${workspaceFolder}/collector",
+			"console": "integratedTerminal"
+		},
+		{
+			"name": "Dockhand: Frontend (Chrome)",
+			"type": "chrome",
+			"request": "launch",
+			"url": "http://localhost:5173",
+			"webRoot": "${workspaceFolder}/src",
+			"sourceMaps": true,
+			"preLaunchTask": "npm: dev"
+		}
+	],
+	"compounds": [
+		{
+			"name": "Dockhand: Full Stack Dev",
+			"configurations": [
+				"Dockhand: Dev Server (Vite)",
+				"Dockhand: Frontend (Chrome)"
+			],
+			"stopAll": true
+		}
+	]
+}

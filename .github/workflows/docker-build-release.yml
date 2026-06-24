@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/i18n   # 临时测试用
   workflow_dispatch:
 
 permissions:

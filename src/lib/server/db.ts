@@ -381,6 +381,7 @@ export async function setUserSetting(userId: number, key: string, value: any): P
 }
 
 export async function getUserThemePreferences(userId: number): Promise<{
+	locale: string;
 	lightTheme: string;
 	darkTheme: string;
 	font: string;
@@ -392,7 +393,8 @@ export async function getUserThemePreferences(userId: number): Promise<{
 	coloredActionButtons: boolean;
 	actionIconSize: string;
 }> {
-	const [lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, animateIcons, coloredActionButtons, actionIconSize] = await Promise.all([
+const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, animateIcons, coloredActionButtons, actionIconSize] = await Promise.all([
+		getUserSetting(userId, 'locale'),
 		getUserSetting(userId, 'light_theme'),
 		getUserSetting(userId, 'dark_theme'),
 		getUserSetting(userId, 'font'),
@@ -405,6 +407,7 @@ export async function getUserThemePreferences(userId: number): Promise<{
 		getUserSetting(userId, 'action_icon_size')
 	]);
 	return {
+		locale: locale || 'en',
 		lightTheme: lightTheme || 'default',
 		darkTheme: darkTheme || 'default',
 		font: font || 'system',
@@ -422,9 +425,12 @@ export async function getUserThemePreferences(userId: number): Promise<{
 
 export async function setUserThemePreferences(
 	userId: number,
-	prefs: { lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean; coloredActionButtons?: boolean; actionIconSize?: string }
+prefs: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean; coloredActionButtons?: boolean; actionIconSize?: string }
 ): Promise<void> {
 	const updates: Promise<void>[] = [];
+	if (prefs.locale !== undefined) {
+		updates.push(setUserSetting(userId, 'locale', prefs.locale));
+	}
 	if (prefs.lightTheme !== undefined) {
 		updates.push(setUserSetting(userId, 'light_theme', prefs.lightTheme));
 	}

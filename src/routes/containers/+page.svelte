@@ -83,6 +83,7 @@
 	import { containerStore } from '$lib/stores/containers';
 	import { onDockerEvent, isContainerListChange } from '$lib/stores/events';
 	import { appSettings } from '$lib/stores/settings';
+	import * as m from '$lib/paraglide/messages';
 	import { canAccess } from '$lib/stores/auth';
 	import { vulnerabilityCriteriaIcons } from '$lib/utils/update-steps';
 	import { watchJob } from '$lib/utils/sse-fetch';
@@ -129,14 +130,29 @@
 	const UPDATE_AVAILABLE_FILTER_VALUE = 'update-available';
 	let statusFilter = $state<string[]>([]);
 
+
+	/** Return the translated label for a Docker container state.
+	 *  Falls back to the raw state when no translation exists.
+	 */
+	function getStatusLabel(state: string): string {
+		switch (state.toLowerCase()) {
+			case 'running': return m.status_running();
+			case 'paused': return m.status_paused();
+			case 'restarting': return m.status_restarting();
+			case 'exited': return m.status_exited();
+			case 'created': return m.status_created();
+			case 'dead': return m.status_dead();
+			default: return state;
+		}
+	}
 	// Status types with icons for filter and table
 	const statusTypes = [
-		{ value: 'running', label: 'Running', icon: Play, color: 'text-emerald-500' },
-		{ value: 'paused', label: 'Paused', icon: Pause, color: 'text-amber-500' },
-		{ value: 'restarting', label: 'Restarting', icon: RotateCw, color: 'text-red-500' },
-		{ value: 'exited', label: 'Exited', icon: Square, color: 'text-rose-500' },
-		{ value: 'created', label: 'Created', icon: Plus, color: 'text-sky-500' },
-		{ value: 'dead', label: 'Dead', icon: Skull, color: 'text-gray-500' }
+		{ value: 'running', label: m.status_running(), icon: Play, color: 'text-emerald-500' },
+		{ value: 'paused', label: m.status_paused(), icon: Pause, color: 'text-amber-500' },
+		{ value: 'restarting', label: m.status_restarting(), icon: RotateCw, color: 'text-red-500' },
+		{ value: 'exited', label: m.status_exited(), icon: Square, color: 'text-rose-500' },
+		{ value: 'created', label: m.status_created(), icon: Plus, color: 'text-sky-500' },
+		{ value: 'dead', label: m.status_dead(), icon: Skull, color: 'text-gray-500' }
 	];
 
 	function getStatusIcon(state: string) {
@@ -959,7 +975,7 @@
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(`Started ${name}`);
+			toast.success(m.toast_started({ name }));
 			await containerStore.refreshContainers(envId);
 		} catch (error) {
 			console.error('Failed to start container:', error);
@@ -983,7 +999,7 @@
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(`Stopped ${name}`);
+			toast.success(m.toast_stopped({ name }));
 			await containerStore.refreshContainers(envId);
 		} catch (error) {
 			console.error('Failed to stop container:', error);
@@ -1008,7 +1024,7 @@
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(`Paused ${name}`);
+			toast.success(m.toast_paused({ name }));
 			await containerStore.refreshContainers(envId);
 		} catch (error) {
 			console.error('Failed to pause container:', error);
@@ -1031,7 +1047,7 @@
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(`Resumed ${name}`);
+			toast.success(m.toast_resumed({ name }));
 			await containerStore.refreshContainers(envId);
 		} catch (error) {
 			console.error('Failed to unpause container:', error);
@@ -1055,7 +1071,7 @@
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(`Restarted ${name}`);
+			toast.success(m.toast_restarted({ name }));
 			await containerStore.refreshContainers(envId);
 		} catch (error) {
 			console.error('Failed to restart container:', error);
@@ -1080,7 +1096,7 @@
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(`Removed ${name}`);
+			toast.success(m.toast_removed({ name }));
 			await containerStore.refreshContainers(envId);
 		} catch (error) {
 			console.error('Failed to remove container:', error);
@@ -1427,13 +1443,13 @@
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
-		<PageHeader icon={Box} title="Containers" count={containers.length} />
+		<PageHeader icon={Box} title={m.containers_title()} count={containers.length} />
 		<div class="flex flex-wrap items-center gap-2">
 			<div class="relative">
 				<Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
 				<Input
 					type="text"
-					placeholder="Search containers..."
+					placeholder={m.containers_search()}
 					bind:value={searchQuery}
 					onkeydown={(e) => e.key === 'Escape' && (searchQuery = '')}
 					class="pl-8 h-8 w-48 text-sm"
@@ -1454,7 +1470,7 @@
 				{#if $canAccess('containers', 'create')}
 				<Button size="sm" variant="secondary" onclick={() => (showCreateModal = true)}>
 					<Plus class="w-3.5 h-3.5" />
-					Create
+					{m.containers_create()}
 				</Button>
 				{/if}
 				<Button
@@ -1463,7 +1479,7 @@
 					variant="outline"
 					onclick={checkForUpdates}
 					disabled={updateCheckStatus === 'checking'}
-					title="Check for available updates"
+					title={m.containers_check_updates()}
 					class="relative overflow-hidden"
 				>
 					{#if updateCheckStatus === 'checking'}
@@ -1475,17 +1491,17 @@
 								style="width: {(updateCheckProgress.checked / updateCheckProgress.total) * 100}%"
 							></div>
 						{:else}
-							Check for updates
+							{m.containers_check_updates()}
 						{/if}
 					{:else if updateCheckStatus === 'none' || updateCheckStatus === 'found'}
 						<Check class="w-3.5 h-3.5 mr-1 text-green-600" />
-						Check for updates
+						{m.containers_check_updates()}
 					{:else if updateCheckStatus === 'error'}
 						<XCircle class="w-3.5 h-3.5 mr-1 text-destructive" />
-						Check for updates
+						{m.containers_check_updates()}
 					{:else}
 						<CircleArrowUp class="w-3.5 h-3.5" />
-						Check for updates
+						{m.containers_check_updates()}
 					{/if}
 				</Button>
 				{#if updatableContainersCount > 0}
@@ -1522,9 +1538,9 @@
 				{#if $canAccess('containers', 'remove')}
 				<ConfirmPopover
 					open={confirmPrune}
-					action="Prune"
+					action={m.containers_prune()}
 					itemType="stopped containers"
-					title="Prune containers"
+					title={m.containers_prune()}
 					position="left"
 					onConfirm={pruneContainers}
 					onOpenChange={(open) => confirmPrune = open}
@@ -1546,7 +1562,7 @@
 					{/snippet}
 				</ConfirmPopover>
 				{/if}
-				<Button size="sm" variant="outline" onclick={fetchContainers}>Refresh</Button>
+				<Button size="sm" variant="outline" onclick={fetchContainers}>{m.containers_refresh()}</Button>
 				<Button
 					size="sm"
 					variant="outline"
@@ -1856,7 +1872,7 @@
 						{@const StateIcon = getStatusIcon(container.state)}
 						<span class="{getStatusClasses(container.state)} inline-flex items-center gap-1">
 							<StateIcon class="w-[1em] h-[1em] {container.state.toLowerCase() === 'restarting' ? 'animate-spin' : ''}" />
-							{container.state}
+							{getStatusLabel(container.state)}
 						</span>
 					{:else if column.id === 'health'}
 						{#if container.health}

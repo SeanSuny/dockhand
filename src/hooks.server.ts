@@ -17,6 +17,7 @@ import { rmSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import type { HandleServerError, Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
+import { extractLocaleFromRequest, setLocale, getLocale, getTextDirection } from '$lib/paraglide/runtime';
 import { startRssTracker, stopRssTracker, rssBeforeOp, rssAfterOp } from '$lib/server/rss-tracker';
 import { getClientIp } from '$lib/server/client-ip';
 // Side-effect import: installs globalThis.__authenticateWsUpgrade and
@@ -285,10 +286,22 @@ function isStaticAsset(pathname: string): boolean {
 		pathname.endsWith('.js');
 }
 
+function resolveWithLocale(event: Parameters<Handle>[0]['event'], resolve: Parameters<Handle>[0]['resolve']) {
+	return resolve(event, {
+		transformPageChunk: ({ html }) => html
+			.replace('%lang%', getLocale())
+			.replace('%dir%', getTextDirection())
+	});
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
+	// Extract and set locale for the request (used by SSR and server-side message calls)
+	const locale = extractLocaleFromRequest(event.request);
+	setLocale(locale);
+
 	// Skip auth for static assets
 	if (isStaticAsset(event.url.pathname)) {
-		return resolve(event);
+		return resolveWithLocale(event, resolve);
 	}
 
 	const httpBefore = rssBeforeOp();
@@ -301,7 +314,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			event.locals.user = null;
 			event.locals.authEnabled = false;
 			const ctx = { user: null, authEnabled: false, authMethod: 'none' as const };
-			return requestContext.run(ctx, async () => compressResponse(event.request, await resolve(event)));
+			return requestContext.run(ctx, async () => compressResponse(event.request, await resolveWithLocale(event, resolve)));
 		}
 
 		// Auth is enabled - check session first
@@ -340,7 +353,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		// Public paths don't require authentication
 		if (isPublicPath(event.url.pathname)) {
-			return requestContext.run(ctx, async () => compressResponse(event.request, await resolve(event)));
+			return requestContext.run(ctx, async () => compressResponse(event.request, await resolveWithLocale(event, resolve)));
 		}
 
 		// If not authenticated
@@ -349,7 +362,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// This enables the first admin user to be created during initial setup
 			const noAdminSetupMode = !(await hasAdminUser());
 			if (noAdminSetupMode && event.url.pathname === '/api/users' && event.request.method === 'POST') {
-				return requestContext.run(ctx, async () => compressResponse(event.request, await resolve(event)));
+				return requestContext.run(ctx, async () => compressResponse(event.request, await resolveWithLocale(event, resolve)));
 			}
 
 			// API routes return 401
@@ -368,7 +381,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			redirect(307, `/login?redirect=${redirectUrl}`);
 		}
 
-		return requestContext.run(ctx, async () => compressResponse(event.request, await resolve(event)));
+		return requestContext.run(ctx, async () => compressResponse(event.request, await resolveWithLocale(event, resolve)));
 	} finally {
 		rssAfterOp('http', httpBefore);
 	}

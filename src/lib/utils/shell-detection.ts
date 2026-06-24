@@ -1,4 +1,5 @@
 import { appendEnvParam } from '$lib/stores/environment';
+import * as m from '$lib/paraglide/messages';
 
 export interface ShellInfo {
 	path: string;
@@ -7,16 +8,16 @@ export interface ShellInfo {
 }
 
 export const SHELL_OPTIONS: Omit<ShellInfo, 'available'>[] = [
-	{ path: '/bin/bash', label: 'Bash' },
-	{ path: '/bin/sh', label: 'Shell (sh)' },
-	{ path: '/bin/zsh', label: 'Zsh' },
-	{ path: '/bin/ash', label: 'Ash (Alpine)' }
+	{ path: '/bin/bash', label: m.shell_label_bash() },
+	{ path: '/bin/sh', label: m.shell_label_sh() },
+	{ path: '/bin/zsh', label: m.shell_label_zsh() },
+	{ path: '/bin/ash', label: m.shell_label_ash() }
 ];
 
 export const USER_OPTIONS = [
-	{ value: 'root', label: 'root' },
-	{ value: 'nobody', label: 'nobody' },
-	{ value: '', label: 'Container default' }
+	{ value: 'root', label: m.user_root() },
+	{ value: 'nobody', label: m.user_nobody() },
+	{ value: '', label: m.user_container_default() }
 ];
 
 const TERMINAL_USER_STORAGE_KEY = 'dockhand-terminal-users';

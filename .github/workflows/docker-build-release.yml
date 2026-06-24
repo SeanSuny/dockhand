@@ -1,0 +1,56 @@
+name: Build and Release Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: dockhand-i18n:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export image tarball
+        run: |
+          docker save dockhand-i18n:${{ github.sha }} | gzip > dockhand-i18n-${{ github.sha }}.tar.gz
+
+      - name: Create release tag
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "sha-$SHORT_SHA"
+          git push -f origin "sha-$SHORT_SHA"
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: sha-${{ env.SHORT_SHA }}
+          name: ${{ env.SHORT_SHA }}
+          body: |
+            Docker image build for commit `${{ github.sha }}`.
+
+            ```bash
+            docker load -i dockhand-i18n-${{ github.sha }}.tar.gz
+            ```
+          files: dockhand-i18n-${{ github.sha }}.tar.gz

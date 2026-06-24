@@ -9,12 +9,15 @@
 	let is12Hour = $derived($appSettings.timeFormat === '12h');
 
 	interface Props {
-		value: string;
+		value: string | null | undefined;
 		onchange: (cron: string) => void;
 		disabled?: boolean;
 	}
 
 	let { value, onchange, disabled = false }: Props = $props();
+
+	// Defensive: parent stores may hydrate non-string values (number, null, etc.)
+	let cronValue = $derived(String(value ?? ''));
 
 	// Detect schedule type from cron expression
 	function detectScheduleType(cron: string): 'daily' | 'weekly' | 'custom' {
@@ -52,8 +55,8 @@
 
 	// Update UI when value (cron expression) changes externally
 	$effect(() => {
-		if (value) {
-			const parts = value.split(' ');
+		if (cronValue) {
+			const parts = cronValue.split(' ');
 			if (parts.length >= 5) {
 				minute = parts[0] || '0';
 				hour = parts[1] || '3';
@@ -61,7 +64,7 @@
 
 				// Only update schedule type if not actively typing in custom mode
 				if (!isTypingCustom) {
-					scheduleType = detectScheduleType(value);
+					scheduleType = detectScheduleType(cronValue);
 				}
 			}
 		}
@@ -150,18 +153,18 @@
 
 	// Human-readable description using cronstrue
 	let humanReadable = $derived(() => {
-		if (!value) return '';
-		if (!value.trim()) return '';
+		if (!cronValue) return '';
+		if (!cronValue.trim()) return '';
 
 		// Validate first
-		if (!isValidCron(value)) {
+		if (!isValidCron(cronValue)) {
 			return 'Invalid';
 		}
 
 		try {
 			// Use cronstrue to parse the cron expression
 			// Configure it to use the user's time format preference
-			const description = cronstrue.toString(value, {
+			const description = cronstrue.toString(cronValue, {
 				use24HourTimeFormat: !is12Hour,
 				throwExceptionOnParseError: true,
 				locale: 'en' // You can add user locale preference here if needed
@@ -282,7 +285,7 @@
 		{@const readable = humanReadable()}
 		{@const isInvalid = readable === 'Invalid'}
 		<Input
-			value={value}
+			value={cronValue}
 			oninput={handleCustomCronInput}
 			placeholder="0 3 * * *"
 			class="h-9 font-mono flex-1 min-w-[200px] {isInvalid ? 'border-destructive focus-visible:ring-destructive' : ''}"
@@ -293,7 +296,7 @@
 
 <!-- Description area with fixed height -->
 <div class="min-h-[20px] mt-1">
-	{#if value}
+	{#if cronValue}
 		{@const readable = humanReadable()}
 		{@const isInvalid = readable === 'Invalid'}
 		<p class="text-xs {isInvalid ? 'text-destructive' : 'text-muted-foreground'}">

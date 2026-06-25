@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { Loader2, Circle, Route, UndoDot, Plug, Icon, CircleArrowUp } from 'lucide-svelte';
 	import { whale } from '@lucide/lab';
 	import EnvironmentIcon from '$lib/components/EnvironmentIcon.svelte';
@@ -23,11 +24,11 @@
 
 	function connectionLabel(type: string | undefined): string {
 		switch (type) {
-			case 'hawser-standard': return 'Standard';
-			case 'hawser-edge': return 'Edge';
-			case 'direct': return 'Direct';
-			case 'socket': return 'Socket';
-			default: return 'Socket';
+			case 'hawser-standard': return m.dashboard_conn_standard();
+			case 'hawser-edge': return m.dashboard_conn_edge();
+			case 'direct': return m.dashboard_conn_direct();
+			case 'socket': return m.dashboard_conn_socket();
+			default: return m.dashboard_conn_socket();
 		}
 	}
 

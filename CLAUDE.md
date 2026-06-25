@@ -2,98 +2,84 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project overview
+> 本文档为**简体中文**。代码标识符、命令、产品名保持原文。
 
-Dockhand is a Docker management UI. Frontend is SvelteKit 2 + Svelte 5 (runes) + TailwindCSS 4 + shadcn-svelte. Backend runs as SvelteKit API routes, talks directly to the Docker API, and stores state in SQLite (default) or PostgreSQL via Drizzle ORM. The production image is Node.js-based (Dockerfile), but local dev runs with Vite/Node and tests use Bun.
+## 本分支定位（feature/i18n）
 
-The project is licensed under BSL 1.1; see `LICENSE.txt`.
+**本分支唯一工作：开发 i18n 功能并把 UI 汉化（en → zh-CN）。** 不做与翻译无关的功能、重构、修 bug。
 
-## Common commands
+汉化**远未完成**：`src/routes` 下约 118 个 `.svelte`，目前仅约 11 个接入了翻译。后续任务就是按下文工作流，把剩余页面逐个接入。速查版见仓库内 [`docs/i18n-workflow.md`](docs/i18n-workflow.md)（协作者可直接查阅）。
 
-- Install dependencies: `npm install`
-- Start dev server: `npm run dev`
-  - Vite frontend on `http://localhost:5173`
-  - WebSocket terminal/Hawser server on port `5174` (started by the custom Vite plugin)
-  - If ports are stuck: `npx kill-port 5173 5174`
-- Production build: `npx vite build`
-  - `npm run build` runs `prebuild` first, which requires `jq` and `license-checker` and can fail on Windows if `jq` is missing. Use `npx vite build` when you only need to validate/build.
-- Run production server: `node ./server.js`
-  - This wraps the adapter-node output (`build/`) and adds WebSocket support for terminals and Hawser Edge agents.
-- Preview adapter-node build without WS wrapper: `npm run preview`
-- Type check: `npm run check`
-  - `svelte-check` reports many pre-existing errors in `src/lib/server/...`; do not try to fix them unless the task is explicitly about those files.
-- Run a single test file: `bun test tests/<file>.test.ts`
-  - Test scripts are defined in `package.json`, but there is currently no `tests/` directory in the repo, so these scripts will fail unless tests are added.
-- E2E tests (Playwright): `npm run test:e2e`
-  - No Playwright config or specs are present right now.
+---
 
-## High-level architecture
+## i18n 机制（Paraglide-js 2.0，编译期）
 
-### Request flow
+- **项目配置**：`project.inlang/settings.json` —— `baseLocale: en`，`locales: [en, zh-CN]`，消息路径 `src/lib/i18n/messages/{locale}.json`。
+- **消息源**：`src/lib/i18n/messages/en.json` 与 `zh-CN.json`。扁平 snake_case key、**TAB 缩进**、两文件 key 必须 1:1 对齐（当前各 496 个，无 `$schema`）。
+- **生成代码**：`src/lib/paraglide/`（已 gitignore）。Vite 插件（`vite.config.ts` 的 `paraglideVitePlugin`）在 dev/build 时**自动重新生成**，**禁止手动生成或手改**。
+- **组件用法**：顶部 `import * as m from '$lib/paraglide/messages';`，调用 `m.key()`；带参 `m.key({ name })`，JSON 值里写 `{name}` 占位符。
+- **运行时**：`src/hooks.server.ts` 用 `extractLocaleFromRequest` + `setLocale` 在 SSR 设定 locale；strategy 依次为 `cookie → localStorage → preferredLanguage → baseLocale`。locale 工具函数在 `src/lib/i18n/index.ts`，持久化方式对齐主题偏好。
 
-- `src/hooks.server.ts` initializes the DB, starts background subprocesses/scheduler, sets the Paraglide locale, and handles auth (cookie session or Bearer API token). It also compresses JSON/HTML responses with gzip.
-- API routes live under `src/routes/api/` and are standard SvelteKit `+server.ts` handlers.
-- Client-side state is managed in `src/lib/stores/` (settings, auth, environments, theme, etc.).
+---
 
-### Docker connectivity
+## 翻译工作流（逐组件套用）
 
-- `src/lib/server/docker.ts` is the main abstraction. It makes direct Docker API calls over Unix socket, TCP, or HTTPS; no dockerode.
-- Environments can be:
-  - Local Unix socket
-  - Direct TCP/TLS (`connection_type === 'tcp'`)
-  - Hawser Standard (TCP with `X-Hawser-Token`)
-  - Hawser Edge (relay through a WebSocket-connected agent)
-- The terminal/exec WebSocket path is `/api/containers/<id>/exec`.
+### 1. 范围规则
+- 只译**面向用户**的文本：label / 按钮 / 标题 / placeholder / toast / 对话框 / 空态 / 加载态 / 通知事件名。
+- **跳过** `console.error/warn` 等调试日志。
+- **不译**（保持原文）：产品名/协议/单位/占位符字面量 —— `Grype` `Trivy` `Hawser` `Podman` `Docker` `HTTP` `HTTPS` `GB` `%` `—`、IP 示例（`192.168.1.100`）、路径（`/var/run/docker.sock`）、PEM 标记（`-----BEGIN...`）。
+- **重复定义就地翻译**：同一文本在多处重复定义时，各处用**同一组 key**，不重构抽取（如通知事件类型在 `EnvironmentModal` 与 `EventTypesEditor` 各有一份）。
 
-### WebSocket servers
+### 2. key 命名与复用
+- **复用优先**：新建 key 前必先 `grep -i "英文" src/lib/i18n/messages/en.json` 确认无现成项；命中则复用（如 `common_cancel`、`common_save`、`settings_tab_general`）。
+- 新 key 按区域加前缀：`settings_env_*`、`settings_env_modal_*`、`settings_env_updates_*`、`settings_env_activity_*`、`settings_env_event_*`（对齐 general tab 的 `settings_general_*`）。
+- **加 key 方式**：用脚本以字符串拼接向两个 JSON **追加**（保 TAB 格式），**不要** `JSON.stringify` 整文件（会打乱缩进/顺序、毁掉 diff）。en 填英文原文，zh 填中文。
 
-- **Development**: `vite.config.ts` contains a custom Vite plugin that starts a raw `ws` server on port `5174` for terminals and Hawser Edge agents. It reads `data/db/dockhand.db` directly to resolve environment connection info.
-- **Production**: `server.js` wraps the adapter-node build and handles WebSocket upgrades. It relies on globals (`__authenticateWsUpgrade`, `__canAccessEnvForUser`, `__terminalCreateExec`, etc.) injected by `src/lib/server/ws-auth.ts` and related modules.
+### 3. 替换组件文本：关键避坑
+**Edit 工具在 `.svelte` 模板里频繁 "String not found"**，因为 Read 渲染的 tab 数与实际不符。对策：
+1. 先 `sed -n 'Np' FILE | cat -A` 看真实缩进（`^I` = 一个 tab）。
+2. **首选 `perl -pi -e` 配 `#` 分隔符**（`{}` 分隔符会和替换串里的 `{m...}` 冲突报 "pattern not terminated"）：
+   - 行内：`perl -pi -e 's#<Label>Host</Label>#<Label>{m.settings_env_modal_host()}</Label>#g' FILE`
+   - 独立成行（缩进不定）：`perl -pi -e 's#^(\t+)Generate$#${1}{m.settings_env_modal_generate()}#' FILE`
+   - 正则里转义 `(` `)` `.` `?`；`'` 用 `.` 匹配（如 `won.t`）。
+3. **复杂多分支块**（带复数 `{#if}` 的对话框等）：用 Python 按行号区间整体替换，比逐行 Edit 稳。
+4. 同一英文多处映射同 key → 用 `g` 标志一次替换。
 
-### Background jobs
+### 4. 验证（四步全过才算完）
+```bash
+# 1) JSON 对齐 + 无缺失
+python3 -c "import json;e=json.load(open('src/lib/i18n/messages/en.json'));z=json.load(open('src/lib/i18n/messages/zh-CN.json'));print('en only',sorted(set(e)-set(z)));print('zh only',sorted(set(z)-set(e)))"
+# 2) 组件里所有 m.xxx() 的 key 是否都存在（防拼写错）：抓 \bm\.(\w+)\( 与 en.json 比对
+# 3) 残留英文：grep -nE '>[A-Za-z][A-Za-z ]{2,}<|placeholder="[A-Z]|title="[A-Z]' FILE | grep -vE 'm\.|Grype|Trivy|Hawser|HTTP|class=|</'
+# 4) npm run check 2>&1 | grep '<目标文件路径>'  —— 只看自己改的文件
+```
 
-- `src/lib/server/subprocess-manager.ts` spawns worker threads for metrics collection and Docker event collection.
-- `src/lib/server/scheduler/` runs cron-based jobs: auto-updates, Git stack sync, image prune, system cleanup.
+---
 
-### Database
+## 常用命令
 
-- `src/lib/server/db/drizzle.ts` initializes Drizzle.
-  - SQLite default: `data/db/dockhand.db` (WAL mode enabled).
-  - PostgreSQL: set `DATABASE_URL`.
-- Migrations run automatically on startup from `drizzle/` (SQLite) or `drizzle-pg/` (PostgreSQL).
-- Schema is in `src/lib/server/db/schema/`.
+- 安装依赖：`npm install`
+- 开发：`npm run dev`（Vite 前端默认 `:5173`，会自动重新生成 paraglide；端口被占可换，以实际输出为准）。WS 终端在 `:5174`。卡端口：`npx kill-port 5173 5174`。
+- 类型检查：`npm run check`
+  - `src/lib/server/...`、`vite.config.ts`、api 路由有大量**既有**报错，与翻译无关，**忽略**；只看自己改动的文件。
+- 构建（仅需验证时）：`npx vite build`（`npm run build` 会先跑依赖 `jq`/`license-checker` 的 prebuild，缺 `jq` 会失败）。
 
-### i18n
+---
 
-- Uses Paraglide-js 2.0 (compile-time messages).
-- Source messages: `src/lib/i18n/messages/{en,zh-CN}.json`.
-- Generated output: `src/lib/paraglide/` (gitignored, regenerated by the Vite plugin on dev/build).
-- Locale utilities: `src/lib/i18n/index.ts`. Locale is set server-side in `hooks.server.ts` via `extractLocaleFromRequest` and persisted like theme preferences.
+## 架构背景（够定位待译文本即可）
 
-### Themes
+Dockhand 是 Docker 管理 UI：SvelteKit 2 + Svelte 5（runes）+ TailwindCSS 4 + shadcn-svelte，后端用 SvelteKit API 路由直连 Docker API、Drizzle ORM 存 SQLite/PostgreSQL。
 
-- Theme/font preferences are in `src/lib/stores/theme.ts` and `src/lib/themes.ts`.
-- When auth is enabled, preferences are per-user (`/api/profile/preferences`); otherwise global (`/api/settings/theme`).
+与翻译相关的就一句话：**所有面向用户的文本在 `src/routes/**/*.svelte` 和 `src/lib/components/**/*.svelte` 里**。已接入翻译的页面（可作样板对照）：`login`、`profile`、`settings/general`、`settings/environments` 全套、`containers`、`app-sidebar`、`CommandPalette` 等。其余页面（containers 子页、images、networks、volumes、stacks 等）尚待汉化。
 
-## Important implementation details
+非翻译细节（按需查 git/源码，勿在本分支改动）：
+- `src/hooks.server.ts` 初始化 DB、起后台进程/调度器、设 locale、处理鉴权。
+- `src/lib/server/docker.ts` 直连 Docker（Unix socket / TCP/TLS / Hawser）。
+- DB schema 在 `src/lib/server/db/schema/`，迁移开机自动跑。
 
-- `svelte.config.js` uses `vitePreprocess({ script: true })` and forces `runes: false` for `layercake`/`layerchart` because those libraries still ship Svelte 3/4 components.
-- `vite.config.ts` excludes `layerchart` from `optimizeDeps` and dedupes several `@codemirror/*` packages.
-- `+layout.svelte` contains `declare const __APP_VERSION__: string | null;`. `svelte-check` reports "Modifiers cannot appear here", but the build succeeds; this is a known pre-existing issue.
-- The `prebuild` script generates `src/lib/data/dependencies.json`. If `jq` is unavailable, skip it and run `npx vite build` directly.
+---
 
-## Environment variables
+## 注意
 
-- `DATA_DIR` — SQLite data directory (default `./data`).
-- `DATABASE_URL` — PostgreSQL connection string; omit for SQLite.
-- `DOCKER_SOCKET` / `DOCKER_HOST` — override Docker socket detection.
-- `ENCRYPTION_KEY` — base64 AES-256-GCM key; fallback to `data/.encryption_key`.
-- `HOST_DATA_DIR` — host path used to translate container volume paths for Git stacks.
-- `PORT` / `HOST` — production server binding (default `0.0.0.0:3000`).
-- `HTTPS_MODE=on` / `HTTPS_CERT_PATH` / `HTTPS_KEY_PATH` / `HTTPS_CA_PATH` — native HTTPS in `server.js`.
-- `APP_VERSION` / `COMMIT` / `BRANCH` / `VERSION` — build-time metadata injected when building outside a git repo.
-
-## Notes for AI agents
-
-- No Cursor rules (`.cursorrules`, `.cursor/rules/`) or GitHub Copilot instructions (`.github/copilot-instructions.md`) were found.
-- The README explicitly prohibits scraping the repository for AI/LLM training datasets; respect that when working here.
+- README 明确禁止抓取本仓库用于 AI/LLM 训练数据集，遵守。
+- 无 Cursor/Copilot 规则文件。

@@ -4,6 +4,7 @@
 	import { TogglePill } from '$lib/components/ui/toggle-pill';
 	import * as Select from '$lib/components/ui/select';
 	import { Percent, HardDrive } from 'lucide-svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	interface Props {
 		collectActivity: boolean;
@@ -28,22 +29,22 @@
 
 <div class="flex items-start gap-3">
 	<div class="flex-1">
-		<Label>Collect container activity</Label>
-		<p class="text-xs text-muted-foreground">Track container events (start, stop, restart, etc.) from this environment in real-time</p>
+		<Label>{m.settings_env_activity_collect()}</Label>
+		<p class="text-xs text-muted-foreground">{m.settings_env_activity_collect_desc()}</p>
 	</div>
 	<TogglePill bind:checked={collectActivity} />
 </div>
 <div class="flex items-start gap-3">
 	<div class="flex-1">
-		<Label>Collect system metrics</Label>
-		<p class="text-xs text-muted-foreground">Collect CPU and memory usage statistics from this environment</p>
+		<Label>{m.settings_env_activity_metrics()}</Label>
+		<p class="text-xs text-muted-foreground">{m.settings_env_activity_metrics_desc()}</p>
 	</div>
 	<TogglePill bind:checked={collectMetrics} />
 </div>
 <div class="flex items-start gap-3">
 	<div class="flex-1">
-		<Label>Highlight value changes</Label>
-		<p class="text-xs text-muted-foreground">Show amber glow when container values change in the containers list</p>
+		<Label>{m.settings_env_activity_highlight()}</Label>
+		<p class="text-xs text-muted-foreground">{m.settings_env_activity_highlight_desc()}</p>
 	</div>
 	<TogglePill bind:checked={highlightChanges} />
 </div>
@@ -51,8 +52,8 @@
 <div class="border-t pt-4 mt-2 space-y-3">
 	<div class="flex items-start gap-3">
 		<div class="flex-1">
-			<Label>Disk space warnings</Label>
-			<p class="text-xs text-muted-foreground">Send notifications when Docker disk usage exceeds the threshold</p>
+			<Label>{m.settings_env_activity_disk_warning()}</Label>
+			<p class="text-xs text-muted-foreground">{m.settings_env_activity_disk_warning_desc()}</p>
 		</div>
 		<TogglePill bind:checked={diskWarningEnabled} />
 	</div>
@@ -64,10 +65,10 @@
 					<div class="flex items-center gap-2">
 						{#if diskWarningMode === 'percentage'}
 							<Percent class="w-3.5 h-3.5" />
-							<span>Percentage</span>
+							<span>{m.settings_env_activity_percentage()}</span>
 						{:else}
 							<HardDrive class="w-3.5 h-3.5" />
-							<span>Absolute (GB)</span>
+							<span>{m.settings_env_activity_absolute()}</span>
 						{/if}
 					</div>
 				</Select.Trigger>
@@ -75,13 +76,13 @@
 					<Select.Item value="percentage">
 						<div class="flex items-center gap-2">
 							<Percent class="w-3.5 h-3.5" />
-							Percentage
+							{m.settings_env_activity_percentage()}
 						</div>
 					</Select.Item>
 					<Select.Item value="absolute">
 						<div class="flex items-center gap-2">
 							<HardDrive class="w-3.5 h-3.5" />
-							Absolute (GB)
+							{m.settings_env_activity_absolute()}
 						</div>
 					</Select.Item>
 				</Select.Content>

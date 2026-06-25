@@ -3,6 +3,7 @@
 </svelte:head>
 
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { RefreshCw, LayoutGrid, Loader2, Server, Tags, Square, RectangleVertical, Rows3, LayoutTemplate, Maximize2, Plus, Lock, LockOpen, List, Search, Plug, Route, UndoDot } from 'lucide-svelte';
@@ -837,7 +838,7 @@
 		eventSource.addEventListener('open', () => {
 			// Show reconnection success toast if we were reconnecting
 			if (eventReconnectAttempts > 0) {
-				toast.success('Live updates reconnected');
+				toast.success(m.dashboard_toast_live_reconnected());
 			}
 			eventReconnectAttempts = 0; // Reset backoff on successful connection
 		});
@@ -886,14 +887,14 @@
 			if (eventReconnectAttempts < MAX_EVENT_RECONNECT_ATTEMPTS) {
 				// Show toast only on first disconnect
 				if (eventReconnectAttempts === 0) {
-					toast.warning('Live updates disconnected, reconnecting...');
+					toast.warning(m.dashboard_toast_live_disconnected());
 				}
 
 				const delay = Math.min(BASE_EVENT_RECONNECT_DELAY * Math.pow(2, eventReconnectAttempts), 60000);
 				eventReconnectAttempts++;
 				eventReconnectTimer = setTimeout(connectEventStream, delay);
 			} else {
-				toast.error('Live updates failed - refresh page to retry');
+				toast.error(m.dashboard_toast_live_failed());
 			}
 		};
 	}
@@ -1010,7 +1011,7 @@
 	<!-- Header -->
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
 		<div class="flex items-center gap-4">
-			<PageHeader icon={LayoutGrid} title="Environments" count={tiles.length} />
+			<PageHeader icon={LayoutGrid} title={m.settings_tab_environments()} count={tiles.length} />
 
 			<!-- Label filter toggles (only show if there are labels) -->
 			{#if allLabels.length > 0}
@@ -1022,7 +1023,7 @@
 							: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
 						onclick={() => filterLabels = []}
 					>
-						All
+						{m.settings_general_label_filter_all()}
 					</button>
 					{#each allLabels as label}
 						{@const isSelected = filterLabels.includes(label)}
@@ -1049,7 +1050,7 @@
 						<Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
 						<Input
 							type="text"
-							placeholder="Search environments..."
+							placeholder={m.dashboard_search_placeholder()}
 							bind:value={listSearchQuery}
 							onkeydown={(e) => e.key === 'Escape' && (listSearchQuery = '')}
 							class="pl-8 h-8 w-52 text-sm"
@@ -1058,13 +1059,13 @@
 					<MultiSelectFilter
 						bind:value={listConnectionFilter}
 						options={connectionOptions}
-						placeholder="All connections"
-						pluralLabel="connections"
+						placeholder={m.dashboard_filter_all_connections()}
+						pluralLabel={m.dashboard_filter_connections_plural()}
 						width="w-48"
 						defaultIcon={Plug}
 					/>
 					{#if listSearchQuery || listConnectionFilter.length > 0}
-						<span class="text-xs text-muted-foreground whitespace-nowrap">{listFilteredCount} of {filteredTiles.length}</span>
+						<span class="text-xs text-muted-foreground whitespace-nowrap">{m.dashboard_filter_count({ shown: listFilteredCount, total: filteredTiles.length })}</span>
 					{/if}
 				</div>
 			{/if}
@@ -1073,7 +1074,7 @@
 			<button
 				onclick={() => goto('/settings?tab=environments&new=true')}
 				class="p-1.5 rounded hover:bg-muted transition-colors"
-				title="Add environment"
+				title={m.settings_env_add()}
 			>
 				<Plus class="w-4 h-4" />
 			</button>
@@ -1083,7 +1084,7 @@
 				<button
 					onclick={toggleLocked}
 					class="p-1.5 rounded hover:bg-muted transition-colors"
-					title={locked ? 'Unlock tiles' : 'Lock tiles'}
+					title={locked ? m.dashboard_unlock_tiles() : m.dashboard_lock_tiles()}
 				>
 					{#if locked}
 						<Lock class="w-4 h-4 text-primary" />
@@ -1100,7 +1101,7 @@
 						<button
 							{...props}
 							class="p-1.5 rounded hover:bg-muted transition-colors"
-							title="Layout options"
+							title={m.dashboard_layout_options()}
 						>
 							<LayoutTemplate class="w-4 h-4" />
 						</button>
@@ -1109,24 +1110,24 @@
 				<DropdownMenu.Content align="end" class="w-36">
 					<DropdownMenu.Item onclick={() => applyAutoLayout(1, 1)} class="flex items-center gap-2 cursor-pointer">
 						<Square class="w-4 h-4" />
-						<span>Compact</span>
+						<span>{m.dashboard_layout_compact()}</span>
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => applyAutoLayout(1, 2)} class="flex items-center gap-2 cursor-pointer">
 						<RectangleVertical class="w-4 h-4" />
-						<span>Standard</span>
+						<span>{m.dashboard_layout_standard()}</span>
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => applyAutoLayout(1, 4)} class="flex items-center gap-2 cursor-pointer">
 						<Rows3 class="w-4 h-4" />
-						<span>Detailed</span>
+						<span>{m.dashboard_layout_detailed()}</span>
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => applyAutoLayout(2, 4)} class="flex items-center gap-2 cursor-pointer">
 						<Maximize2 class="w-4 h-4" />
-						<span>Full</span>
+						<span>{m.dashboard_layout_full()}</span>
 					</DropdownMenu.Item>
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item onclick={switchToListView} class="flex items-center gap-2 cursor-pointer">
 						<List class="w-4 h-4" />
-						<span>List</span>
+						<span>{m.dashboard_layout_list()}</span>
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
@@ -1135,7 +1136,7 @@
 			<button
 				onclick={() => fetchStatsStreaming(true)}
 				class="p-1.5 rounded hover:bg-muted transition-colors"
-				title="Refresh"
+				title={m.common_refresh()}
 				disabled={refreshing}
 			>
 				<RefreshCw class="w-4 h-4 {refreshing ? 'animate-spin' : ''}" />
@@ -1147,7 +1148,7 @@
 	{#if !environmentsLoaded && tiles.length === 0}
 		<div class="flex items-center justify-center gap-2 text-muted-foreground py-8">
 			<Loader2 class="w-5 h-5 animate-spin text-primary" />
-			<span class="text-sm">Loading environments...</span>
+			<span class="text-sm">{m.dashboard_loading_envs()}</span>
 		</div>
 	{:else if tiles.length === 0 && environmentsLoaded && $environments.length === 0}
 		<!-- No environments - only shown after we've confirmed there are none -->
@@ -1155,10 +1156,10 @@
 			<div class="w-16 h-16 mb-4 rounded-2xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
 				<Server class="w-8 h-8 opacity-40" />
 			</div>
-			<p class="text-lg font-medium text-foreground/70">No environments configured</p>
-			<p class="text-sm text-muted-foreground mb-4">Add an environment to start managing your Docker hosts</p>
+			<p class="text-lg font-medium text-foreground/70">{m.dashboard_empty_title()}</p>
+			<p class="text-sm text-muted-foreground mb-4">{m.dashboard_empty_desc()}</p>
 			<Button variant="outline" size="sm" onclick={() => goto('/settings?tab=environments')}>
-				Go to Settings
+				{m.dashboard_go_to_settings()}
 			</Button>
 		</div>
 	{:else if viewMode === 'list'}
@@ -1175,10 +1176,10 @@
 			<div class="w-16 h-16 mb-4 rounded-2xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
 				<Tags class="w-8 h-8 opacity-40" />
 			</div>
-			<p class="text-lg font-medium text-foreground/70">No matching environments</p>
-			<p class="text-sm text-muted-foreground mb-4">No environments match the selected label filters</p>
+			<p class="text-lg font-medium text-foreground/70">{m.dashboard_no_match_title()}</p>
+			<p class="text-sm text-muted-foreground mb-4">{m.dashboard_no_match_desc()}</p>
 			<Button variant="outline" size="sm" onclick={() => filterLabels = []}>
-				Clear filters
+				{m.dashboard_clear_filters()}
 			</Button>
 		</div>
 	{:else}

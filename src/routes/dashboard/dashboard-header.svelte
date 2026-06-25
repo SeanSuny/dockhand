@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import {
 		ShieldCheck,
 		Activity,
@@ -66,8 +67,8 @@
 	// Format host with port for display
 	const hostDisplay = $derived(
 		connectionType === 'socket' ? (socketPath || '/var/run/docker.sock') :
-		connectionType === 'hawser-edge' ? 'Edge connection' :
-		(port ? `${host}:${port}` : host || 'Unknown host')
+		connectionType === 'hawser-edge' ? m.dashboard_edge_connection() :
+		(port ? `${host}:${port}` : host || m.dashboard_unknown_host())
 	);
 
 	const canEdit = $derived($canAccess('environments', 'edit'));
@@ -110,19 +111,19 @@
 				<EnvironmentIcon {icon} envId={environmentId} class="w-4 h-4 {online ? 'text-primary' : 'text-muted-foreground'}" />
 			</div>
 			{#if connectionType === 'socket' || !connectionType}
-				<span title="Unix socket connection">
+				<span title={m.settings_env_tip_socket()}>
 					<Unplug class="w-4 h-4 text-cyan-500 glow-cyan" />
 				</span>
 			{:else if connectionType === 'direct'}
-				<span title="Direct Docker connection">
+				<span title={m.settings_env_tip_direct()}>
 					<Icon iconNode={whale} class="w-4 h-4 text-blue-500 glow-blue" />
 				</span>
 			{:else if connectionType === 'hawser-standard'}
-				<span title="Hawser agent (standard mode)">
+				<span title={m.settings_env_tip_hawser_standard()}>
 					<Route class="w-4 h-4 text-purple-500 glow-purple" />
 				</span>
 			{:else if connectionType === 'hawser-edge'}
-				<span title="Hawser agent (edge mode)">
+				<span title={m.settings_env_tip_hawser_edge()}>
 					<UndoDot class="w-4 h-4 text-green-500 glow-green" />
 				</span>
 			{/if}
@@ -143,7 +144,7 @@
 
 		<div class="flex items-center gap-1.5">
 			{#if updateCheckEnabled}
-				<span title={updateCheckAutoUpdate ? "Auto-update enabled" : "Update check enabled (notify only)"}>
+				<span title={updateCheckAutoUpdate ? m.settings_env_tip_auto_update() : m.settings_env_tip_update_check()}>
 					{#if updateCheckAutoUpdate}
 						<CircleArrowUp class="w-4 h-4 text-green-500 glow-green" />
 					{:else}
@@ -152,17 +153,17 @@
 				</span>
 			{/if}
 			{#if scannerEnabled}
-				<span title="Vulnerability scanning enabled">
+				<span title={m.settings_env_tip_scanning()}>
 					<ShieldCheck class="w-4 h-4 text-green-500 glow-green" />
 				</span>
 			{/if}
 			{#if collectActivity}
-				<span title="Activity collection enabled">
+				<span title={m.settings_env_tip_activity()}>
 					<Activity class="w-4 h-4 text-amber-500 glow-amber" />
 				</span>
 			{/if}
 			{#if collectMetrics}
-				<span title="Metrics collection enabled">
+				<span title={m.settings_env_tip_metrics()}>
 					<Cpu class="w-4 h-4 text-sky-400 glow-sky" />
 				</span>
 			{/if}
@@ -171,7 +172,7 @@
 					onpointerdown={stopPointerPropagation}
 					onclick={openSettings}
 					class="p-0.5 rounded hover:bg-muted transition-colors"
-					title="Edit environment settings"
+					title={m.dashboard_tip_edit_settings()}
 				>
 					<Settings class="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
 				</button>

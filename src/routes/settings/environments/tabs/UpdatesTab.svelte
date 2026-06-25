@@ -8,6 +8,7 @@
 	import { CircleFadingArrowUp, CircleArrowUp, RefreshCw, Info, Trash2 } from 'lucide-svelte';
 	import { formatDateTime } from '$lib/stores/settings';
 	import { formatBytes } from '$lib/utils/format';
+	import * as m from '$lib/paraglide/messages';
 
 	interface Props {
 		// Update check settings
@@ -49,10 +50,10 @@
 <!-- Scheduled Update Check Section -->
 <div class="space-y-4">
 	<div class="text-sm font-medium">
-		Scheduled update check
+		{m.settings_env_updates_check_title()}
 	</div>
 	<p class="text-xs text-muted-foreground">
-		Periodically check all containers in this environment for available image updates.
+		{m.settings_env_updates_check_desc()}
 	</p>
 
 	{#if updateCheckLoading}
@@ -63,8 +64,8 @@
 		<div class="flex items-start gap-2">
 			<CircleFadingArrowUp class="w-4 h-4 text-green-500 glow-green mt-0.5 shrink-0" />
 			<div class="flex-1">
-				<Label>Enable scheduled update check</Label>
-				<p class="text-xs text-muted-foreground">Automatically check for container updates on a schedule</p>
+				<Label>{m.settings_env_updates_check_enable()}</Label>
+				<p class="text-xs text-muted-foreground">{m.settings_env_updates_check_enable_desc()}</p>
 			</div>
 			<TogglePill bind:checked={updateCheckEnabled} />
 		</div>
@@ -73,7 +74,7 @@
 			<div class="flex items-start gap-2">
 				<div class="w-4 shrink-0"></div>
 				<div class="flex-1 space-y-2">
-					<Label>Schedule</Label>
+					<Label>{m.settings_env_updates_schedule()}</Label>
 					<CronEditor value={updateCheckCron} onchange={(cron) => updateCheckCron = cron} />
 				</div>
 			</div>
@@ -81,10 +82,9 @@
 			<div class="flex items-start gap-2">
 				<CircleArrowUp class="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
 				<div class="flex-1">
-					<Label>Automatically update containers</Label>
+					<Label>{m.settings_env_updates_auto_update()}</Label>
 					<p class="text-xs text-muted-foreground">
-						When enabled, containers will be updated automatically when new images are found.
-						When disabled, only sends notifications about available updates.
+						{m.settings_env_updates_auto_update_desc()}
 					</p>
 				</div>
 				<TogglePill bind:checked={updateCheckAutoUpdate} />
@@ -94,9 +94,9 @@
 				<div class="flex items-start gap-2">
 					<div class="w-4 shrink-0"></div>
 					<div class="flex-1">
-						<Label>Block updates with vulnerabilities</Label>
+						<Label>{m.settings_env_updates_block_vuln()}</Label>
 						<p class="text-xs text-muted-foreground">
-							Block auto-updates if the new image has vulnerabilities exceeding this criteria
+							{m.settings_env_updates_block_vuln_desc()}
 						</p>
 					</div>
 					<VulnerabilityCriteriaSelector
@@ -110,12 +110,12 @@
 				<Info class="w-3 h-3 mt-0.5 shrink-0" />
 				{#if updateCheckAutoUpdate}
 					{#if scannerEnabled && updateCheckVulnerabilityCriteria !== 'never'}
-						<span>New images are pulled to a temporary tag, scanned, then deployed if they pass the vulnerability check. Blocked images are deleted automatically.</span>
+						<span>{m.settings_env_updates_info_scan()}</span>
 					{:else}
-						<span>Containers will be updated automatically when new images are available.</span>
+						<span>{m.settings_env_updates_info_auto()}</span>
 					{/if}
 				{:else}
-					<span>You'll receive notifications when updates are available. Containers won't be modified.</span>
+					<span>{m.settings_env_updates_info_notify()}</span>
 				{/if}
 			</div>
 		{/if}
@@ -125,10 +125,10 @@
 <!-- Image Pruning Section -->
 <div class="space-y-4 pt-4 border-t">
 	<div class="text-sm font-medium">
-		Automatic image pruning
+		{m.settings_env_updates_prune_title()}
 	</div>
 	<p class="text-xs text-muted-foreground">
-		Automatically remove unused Docker images on a schedule to free up disk space.
+		{m.settings_env_updates_prune_desc()}
 	</p>
 
 	{#if imagePruneLoading}
@@ -139,8 +139,8 @@
 		<div class="flex items-start gap-2">
 			<Trash2 class="w-4 h-4 text-amber-500 glow-amber mt-0.5 shrink-0" />
 			<div class="flex-1">
-				<Label>Enable automatic image pruning</Label>
-				<p class="text-xs text-muted-foreground">Automatically remove unused images on a schedule</p>
+				<Label>{m.settings_env_updates_prune_enable()}</Label>
+				<p class="text-xs text-muted-foreground">{m.settings_env_updates_prune_enable_desc()}</p>
 			</div>
 			<TogglePill bind:checked={imagePruneEnabled} />
 		</div>
@@ -149,7 +149,7 @@
 			<div class="flex items-start gap-2">
 				<div class="w-4 shrink-0"></div>
 				<div class="flex-1 space-y-2">
-					<Label>Schedule</Label>
+					<Label>{m.settings_env_updates_schedule()}</Label>
 					<CronEditor value={imagePruneCron} onchange={(cron) => imagePruneCron = cron} />
 				</div>
 			</div>
@@ -157,21 +157,21 @@
 			<div class="flex items-start gap-2">
 				<div class="w-4 shrink-0"></div>
 				<div class="flex-1 space-y-2">
-					<Label>Prune mode</Label>
+					<Label>{m.settings_env_updates_prune_mode()}</Label>
 					<Select.Root type="single" bind:value={imagePruneMode}>
 						<Select.Trigger class="w-full">
-							{imagePruneMode === 'dangling' ? 'Dangling images only' : 'All unused images'}
+							{imagePruneMode === 'dangling' ? m.settings_env_updates_prune_dangling() : m.settings_env_updates_prune_all()}
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="dangling">Dangling images only</Select.Item>
-							<Select.Item value="all">All unused images</Select.Item>
+							<Select.Item value="dangling">{m.settings_env_updates_prune_dangling()}</Select.Item>
+							<Select.Item value="all">{m.settings_env_updates_prune_all()}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 					<p class="text-xs text-muted-foreground">
 						{#if imagePruneMode === 'dangling'}
-							Only removes untagged image layers (safest option)
+							{m.settings_env_updates_prune_dangling_desc()}
 						{:else}
-							Removes all images not used by any container (more aggressive)
+							{m.settings_env_updates_prune_all_desc()}
 						{/if}
 					</p>
 				</div>
@@ -182,9 +182,9 @@
 					<div class="w-4 shrink-0"></div>
 					<div class="flex-1">
 						<p class="text-xs text-muted-foreground">
-							Last pruned: {formatDateTime(imagePruneLastPruned)}
+							{m.settings_env_updates_last_pruned({ time: formatDateTime(imagePruneLastPruned) })}
 							{#if imagePruneLastResult}
-								- {imagePruneLastResult.imagesRemoved} images removed, {formatBytes(imagePruneLastResult.spaceReclaimed)} reclaimed
+								- {m.settings_env_updates_prune_result({ count: imagePruneLastResult.imagesRemoved, size: formatBytes(imagePruneLastResult.spaceReclaimed) })}
 							{/if}
 						</p>
 					</div>
@@ -193,7 +193,7 @@
 
 			<div class="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 flex items-start gap-2">
 				<Info class="w-3 h-3 mt-0.5 shrink-0" />
-				<span>Images in use by running or stopped containers will never be removed.</span>
+				<span>{m.settings_env_updates_prune_info()}</span>
 			</div>
 		{/if}
 	{/if}
@@ -201,12 +201,12 @@
 
 <!-- Timezone selector -->
 <div class="space-y-2">
-	<Label>Timezone</Label>
+	<Label>{m.settings_env_updates_timezone()}</Label>
 	<TimezoneSelector
 		bind:value={timezone}
 		id="edit-env-timezone"
 	/>
 	<p class="text-xs text-muted-foreground">
-		Used for scheduling auto-updates, git syncs, and image pruning
+		{m.settings_env_updates_timezone_desc()}
 	</p>
 </div>

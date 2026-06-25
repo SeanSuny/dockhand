@@ -37,6 +37,7 @@
 	import EnvironmentModal from './EnvironmentModal.svelte';
 	import { environments as environmentsStore } from '$lib/stores/environment';
 	import { dashboardData } from '$lib/stores/dashboard';
+	import * as m from '$lib/paraglide/messages';
 
 	interface Props {
 		editEnvId?: string | null;
@@ -188,16 +189,16 @@
 			});
 
 			if (response.ok) {
-				toast.success(`Deleted ${name}`);
+				toast.success(m.settings_env_deleted({ name }));
 				await fetchEnvironments();
 				// Refresh the global environments store so dropdown updates
 				environmentsStore.refresh();
 			} else {
 				const data = await response.json();
-				toast.error(data.error || 'Failed to delete environment');
+				toast.error(data.error || m.settings_env_delete_failed());
 			}
 		} catch (error) {
-			toast.error('Failed to delete environment');
+			toast.error(m.settings_env_delete_failed());
 		}
 	}
 
@@ -254,7 +255,7 @@
 			testResults[id] = result;
 			testResults = { ...testResults };
 		} catch (error) {
-			testResults[id] = { success: false, error: 'Connection failed' };
+			testResults[id] = { success: false, error: m.settings_env_connection_failed() };
 			testResults = { ...testResults };
 		}
 
@@ -281,7 +282,7 @@
 					const response = await fetch(`/api/environments/${env.id}/test`, { method: 'POST' });
 					testResults[env.id] = await response.json();
 				} catch {
-					testResults[env.id] = { success: false, error: 'Connection failed' };
+					testResults[env.id] = { success: false, error: m.settings_env_connection_failed() };
 				} finally {
 					testingEnvs.delete(env.id);
 					testingEnvs = new Set(testingEnvs);
@@ -382,13 +383,13 @@
 <div class="space-y-4">
 	<div class="flex justify-between items-center">
 		<div class="flex items-center gap-3">
-			<Badge variant="secondary" class="text-xs">{environments.length} total</Badge>
+			<Badge variant="secondary" class="text-xs">{m.settings_env_total({ count: environments.length })}</Badge>
 		</div>
 		<div class="flex gap-2">
 			{#if $canAccess('environments', 'create')}
 				<Button size="sm" onclick={openAddEnvModal}>
 					<Plus class="w-4 h-4 mr-1" />
-					Add environment
+					{m.settings_env_add()}
 				</Button>
 			{/if}
 			<Button
@@ -403,30 +404,30 @@
 				{:else}
 					<Wifi class="w-4 h-4 mr-1" />
 				{/if}
-				<span class="w-14">Test all</span>
+				<span class="w-14">{m.settings_env_test_all()}</span>
 			</Button>
-			<Button size="sm" variant="outline" onclick={fetchEnvironments}>Refresh</Button>
+			<Button size="sm" variant="outline" onclick={fetchEnvironments}>{m.common_refresh()}</Button>
 		</div>
 	</div>
 
 	{#if envLoading && environments.length === 0}
-		<p class="text-muted-foreground text-sm">Loading environments...</p>
+		<p class="text-muted-foreground text-sm">{m.settings_env_loading()}</p>
 	{:else if environments.length === 0}
-		<p class="text-muted-foreground text-sm">No environments found</p>
+		<p class="text-muted-foreground text-sm">{m.settings_env_none()}</p>
 	{:else}
 		<div class="border rounded-lg overflow-hidden">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-[200px]">Name</Table.Head>
-						<Table.Head>Connection</Table.Head>
-						<Table.Head class="w-[120px]">Labels</Table.Head>
-						<Table.Head class="w-[140px]">Timezone</Table.Head>
-						<Table.Head class="w-[100px]">Features</Table.Head>
-						<Table.Head class="w-[120px]">Status</Table.Head>
+						<Table.Head class="w-[200px]">{m.settings_env_col_name()}</Table.Head>
+						<Table.Head>{m.settings_env_col_connection()}</Table.Head>
+						<Table.Head class="w-[120px]">{m.settings_env_col_labels()}</Table.Head>
+						<Table.Head class="w-[140px]">{m.settings_env_col_timezone()}</Table.Head>
+						<Table.Head class="w-[100px]">{m.settings_env_col_features()}</Table.Head>
+						<Table.Head class="w-[120px]">{m.settings_env_col_status()}</Table.Head>
 						<Table.Head class="w-[100px]">Docker</Table.Head>
 						<Table.Head class="w-[100px]">Hawser</Table.Head>
-						<Table.Head class="w-[180px] text-right">Actions</Table.Head>
+						<Table.Head class="w-[180px] text-right">{m.settings_env_col_actions()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -440,19 +441,19 @@
 								<div class="flex items-center gap-2">
 									<EnvironmentIcon icon={env.icon || 'globe'} envId={env.id} class="w-4 h-4 text-muted-foreground shrink-0" />
 									{#if env.connectionType === 'socket' || !env.connectionType}
-										<span title="Unix socket connection" class="shrink-0">
+										<span title={m.settings_env_tip_socket()} class="shrink-0">
 											<Unplug class="w-3.5 h-3.5 text-cyan-500 glow-cyan" />
 										</span>
 									{:else if env.connectionType === 'direct'}
-										<span title="Direct Docker connection" class="shrink-0">
+										<span title={m.settings_env_tip_direct()} class="shrink-0">
 											<Icon iconNode={whale} class="w-3.5 h-3.5 text-blue-500 glow-blue" />
 										</span>
 									{:else if env.connectionType === 'hawser-standard'}
-										<span title="Hawser agent (standard mode)" class="shrink-0">
+										<span title={m.settings_env_tip_hawser_standard()} class="shrink-0">
 											<Route class="w-3.5 h-3.5 text-purple-500 glow-purple" />
 										</span>
 									{:else if env.connectionType === 'hawser-edge'}
-										<span title="Hawser agent (edge mode)" class="shrink-0">
+										<span title={m.settings_env_tip_hawser_edge()} class="shrink-0">
 											<UndoDot class="w-3.5 h-3.5 text-green-500 glow-green" />
 										</span>
 									{/if}
@@ -466,7 +467,7 @@
 									{#if env.connectionType === 'socket' || !env.connectionType}
 										{env.socketPath || '/var/run/docker.sock'}
 									{:else if env.connectionType === 'hawser-edge'}
-										Edge connection (outbound)
+										{m.settings_env_edge_connection()}
 									{:else}
 										{env.protocol || 'http'}://{env.host}:{env.port || 2375}
 									{/if}
@@ -508,7 +509,7 @@
 							<Table.Cell>
 								<div class="flex items-center gap-1.5">
 									{#if env.updateCheckEnabled}
-										<span title={env.updateCheckAutoUpdate ? "Auto-update enabled" : "Update check enabled (notify only)"}>
+										<span title={env.updateCheckAutoUpdate ? m.settings_env_tip_auto_update() : m.settings_env_tip_update_check()}>
 											{#if env.updateCheckAutoUpdate}
 												<CircleArrowUp class="w-4 h-4 text-green-500 glow-green" />
 											{:else}
@@ -517,22 +518,22 @@
 										</span>
 									{/if}
 									{#if hasScannerEnabled}
-										<span title="Vulnerability scanning enabled">
+										<span title={m.settings_env_tip_scanning()}>
 											<ShieldCheck class="w-4 h-4 text-green-500 glow-green" />
 										</span>
 									{/if}
 									{#if env.collectActivity}
-										<span title="Activity collection enabled">
+										<span title={m.settings_env_tip_activity()}>
 											<Activity class="w-4 h-4 text-amber-500 glow-amber" />
 										</span>
 									{/if}
 									{#if env.collectMetrics}
-										<span title="Metrics collection enabled">
+										<span title={m.settings_env_tip_metrics()}>
 											<Cpu class="w-4 h-4 text-sky-400 glow-sky" />
 										</span>
 									{/if}
 									{#if env.imagePruneEnabled}
-										<span title="Automatic image pruning enabled">
+										<span title={m.settings_env_tip_prune()}>
 											<Trash2 class="w-4 h-4 text-amber-500 glow-amber" />
 										</span>
 									{/if}
@@ -552,7 +553,7 @@
 											{:else}
 												<Wifi class="w-3.5 h-3.5" />
 											{/if}
-											<span>Connected</span>
+											<span>{m.settings_env_status_connected()}</span>
 										</div>
 									{:else}
 										<div class="flex items-center gap-1.5 text-red-600 dark:text-red-400 text-sm" title={testResult.error}>
@@ -561,16 +562,16 @@
 											{:else}
 												<WifiOff class="w-3.5 h-3.5" />
 											{/if}
-											<span>Failed</span>
+											<span>{m.settings_env_status_failed()}</span>
 										</div>
 									{/if}
 								{:else if isTesting}
 									<div class="flex items-center gap-1.5 text-muted-foreground text-sm">
 										<RefreshCw class="w-3.5 h-3.5 animate-spin" />
-										<span>Testing...</span>
+										<span>{m.settings_env_status_testing()}</span>
 									</div>
 								{:else}
-									<span class="text-muted-foreground text-xs">Not tested</span>
+									<span class="text-muted-foreground text-xs">{m.settings_env_status_not_tested()}</span>
 								{/if}
 							</Table.Cell>
 
@@ -608,7 +609,7 @@
 										class="h-7 px-2"
 										onclick={() => testConnection(env.id)}
 										disabled={isTesting}
-										title="Test connection"
+										title={m.settings_env_tip_test()}
 									>
 										{#if isTesting}
 											<RefreshCw class="w-3.5 h-3.5 animate-spin" />
@@ -622,7 +623,7 @@
 											size="sm"
 											class="h-7 px-2"
 											onclick={() => openEditEnvModal(env)}
-											title="Edit environment"
+											title={m.settings_env_tip_edit()}
 										>
 											<Pencil class="w-3.5 h-3.5" />
 										</Button>
@@ -630,10 +631,10 @@
 									{#if $canAccess('containers', 'remove') && $canAccess('images', 'remove') && $canAccess('volumes', 'remove') && $canAccess('networks', 'remove')}
 										<ConfirmPopover
 											open={confirmPruneEnvId === env.id}
-											action="Prune"
-											itemType="system on "
+											action={m.settings_env_prune_action()}
+											itemType={m.settings_env_prune_item()}
 											itemName={env.name}
-											title="System prune"
+											title={m.settings_env_prune_title()}
 											position="left"
 											onConfirm={() => pruneSystem(env.id)}
 											onOpenChange={(open) => confirmPruneEnvId = open ? env.id : null}
@@ -644,7 +645,7 @@
 													size="sm"
 													class="h-7 px-2"
 													disabled={pruneStatus[env.id] === 'pruning'}
-													title="Prune system"
+													title={m.settings_env_tip_prune_system()}
 												>
 													{#if pruneStatus[env.id] === 'pruning'}
 														<RefreshCw class="w-3.5 h-3.5 animate-spin" />
@@ -664,7 +665,7 @@
 											variant="ghost"
 											size="sm"
 											class="h-7 px-2 text-muted-foreground hover:text-destructive"
-											title="Delete environment"
+											title={m.settings_env_tip_delete()}
 											onclick={() => requestDeleteEnvironment(env.id)}
 										>
 											<Trash2 class="w-3.5 h-3.5" />
@@ -699,14 +700,14 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<AlertTriangle class="w-5 h-5 text-destructive" />
-				Delete environment?
+				{m.settings_env_delete_title()}
 			</Dialog.Title>
 			<Dialog.Description class="pt-2 space-y-3 text-sm">
 				{#if deleteEnvTarget}
 					<p>
-						The environment
+						{m.settings_env_delete_intro_pre()}
 						<code class="text-xs bg-muted px-1 py-0.5 rounded">{deleteEnvTarget.name}</code>
-						and the following directories will be permanently removed from the Dockhand host:
+						{m.settings_env_delete_intro_post()}
 					</p>
 					<div class="space-y-1 text-xs font-mono bg-muted/40 rounded-md p-3 border overflow-x-auto">
 						<div class="flex items-center gap-2 whitespace-nowrap">
@@ -720,40 +721,39 @@
 					</div>
 					{#if deleteCountsUnknown}
 						<p>
-							Couldn't list the stacks on this environment — proceed only
-							if you're sure what's deployed here.
+							{m.settings_env_delete_unknown()}
 						</p>
 					{:else if deleteStackCount === 0 && deleteGitStackCount === 0}
-						<p>No stacks are currently tracked on this environment.</p>
+						<p>{m.settings_env_delete_no_stacks()}</p>
 					{:else}
 						<p>
 							{#if deleteStackCount > 0 && deleteGitStackCount > 0}
-								<strong>{deleteStackCount} stack{deleteStackCount === 1 ? '' : 's'}</strong>
-								and <strong>{deleteGitStackCount} git stack{deleteGitStackCount === 1 ? '' : 's'}</strong>
-								tracked here will be removed from Dockhand's database.
+								<strong>{deleteStackCount} {deleteStackCount === 1 ? m.settings_env_delete_stack_one() : m.settings_env_delete_stack_many()}</strong>
+								{m.settings_env_delete_and()} <strong>{deleteGitStackCount} {deleteGitStackCount === 1 ? m.settings_env_delete_gitstack_one() : m.settings_env_delete_gitstack_many()}</strong>
+								{m.settings_env_delete_removed_suffix()}
 							{:else if deleteStackCount > 0}
-								<strong>{deleteStackCount} stack{deleteStackCount === 1 ? '' : 's'}</strong>
-								tracked here will be removed from Dockhand's database.
+								<strong>{deleteStackCount} {deleteStackCount === 1 ? m.settings_env_delete_stack_one() : m.settings_env_delete_stack_many()}</strong>
+								{m.settings_env_delete_removed_suffix()}
 							{:else}
-								<strong>{deleteGitStackCount} git stack{deleteGitStackCount === 1 ? '' : 's'}</strong>
-								tracked here will be removed from Dockhand's database.
+								<strong>{deleteGitStackCount} {deleteGitStackCount === 1 ? m.settings_env_delete_gitstack_one() : m.settings_env_delete_gitstack_many()}</strong>
+								{m.settings_env_delete_removed_suffix()}
 							{/if}
 						</p>
 					{/if}
 					<p class="text-muted-foreground">
-						Running containers on the Docker/Hawser host are <strong>not</strong> stopped.
-						You can stop or remove them separately.
+						{m.settings_env_delete_running_pre()} <strong>{m.settings_env_delete_running_not()}</strong>
+						{m.settings_env_delete_running_post()}
 					</p>
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="flex justify-end gap-2 mt-4">
 			<Button variant="outline" onclick={() => (showDeleteConfirm = false)}>
-				Cancel
+				{m.common_cancel()}
 			</Button>
 			<Button variant="destructive" onclick={confirmAndDelete}>
 				<Trash2 class="w-4 h-4 mr-2" />
-				Delete environment
+				{m.settings_env_tip_delete()}
 			</Button>
 		</div>
 	</Dialog.Content>

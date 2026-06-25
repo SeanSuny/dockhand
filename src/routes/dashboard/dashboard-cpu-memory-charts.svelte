@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { Cpu } from 'lucide-svelte';
 	import { formatBytes } from '$lib/utils/format';
 	import { Chart, Svg, Area } from 'layerchart';
@@ -59,14 +60,14 @@
 	<!-- No metrics available -->
 	<div class="pt-2 border-t border-border/50">
 		<div class="text-xs text-muted-foreground text-center py-1">
-			No metrics available
+			{m.dashboard_no_metrics()}
 		</div>
 	</div>
 {:else}
 	<div class="pt-2 border-t border-border/50">
 		<div class="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
 			<Cpu class="w-3 h-3" />
-			<span class="font-medium">CPU & Memory history</span>
+			<span class="font-medium">{m.dashboard_cpu_memory_history()}</span>
 		</div>
 
 		<!-- CPU chart -->
@@ -103,7 +104,7 @@
 		<!-- Memory chart -->
 		<div class="mb-3">
 			<div class="flex items-center justify-between text-xs mb-1">
-				<span class="text-muted-foreground">Memory</span>
+				<span class="text-muted-foreground">{m.dashboard_memory()}</span>
 				<span class="font-medium">{memoryPercent.toFixed(1)}% ({formatBytes(memoryUsed)})</span>
 			</div>
 			{#if hasHistory}

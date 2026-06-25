@@ -1,4 +1,5 @@
 import type { ColumnConfig, GridId } from '$lib/types';
+import * as m from '$lib/paraglide/messages';
 
 // Container grid columns
 export const containerColumns: ColumnConfig[] = [
@@ -120,20 +121,21 @@ export const scheduleColumns: ColumnConfig[] = [
 ];
 
 // Environment grid columns (dashboard list view)
+// Labels use getters so the message is resolved at render time (per-request locale, SSR-safe).
 export const environmentColumns: ColumnConfig[] = [
 	{ id: 'status', label: '', width: 36, resizable: false },
-	{ id: 'name', label: 'Environment', sortable: true, sortField: 'name', width: 180, minWidth: 100, grow: true },
-	{ id: 'connection', label: 'Connection', sortable: true, sortField: 'connection', width: 110, minWidth: 80 },
-	{ id: 'host', label: 'Host', sortable: true, sortField: 'host', width: 150, minWidth: 80 },
-	{ id: 'containers', label: 'Containers', sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
-	{ id: 'updates', label: 'Updates', sortable: true, sortField: 'updates', width: 75, minWidth: 55 },
+	{ id: 'name', get label() { return m.dashboard_col_environment(); }, sortable: true, sortField: 'name', width: 180, minWidth: 100, grow: true },
+	{ id: 'connection', get label() { return m.settings_env_col_connection(); }, sortable: true, sortField: 'connection', width: 110, minWidth: 80 },
+	{ id: 'host', get label() { return m.settings_env_modal_host(); }, sortable: true, sortField: 'host', width: 150, minWidth: 80 },
+	{ id: 'containers', get label() { return m.sidebar_containers(); }, sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
+	{ id: 'updates', get label() { return m.settings_env_modal_tab_updates(); }, sortable: true, sortField: 'updates', width: 75, minWidth: 55 },
 	{ id: 'cpu', label: 'CPU', sortable: true, sortField: 'cpu', width: 110, minWidth: 80 },
-	{ id: 'memory', label: 'Memory', sortable: true, sortField: 'memory', width: 110, minWidth: 80 },
-	{ id: 'images', label: 'Images', sortable: true, sortField: 'images', width: 65, minWidth: 50 },
-	{ id: 'volumes', label: 'Volumes', sortable: true, sortField: 'volumes', width: 70, minWidth: 50 },
-	{ id: 'stacks', label: 'Stacks', sortable: true, sortField: 'stacks', width: 85, minWidth: 65 },
-	{ id: 'events', label: 'Events', sortable: true, sortField: 'events', width: 65, minWidth: 50 },
-	{ id: 'labels', label: 'Labels', width: 150, minWidth: 80 }
+	{ id: 'memory', get label() { return m.dashboard_memory(); }, sortable: true, sortField: 'memory', width: 110, minWidth: 80 },
+	{ id: 'images', get label() { return m.sidebar_images(); }, sortable: true, sortField: 'images', width: 65, minWidth: 50 },
+	{ id: 'volumes', get label() { return m.sidebar_volumes(); }, sortable: true, sortField: 'volumes', width: 70, minWidth: 50 },
+	{ id: 'stacks', get label() { return m.sidebar_stacks(); }, sortable: true, sortField: 'stacks', width: 85, minWidth: 65 },
+	{ id: 'events', get label() { return m.dashboard_events(); }, sortable: true, sortField: 'events', width: 65, minWidth: 50 },
+	{ id: 'labels', get label() { return m.settings_env_col_labels(); }, width: 150, minWidth: 80 }
 ];
 
 // Vulnerabilities dashboard grid columns

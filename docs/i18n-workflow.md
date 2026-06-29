@@ -22,7 +22,12 @@
 
 ## 2. key 命名与复用
 
-- **复用优先**：新建 key 前必先 `grep -i "英文" src/lib/i18n/messages/en.json` 确认无现成项；命中则复用（如 `common_cancel`、`common_save`、`settings_tab_general`）。
+- **复用优先**：新建 key 前必先 `grep -i "英文" src/lib/i18n/messages/en.json` 确认无现成项；命中则复用（如 `common_cancel`、`common_save`、`settings_tab_general`）。**不要只看 `common_*`**——`grep` 全前缀，跨域 key 同样能复用。
+- **value 全量去重（收尾必做）**：一个文件的 key 加完后，按 **value 分组**扫一遍 en.json，凡同一英文落在多个 key 上的，逐组判断能否合并：
+  ```bash
+  python3 -c "import json;from collections import defaultdict;e=json.load(open('src/lib/i18n/messages/en.json'));d=defaultdict(list);[d[v].append(k) for k,v in e.items()];[print(repr(v),ks) for v,ks in d.items() if len(ks)>1]"
+  ```
+  判断标准看 **`zh-CN.json` 的中文是否同译**：同译则删掉新建的重复 key、把引用指向已有 key（如 `images_prune`→`containers_prune`、`images_copied`→`container_inspect_copied`）；**同形不同义则保留**（如列头 `Created=创建时间` vs 容器状态 `Created=已创建`、动词 `Tag=标记` vs 名词 `Tag=标签`）。改引用后重跑 4 步验证。
 - 新 key 按区域加前缀：`settings_env_*`、`settings_env_modal_*`、`settings_env_updates_*`、`settings_env_activity_*`、`settings_env_event_*`（对齐 general tab 的 `settings_general_*`）。
 - **加 key 方式**：用脚本以字符串拼接向两个 JSON **追加**（保 TAB 格式），**不要** `JSON.stringify` 整文件（会打乱缩进/顺序、毁掉 diff）。en 填英文原文，zh 填中文。一个文件的 key **一次性批量追加**，别分多轮反复读写、反复对齐。
 
@@ -49,6 +54,16 @@ python3 -c "import json;e=json.load(open('src/lib/i18n/messages/en.json'));z=jso
 # 3) 残留英文：grep -nE '>[A-Za-z][A-Za-z ]{2,}<|placeholder="[A-Z]|title="[A-Z]' FILE | grep -vE 'm\.|Grype|Trivy|Hawser|HTTP|class=|</'
 # 4) npm run check 2>&1 | grep '<目标文件路径>'  —— 只看自己改的文件，server/api 既有报错忽略
 ```
+
+## 5. 提速：每文件闭环（少来回、少重试、少跑全量 check）
+
+慢不在磁盘，在「重试多 + 多步绕路 + check 慢」。按下面三步走，把十几个 Bash 来回压到 3 步：
+
+1. **一个 Python 脚本做完写操作**：追加 key（两 JSON）→ 改组件引用 → value 分组去重，全在一个脚本里跑完，不要 Bash 来回 `cat`/`sed`/`grep`/逐行 Edit。
+2. **替换用「批量 + assert 计数」**：脚本里列 `(old, new, count)`，先全部 `s.count()` 校验数量、任一不符就整体 abort 不写，再统一 `replace`。裸文本 pattern 加 `\n` 前缀锚定行首（否则少 tab 的 pattern 会匹配深缩进行的尾部 tab，误伤）。这能根除 svelte tab 错位导致的 "String not found" 重试。
+3. **验证 1-3 拼成一条命令**（对齐 / key 存在 / 残留英文，全是毫秒级），最后**整文件收尾才跑一次** `npm run check`（全项目扫十几秒，别中途试探性地跑）。
+
+**翻译期停掉 `npm run dev`**：它的 watcher + 同 pts 输出是之前终端串字符、Edit 失败的元凶。汉化不需要热更新，`npx kill-port 5173 5174` 停掉，要预览再起。
 
 ## 进度
 

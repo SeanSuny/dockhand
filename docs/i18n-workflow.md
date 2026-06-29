@@ -3,6 +3,9 @@
 > 汉化 Dockhand UI（en → zh-CN）的固定流程。接手翻译任务前先读本文，照做即可，无需重新探索仓库。
 > 机制与命令的完整说明见根目录 [`CLAUDE.md`](../CLAUDE.md)，本文是可独立查阅的速查版。
 
+> ⛔ **禁止使用子代理（subagent / Agent / Task / 后台并行 agent）。** 翻译任务一律**逐文件串行**，从读取、替换到验证全部在主会话内完成。
+> 原因：并行子代理曾因 prompt 塞超长脚本被系统 kill，且做出破坏性编辑——`import * as m` 覆盖了 `import * as Dialog`、函数名 `loadLocations` 被误替换成消息调用——这些破坏的排查与修复，比一开始就老实串行做更费时。串行虽看着慢，实则无返工，更稳更快。
+
 ## 机制速记（Paraglide-js 2.0，编译期）
 
 - 项目配置 `project.inlang/settings.json`：`baseLocale: en`，`locales: [en, zh-CN]`。
@@ -21,7 +24,7 @@
 
 - **复用优先**：新建 key 前必先 `grep -i "英文" src/lib/i18n/messages/en.json` 确认无现成项；命中则复用（如 `common_cancel`、`common_save`、`settings_tab_general`）。
 - 新 key 按区域加前缀：`settings_env_*`、`settings_env_modal_*`、`settings_env_updates_*`、`settings_env_activity_*`、`settings_env_event_*`（对齐 general tab 的 `settings_general_*`）。
-- **加 key 方式**：用脚本以字符串拼接向两个 JSON **追加**（保 TAB 格式），**不要** `JSON.stringify` 整文件（会打乱缩进/顺序、毁掉 diff）。en 填英文原文，zh 填中文。
+- **加 key 方式**：用脚本以字符串拼接向两个 JSON **追加**（保 TAB 格式），**不要** `JSON.stringify` 整文件（会打乱缩进/顺序、毁掉 diff）。en 填英文原文，zh 填中文。一个文件的 key **一次性批量追加**，别分多轮反复读写、反复对齐。
 
 ## 3. 替换组件文本：关键避坑
 
@@ -36,6 +39,8 @@
 4. 同一英文多处映射同 key → 用 `g` 标志一次替换。
 
 ## 4. 验证（四步全过才算完）
+
+**逐文件闭环**：改完一个文件就跑完下面四步再开下一个，别攒着多文件批量验证——错误（import 被覆盖、key 拼错）积累后难定位。
 
 ```bash
 # 1) JSON 对齐 + 无缺失

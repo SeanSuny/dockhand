@@ -58,17 +58,17 @@ export const networkColumns: ColumnConfig[] = [
 export const stackColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
 	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
-	{ id: 'name', label: 'Name', sortable: true, sortField: 'name', width: 180, minWidth: 100, grow: true },
-	{ id: 'status', label: 'Status', sortable: true, sortField: 'status', width: 120, minWidth: 90 },
-	{ id: 'source', label: 'Source', width: 100, minWidth: 100, noTruncate: true },
-	{ id: 'location', label: 'Location', width: 180, minWidth: 100 },
-	{ id: 'containers', label: 'Containers', sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
+	{ id: 'name', get label() { return m.stacks_col_name(); }, sortable: true, sortField: 'name', width: 180, minWidth: 100, grow: true },
+	{ id: 'status', get label() { return m.stacks_col_status(); }, sortable: true, sortField: 'status', width: 120, minWidth: 90 },
+	{ id: 'source', get label() { return m.stacks_col_source(); }, width: 100, minWidth: 100, noTruncate: true },
+	{ id: 'location', get label() { return m.stacks_col_location(); }, width: 180, minWidth: 100 },
+	{ id: 'containers', get label() { return m.stacks_col_containers(); }, sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
 	{ id: 'cpu', label: 'CPU', sortable: true, sortField: 'cpu', width: 60, minWidth: 50, align: 'right' },
-	{ id: 'memory', label: 'Memory', sortable: true, sortField: 'memory', width: 70, minWidth: 50, align: 'right' },
-	{ id: 'networkIO', label: 'Net I/O', width: 100, minWidth: 70, align: 'right' },
-	{ id: 'diskIO', label: 'Disk I/O', width: 100, minWidth: 70, align: 'right' },
-	{ id: 'networks', label: 'Networks', width: 80, minWidth: 60 },
-	{ id: 'volumes', label: 'Volumes', width: 80, minWidth: 60 },
+	{ id: 'memory', get label() { return m.stacks_col_memory(); }, sortable: true, sortField: 'memory', width: 70, minWidth: 50, align: 'right' },
+	{ id: 'networkIO', get label() { return m.stacks_col_network_io(); }, width: 100, minWidth: 70, align: 'right' },
+	{ id: 'diskIO', get label() { return m.stacks_col_disk_io(); }, width: 100, minWidth: 70, align: 'right' },
+	{ id: 'networks', get label() { return m.stacks_col_networks(); }, width: 80, minWidth: 60 },
+	{ id: 'volumes', get label() { return m.stacks_col_volumes(); }, width: 80, minWidth: 60 },
 	{ id: 'actions', label: '', fixed: 'end', width: 180, resizable: false }
 ];
 

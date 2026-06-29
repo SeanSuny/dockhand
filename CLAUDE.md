@@ -24,6 +24,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 翻译工作流（逐组件套用）
 
+### 0. 禁止子代理（硬约束）
+**翻译任务一律逐文件串行，禁止使用子代理（subagent / Agent / Task / 后台并行 agent）。** 读取、替换、验证全在主会话内完成。原因：并行子代理曾因 prompt 塞超长脚本被系统 kill，且做出破坏性编辑（`import * as m` 覆盖 `import * as Dialog`、函数名被误替换成消息调用），善后排查比串行更费时。串行虽看着慢，实则无返工，更稳更快。
+
 ### 1. 范围规则
 - 只译**面向用户**的文本：label / 按钮 / 标题 / placeholder / toast / 对话框 / 空态 / 加载态 / 通知事件名。
 - **跳过** `console.error/warn` 等调试日志。
@@ -33,7 +36,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 2. key 命名与复用
 - **复用优先**：新建 key 前必先 `grep -i "英文" src/lib/i18n/messages/en.json` 确认无现成项；命中则复用（如 `common_cancel`、`common_save`、`settings_tab_general`）。
 - 新 key 按区域加前缀：`settings_env_*`、`settings_env_modal_*`、`settings_env_updates_*`、`settings_env_activity_*`、`settings_env_event_*`（对齐 general tab 的 `settings_general_*`）。
-- **加 key 方式**：用脚本以字符串拼接向两个 JSON **追加**（保 TAB 格式），**不要** `JSON.stringify` 整文件（会打乱缩进/顺序、毁掉 diff）。en 填英文原文，zh 填中文。
+- **加 key 方式**：用脚本以字符串拼接向两个 JSON **追加**（保 TAB 格式），**不要** `JSON.stringify` 整文件（会打乱缩进/顺序、毁掉 diff）。en 填英文原文，zh 填中文。一个文件的 key **一次性批量追加**，别分多轮反复读写、反复对齐。
 
 ### 3. 替换组件文本：关键避坑
 **Edit 工具在 `.svelte` 模板里频繁 "String not found"**，因为 Read 渲染的 tab 数与实际不符。对策：
@@ -46,6 +49,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. 同一英文多处映射同 key → 用 `g` 标志一次替换。
 
 ### 4. 验证（四步全过才算完）
+**逐文件闭环**：改完一个文件就跑完下面四步再开下一个，别攒着多文件批量验证——错误（import 被覆盖、key 拼错）积累后难定位。
 ```bash
 # 1) JSON 对齐 + 无缺失
 python3 -c "import json;e=json.load(open('src/lib/i18n/messages/en.json'));z=json.load(open('src/lib/i18n/messages/zh-CN.json'));print('en only',sorted(set(e)-set(z)));print('zh only',sorted(set(z)-set(e)))"

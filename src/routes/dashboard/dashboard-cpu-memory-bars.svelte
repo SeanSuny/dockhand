@@ -73,7 +73,7 @@
 			<div class="space-y-1">
 				<div class="flex items-center justify-between text-xs">
 					<span class="flex items-center gap-1 text-muted-foreground/50">
-						<MemoryStick class="w-3 h-3" /> {m.dashboard_memory()} <Loader2 class="w-3 h-3 animate-spin" />
+						<MemoryStick class="w-3 h-3" /> {m.common_memory()} <Loader2 class="w-3 h-3 animate-spin" />
 					</span>
 					<div class="skeleton w-16 h-3.5 rounded"></div>
 				</div>
@@ -137,7 +137,7 @@
 		<div class="space-y-1">
 			<div class="flex items-center justify-between text-xs">
 				<span class="flex items-center gap-1 text-muted-foreground">
-					<MemoryStick class="w-3 h-3" /> {m.dashboard_memory()}
+					<MemoryStick class="w-3 h-3" /> {m.common_memory()}
 				</span>
 				<span class="font-medium">
 					{memoryPercent.toFixed(1)}%

@@ -1,8 +1,9 @@
 <svelte:head>
-	<title>Stacks - Dockhand</title>
+	<title>{m.stacks_title()} - Dockhand</title>
 </svelte:head>
 
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -292,11 +293,11 @@
 
 	// Stack status types with icons and colors
 	const stackStatusTypes = [
-		{ value: 'running', label: 'Running', icon: Play, color: 'text-emerald-500' },
-		{ value: 'partial', label: 'Partial', icon: CircleDashed, color: 'text-amber-500' },
-		{ value: 'stopped', label: 'Stopped', icon: Square, color: 'text-rose-500' },
-		{ value: 'created', label: 'Created', icon: CircleDashed, color: 'text-slate-500' },
-		{ value: 'not deployed', label: 'Not deployed', icon: Rocket, color: 'text-violet-500' }
+		{ value: 'running', label: m.stacks_status_running(), icon: Play, color: 'text-emerald-500' },
+		{ value: 'partial', label: m.stacks_status_partial(), icon: CircleDashed, color: 'text-amber-500' },
+		{ value: 'stopped', label: m.stacks_status_stopped(), icon: Square, color: 'text-rose-500' },
+		{ value: 'created', label: m.stacks_status_created(), icon: CircleDashed, color: 'text-slate-500' },
+		{ value: 'not deployed', label: m.stacks_status_not_deployed(), icon: Rocket, color: 'text-violet-500' }
 	];
 
 	function getStackStatusIcon(status: string) {
@@ -766,7 +767,7 @@
 			fetchEnvVarCounts(allStackNames, sourcesData);
 		} catch (error) {
 			console.error('Failed to fetch stacks:', error);
-			toast.error('Failed to load stacks');
+			toast.error(m.stacks_toast_load_failed());
 		} finally {
 			loading = false;
 			lastLoadedEnvId = envId;
@@ -852,15 +853,15 @@
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/start`, envId), { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(`Failed to start ${name}`, data.error || 'Failed to start stack');
+				showErrorDialog(m.stacks_error_start({ name }), data.error || m.stacks_error_start({ name }));
 				return;
 			}
-			toast.success(`Started ${name}`);
+			toast.success(m.stacks_toast_started({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to start stack:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to start stack';
-			showErrorDialog(`Failed to start ${name}`, errorMsg);
+			const errorMsg = error instanceof Error ? error.message : m.stacks_error_start({ name });
+			showErrorDialog(m.stacks_error_start({ name }), errorMsg);
 		} finally {
 			stackActionLoading = null;
 		}
@@ -873,14 +874,14 @@
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/stop`, envId), { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(`Failed to stop ${name}`, data.error || 'Failed to stop stack');
+				showErrorDialog(m.stacks_error_stop({ name }), data.error || m.stacks_error_stop({ name }));
 				return;
 			}
-			toast.success(`Stopped ${name}`);
+			toast.success(m.stacks_toast_stopped({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to stop stack:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to stop stack';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_error_stop({ name });
 			showErrorDialog(`Failed to stop ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -898,14 +899,14 @@
 			const response = await fetch(url, { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(`Failed to restart ${name}`, data.error || 'Failed to restart stack');
+				showErrorDialog(m.stacks_error_restart({ name }), data.error || m.stacks_error_restart({ name }));
 				return;
 			}
-			toast.success(mode === 'recreate' ? `Recreated ${name}` : `Restarted ${name}`);
+			toast.success(mode === 'recreate' ? m.stacks_toast_recreated({ name }) : m.stacks_toast_restarted({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to restart stack:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to restart stack';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_error_restart({ name });
 			showErrorDialog(`Failed to restart ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -923,14 +924,14 @@
 			});
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(`Failed to redeploy ${name}`, data.error || 'Failed to redeploy stack');
+				showErrorDialog(m.stacks_error_redeploy({ name }), data.error || m.stacks_error_redeploy({ name }));
 				return;
 			}
-			toast.success(`Redeployed ${name}`);
+			toast.success(m.stacks_toast_redeployed({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to redeploy stack:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to redeploy stack';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_error_redeploy({ name });
 			showErrorDialog(`Failed to redeploy ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -945,14 +946,14 @@
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/down`, envId), { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(`Failed to bring down ${name}`, data.error || 'Failed to bring down stack');
+				showErrorDialog(m.stacks_error_down({ name }), data.error || m.stacks_error_down({ name }));
 				return;
 			}
-			toast.success(`Brought down ${name}`);
+			toast.success(m.stacks_toast_brought_down({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to bring down stack:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to bring down stack';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_error_down({ name });
 			showErrorDialog(`Failed to bring down ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -982,15 +983,15 @@
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}?${params}`, envId), { method: 'DELETE' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || 'Failed to remove stack';
-				showErrorDialog(`Failed to remove ${name}`, errorMsg);
+				const errorMsg = data.error || m.stacks_error_remove({ name });
+				showErrorDialog(m.stacks_error_remove({ name }), errorMsg);
 				return;
 			}
-			toast.success(`Removed ${name}${withVolumes ? ' (volumes deleted)' : ''}`);
+			toast.success(withVolumes ? m.stacks_toast_removed_volumes({ name }) : m.stacks_toast_removed({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to remove stack:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to remove stack';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_error_remove({ name });
 			showErrorDialog(`Failed to remove ${name}`, errorMsg);
 		}
 	}
@@ -1038,17 +1039,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/start`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || 'Failed to start container';
+				const errorMsg = data.error || m.stacks_container_error_start();
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success('Container started');
+			toast.success(m.stacks_container_toast_started());
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to start container:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to start container';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_start();
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1064,17 +1065,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/stop`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || 'Failed to stop container';
+				const errorMsg = data.error || m.stacks_container_error_stop();
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success('Container stopped');
+			toast.success(m.stacks_container_toast_stopped());
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to stop container:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to stop container';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_stop();
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1090,17 +1091,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/restart`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || 'Failed to restart container';
+				const errorMsg = data.error || m.stacks_container_error_restart();
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success('Container restarted');
+			toast.success(m.stacks_container_toast_restarted());
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to restart container:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to restart container';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_restart();
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1116,17 +1117,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/pause`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || 'Failed to pause container';
+				const errorMsg = data.error || m.stacks_container_error_pause();
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success('Container paused');
+			toast.success(m.stacks_container_toast_paused());
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to pause container:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to pause container';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_pause();
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1143,17 +1144,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/unpause`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || 'Failed to unpause container';
+				const errorMsg = data.error || m.stacks_container_error_unpause();
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success('Container unpaused');
+			toast.success(m.stacks_container_toast_unpaused());
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to unpause container:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to unpause container';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_unpause();
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1169,17 +1170,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}?force=true`, envId), { method: 'DELETE' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || 'Failed to remove container';
+				const errorMsg = data.error || m.stacks_container_error_remove();
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success('Container removed');
+			toast.success(m.stacks_container_toast_removed());
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to remove container:', error);
-			const errorMsg = error instanceof Error ? error.message : 'Failed to remove container';
+			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_remove();
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1310,13 +1311,13 @@
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
-		<PageHeader icon={Layers} title="Compose stacks" count={stacks.length}>
+		<PageHeader icon={Layers} title={m.stacks_header_title()} count={stacks.length}>
 			{#if stacks.length > 0}
 				<button
 					type="button"
 					onclick={allExpanded ? collapseAll : expandAll}
 					class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border border-border hover:border-foreground/30 hover:shadow-sm transition-all cursor-pointer text-muted-foreground hover:text-foreground"
-					title={allExpanded ? 'Collapse all' : 'Expand all'}
+					title={allExpanded ? m.stacks_collapse_all() : m.stacks_expand_all()}
 				>
 					{#if allExpanded}
 						<ChevronsDownUp class="w-3 h-3" />
@@ -1333,7 +1334,7 @@
 				<Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
 				<Input
 					type="text"
-					placeholder="Search stacks..."
+					placeholder={m.stacks_search_placeholder()}
 					bind:value={searchInput}
 					onkeydown={(e) => e.key === 'Escape' && (searchInput = '')}
 					class="pl-8 h-8 w-48 text-sm"
@@ -1342,21 +1343,21 @@
 			<MultiSelectFilter
 				bind:value={statusFilter}
 				options={stackStatusTypes}
-				placeholder="All statuses"
-				pluralLabel="statuses"
+				placeholder={m.stacks_filter_all_statuses()}
+				pluralLabel={m.stacks_filter_statuses_label()}
 				width="w-44"
 				defaultIcon={Layers}
 			/>
 			<Button size="sm" variant="outline" onclick={fetchStacks}>
 				<RefreshCw class="w-3.5 h-3.5" />
-				Refresh
+				{m.common_refresh()}
 			</Button>
 			<Button
 				size="sm"
 				variant="outline"
 				onclick={toggleLayoutMode}
 				class="h-8 w-8 p-0"
-				title={layoutMode === 'horizontal' ? 'Switch to vertical layout (logs on side)' : 'Switch to horizontal layout (logs below)'}
+				title={layoutMode === 'horizontal' ? m.stacks_layout_vertical_tooltip() : m.stacks_layout_horizontal_tooltip()}
 			>
 				{#if layoutMode === 'horizontal'}
 					<LayoutPanelLeft class="w-4 h-4" />
@@ -1367,15 +1368,15 @@
 			{#if $canAccess('stacks', 'create')}
 				<Button size="sm" variant="outline" onclick={() => openGitModal()}>
 					<GitBranch class="w-3.5 h-3.5" />
-					From Git
+					{m.stacks_from_git()}
 				</Button>
 				<Button size="sm" variant="secondary" onclick={() => showCreateModal = true}>
 					<Plus class="w-3.5 h-3.5" />
-					Create
+					{m.common_create()}
 				</Button>
 				<Button size="sm" variant="outline" onclick={() => showImportModal = true}>
 					<Import class="w-3.5 h-3.5" />
-					Adopt
+					{m.stacks_adopt()}
 				</Button>
 			{/if}
 		</div>
@@ -1384,113 +1385,111 @@
 	<!-- Selection bar - always reserve space to prevent layout shift -->
 	<div class="h-4 shrink-0">
 		{#if selectedStacks.size > 0}
-			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
-			<span>{selectedInFilter.length} selected</span>
-			<button
-				type="button"
-				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
-				onclick={selectNone}
-			>
-				Clear
-			</button>
-			{#if selectedStopped.length > 0 && $canAccess('stacks', 'start')}
+				<span>{m.stacks_selected_count({ count: selectedInFilter.length })}</span>
+				<button
+					type="button"
+					class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
+					onclick={selectNone}
+				>
+					{m.stacks_clear_selection()}
+				</button>
+				{#if selectedStopped.length > 0 && $canAccess('stacks', 'start')}
+					<ConfirmPopover
+						open={confirmBulkStart}
+						action={m.common_start()}
+						itemType={m.stacks_selected_count({ count: selectedStopped.length })}
+						itemName=""
+						title={m.common_start()}
+						variant="secondary"
+						unstyled
+						onConfirm={bulkStart}
+						onOpenChange={(open) => confirmBulkStart = open}
+					>
+						{#snippet children({ open })}
+							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer">
+								<Play class="w-3 h-3" />
+								{m.common_start()}
+							</span>
+						{/snippet}
+					</ConfirmPopover>
+				{/if}
+				{#if selectedRunning.length > 0 && $canAccess('stacks', 'restart')}
+					<ConfirmPopover
+						open={confirmBulkRestart}
+						action={m.common_restart()}
+						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
+						itemName=""
+						title={m.common_restart()}
+						variant="secondary"
+						unstyled
+						onConfirm={bulkRestart}
+						onOpenChange={(open) => confirmBulkRestart = open}
+					>
+						{#snippet children({ open })}
+							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-amber-600 hover:border-amber-500/40 hover:shadow transition-all cursor-pointer">
+								<RotateCcw class="w-3 h-3" />
+													{m.common_restart()}
+							</span>
+						{/snippet}
+					</ConfirmPopover>
+				{/if}
+				{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
+					<ConfirmPopover
+						open={confirmBulkStop}
+						action={m.common_stop()}
+						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
+						itemName=""
+						title={m.common_stop()}
+						unstyled
+						onConfirm={bulkStop}
+						onOpenChange={(open) => confirmBulkStop = open}
+					>
+						{#snippet children({ open })}
+							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer">
+								<Square class="w-3 h-3" />
+								{m.common_stop()}
+							</span>
+						{/snippet}
+					</ConfirmPopover>
+				{/if}
+				{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
+					<ConfirmPopover
+						open={confirmBulkDown}
+						action={m.common_actions()}
+						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
+						itemName=""
+						title={m.stacks_action_down_title()}
+						unstyled
+						onConfirm={bulkDown}
+						onOpenChange={(open) => confirmBulkDown = open}
+					>
+						{#snippet children({ open })}
+							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-orange-600 hover:border-orange-500/40 hover:shadow transition-all cursor-pointer">
+								<ArrowBigDown class="w-3 h-3" />
+								Down
+							</span>
+						{/snippet}
+					</ConfirmPopover>
+				{/if}
+				{#if $canAccess('stacks', 'remove')}
 				<ConfirmPopover
-					open={confirmBulkStart}
-					action="Start"
-					itemType="stacks"
-					itemName="{selectedStopped.length} stack{selectedStopped.length !== 1 ? 's' : ''}"
-					title="Start {selectedStopped.length}"
-					variant="secondary"
+					open={confirmBulkRemove}
+					action={m.common_remove()}
+					itemType={m.stacks_selected_count({ count: selectedInFilter.length })}
+					itemName=""
+						title={m.common_remove()}
 					unstyled
-					onConfirm={bulkStart}
-					onOpenChange={(open) => confirmBulkStart = open}
+					onConfirm={bulkRemove}
+					onOpenChange={(open) => confirmBulkRemove = open}
 				>
 					{#snippet children({ open })}
-						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer">
-							<Play class="w-3 h-3" />
-							Start
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
+							<Trash2 class="w-3 h-3" />
+							{m.common_remove()}
 						</span>
 					{/snippet}
 				</ConfirmPopover>
-			{/if}
-			{#if selectedRunning.length > 0 && $canAccess('stacks', 'restart')}
-				<ConfirmPopover
-					open={confirmBulkRestart}
-					action="Restart"
-					itemType="stacks"
-					itemName="{selectedRunning.length} stack{selectedRunning.length !== 1 ? 's' : ''}"
-					title="Restart {selectedRunning.length}"
-					variant="secondary"
-					unstyled
-					onConfirm={bulkRestart}
-					onOpenChange={(open) => confirmBulkRestart = open}
-				>
-					{#snippet children({ open })}
-						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-amber-600 hover:border-amber-500/40 hover:shadow transition-all cursor-pointer">
-							<RotateCcw class="w-3 h-3" />
-							Restart
-						</span>
-					{/snippet}
-				</ConfirmPopover>
-			{/if}
-			{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
-				<ConfirmPopover
-					open={confirmBulkStop}
-					action="Stop"
-					itemType="stacks"
-					itemName="{selectedRunning.length} stack{selectedRunning.length !== 1 ? 's' : ''}"
-					title="Stop {selectedRunning.length}"
-					unstyled
-					onConfirm={bulkStop}
-					onOpenChange={(open) => confirmBulkStop = open}
-				>
-					{#snippet children({ open })}
-						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer">
-							<Square class="w-3 h-3" />
-							Stop
-						</span>
-					{/snippet}
-				</ConfirmPopover>
-			{/if}
-			{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
-				<ConfirmPopover
-					open={confirmBulkDown}
-					action="Down"
-					itemType="stacks"
-					itemName="{selectedRunning.length} stack{selectedRunning.length !== 1 ? 's' : ''}"
-					title="Down {selectedRunning.length}"
-					unstyled
-					onConfirm={bulkDown}
-					onOpenChange={(open) => confirmBulkDown = open}
-				>
-					{#snippet children({ open })}
-						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-orange-600 hover:border-orange-500/40 hover:shadow transition-all cursor-pointer">
-							<ArrowBigDown class="w-3 h-3" />
-							Down
-						</span>
-					{/snippet}
-				</ConfirmPopover>
-			{/if}
-			{#if $canAccess('stacks', 'remove')}
-			<ConfirmPopover
-				open={confirmBulkRemove}
-				action="Remove"
-				itemType="stacks"
-				itemName="{selectedInFilter.length} stack{selectedInFilter.length !== 1 ? 's' : ''}"
-				title="Remove {selectedInFilter.length}"
-				unstyled
-				onConfirm={bulkRemove}
-				onOpenChange={(open) => confirmBulkRemove = open}
-			>
-				{#snippet children({ open })}
-					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
-						<Trash2 class="w-3 h-3" />
-						Remove
-					</span>
-				{/snippet}
-			</ConfirmPopover>
-			{/if}
-			</div>
+				{/if}
 		{/if}
 	</div>
 
@@ -1499,8 +1498,8 @@
 	{:else if !loading && stacks.length === 0}
 		<EmptyState
 			icon={Layers}
-			title="No compose stacks found"
-			description="Create a stack or deploy from Git to get started"
+			title={m.stacks_empty_title()}
+			description={m.stacks_empty_description()}
 		/>
 	{:else}
 		<!-- Main content area - changes layout based on mode -->
@@ -1562,7 +1561,7 @@
 								</Badge>
 							</Tooltip.Trigger>
 							<Tooltip.Content>
-								<p class="text-sm whitespace-nowrap">{systemType === 'dockhand' ? 'Dockhand management container' : 'Hawser remote agent'}</p>
+								<p class="text-sm whitespace-nowrap">{systemType === 'dockhand' ? m.stacks_system_dockhand_tooltip() : m.stacks_system_hawser_tooltip()}</p>
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
@@ -1575,92 +1574,92 @@
 								</span>
 							</Tooltip.Trigger>
 							<Tooltip.Content class="whitespace-nowrap">
-								{stackEnvVarCounts[stack.name]} environment variable{stackEnvVarCounts[stack.name] !== 1 ? 's' : ''} configured
+								{m.stacks_env_vars_count({ count: stackEnvVarCounts[stack.name], plural: stackEnvVarCounts[stack.name] !== 1 ? "s" : "" })}
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
-				{:else if column.id === 'source'}
-					{#if source.sourceType === 'git'}
-						<span
-							class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 shadow-sm min-w-[5.5rem]"
-							title={source.repository ? `${source.repository.url} (${source.repository.branch})` : 'Deployed from Git repository'}
-						>
-							<GitBranch class="w-3 h-3" />
-							Git
-						</span>
-					{:else if source.sourceType === 'internal'}
-						<span
-							class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 shadow-sm min-w-[5.5rem]"
-							title="Managed by Dockhand"
-						>
-							<FileCode class="w-3 h-3" />
-							Internal
-						</span>
-					{:else}
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								<span
-									class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 shadow-sm min-w-[5.5rem]"
-								>
-									<ExternalLink class="w-3 h-3" />
-									Untracked
-								</span>
-							</Tooltip.Trigger>
-							<Tooltip.Content class="whitespace-nowrap">
-								Compose file location unknown. Click the stack name or edit button to locate it.
-							</Tooltip.Content>
-						</Tooltip.Root>
-					{/if}
-				{:else if column.id === 'location'}
-					{#if source.composePath}
-						{@const dirPath = source.composePath.replace(/\/[^/]+$/, '')}
-						<Tooltip.Root>
-							<Tooltip.Trigger class="w-full text-left">
-								<span class="text-xs text-muted-foreground block truncate">
-									{dirPath}
-								</span>
-							</Tooltip.Trigger>
-							<Tooltip.Content class="max-w-md">
-								<code class="text-xs">{source.composePath}</code>
-							</Tooltip.Content>
-						</Tooltip.Root>
-					{:else}
-						<span class="text-xs text-muted-foreground/50 italic">Not set</span>
-					{/if}
+					{:else if column.id === 'source'}
+						{#if source.sourceType === 'git'}
+							<span
+								class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 shadow-sm min-w-[5.5rem]"
+								title={source.repository ? `${source.repository.url} (${source.repository.branch})` : m.stacks_source_git_tooltip()}
+							>
+								<GitBranch class="w-3 h-3" />
+								{m.stacks_source_git()}
+							</span>
+						{:else if source.sourceType === 'internal'}
+							<span
+								class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 shadow-sm min-w-[5.5rem]"
+								title={m.stacks_source_internal_tooltip()}
+							>
+								<FileCode class="w-3 h-3" />
+								{m.stacks_source_internal()}
+							</span>
+						{:else}
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span
+										class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 shadow-sm min-w-[5.5rem]"
+									>
+										<ExternalLink class="w-3 h-3" />
+										{m.stacks_source_untracked()}
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content class="whitespace-nowrap">
+									{m.stacks_source_untracked_tooltip()}
+								</Tooltip.Content>
+							</Tooltip.Root>
+						{/if}
+					{:else if column.id === 'location'}
+						{#if source.composePath}
+							{@const dirPath = source.composePath.replace(/\/[^/]+$/, '')}
+							<Tooltip.Root>
+								<Tooltip.Trigger class="w-full text-left">
+									<span class="text-xs text-muted-foreground block truncate">
+										{dirPath}
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content class="max-w-md">
+									<code class="text-xs">{source.composePath}</code>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						{:else}
+							<span class="text-xs text-muted-foreground/50 italic">{m.stacks_location_not_set()}</span>
+						{/if}
 				{:else if column.id === 'containers'}
 					<div class="flex items-center gap-1">
 						{#if getContainerStateCounts(stack).running}
-							<span class="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400" title="Running">
+							<span class="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400" title={m.stacks_container_state_running()}>
 								<Play class="w-3.5 h-3.5" />
 								<span class="text-xs font-medium">{getContainerStateCounts(stack).running}</span>
 							</span>
 						{/if}
 						{#if getContainerStateCounts(stack).exited}
-							<span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400" title="Exited">
+							<span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400" title={m.stacks_container_state_exited()}>
 								<Square class="w-3.5 h-3.5" />
 								<span class="text-xs font-medium">{getContainerStateCounts(stack).exited}</span>
 							</span>
 						{/if}
 						{#if getContainerStateCounts(stack).paused}
-							<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400" title="Paused">
+							<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400" title={m.stacks_container_state_paused()}>
 								<Pause class="w-3.5 h-3.5" />
 								<span class="text-xs font-medium">{getContainerStateCounts(stack).paused}</span>
 							</span>
 						{/if}
 						{#if getContainerStateCounts(stack).restarting}
-							<span class="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400" title="Restarting">
+							<span class="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400" title={m.stacks_container_state_restarting()}>
 								<span class="w-3.5 h-3.5 flex items-center justify-center"><RefreshCw class="w-3.5 h-3.5 animate-spin" /></span>
 								<span class="text-xs font-medium">{getContainerStateCounts(stack).restarting}</span>
 							</span>
 						{/if}
 						{#if getContainerStateCounts(stack).created}
-							<span class="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400" title="Created">
+							<span class="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400" title={m.stacks_container_state_created()}>
 								<CircleDashed class="w-3.5 h-3.5" />
 								<span class="text-xs font-medium">{getContainerStateCounts(stack).created}</span>
 							</span>
 						{/if}
 						{#if getContainerStateCounts(stack).dead}
-							<span class="inline-flex items-center gap-0.5 text-rose-700 dark:text-rose-400" title="Dead">
+							<span class="inline-flex items-center gap-0.5 text-rose-700 dark:text-rose-400" title={m.stacks_container_state_dead()}>
 								<Skull class="w-3.5 h-3.5" />
 								<span class="text-xs font-medium">{getContainerStateCounts(stack).dead}</span>
 							</span>
@@ -1730,7 +1729,11 @@
 					{@const StatusIcon = getStackStatusIcon(displayStatus)}
 					<span class={getStatusClasses(displayStatus)}>
 						<StatusIcon class="w-3 h-3" />
-						{displayStatus}
+						{displayStatus === 'running' ? m.stacks_status_running() :
+							displayStatus === 'partial' ? m.stacks_status_partial() :
+							displayStatus === 'stopped' ? m.stacks_status_stopped() :
+							displayStatus === 'created' ? m.stacks_status_created() :
+							displayStatus === 'not deployed' ? m.stacks_status_not_deployed() : displayStatus}
 					</span>
 				{:else if column.id === 'actions'}
 					<div class="relative flex gap-1 justify-end">
@@ -1747,7 +1750,7 @@
 							<button
 								type="button"
 								onclick={() => openGitModal(source.gitStack)}
-								title="Edit git stack"
+								title={m.stacks_action_edit_git()}
 								class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 							>
 								<Pencil class="grid-action-icon grid-action-edit text-muted-foreground hover:text-purple-500" />
@@ -1760,7 +1763,7 @@
 								{#snippet children()}
 									<button
 										type="button"
-										title="Deploy"
+										title={m.common_deploy()}
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Rocket class="grid-action-icon grid-action-start text-muted-foreground hover:text-violet-500" />
@@ -1777,7 +1780,7 @@
 									{#snippet children()}
 										<button
 											type="button"
-											title="Sync from Git"
+											title={m.stacks_action_sync_git()}
 											class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 										>
 											<RefreshCw class="grid-action-icon grid-action-restart text-muted-foreground hover:text-purple-500" />
@@ -1790,7 +1793,7 @@
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); openGitModal(source.gitStack); }}
-										title="Edit git stack"
+										title={m.stacks_action_edit_git()}
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Pencil class="grid-action-icon grid-action-edit text-muted-foreground hover:text-purple-500" />
@@ -1800,7 +1803,7 @@
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); editStack(stack.name); }}
-										title="Edit"
+										title={m.stacks_action_edit()}
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Pencil class="grid-action-icon grid-action-edit text-muted-foreground hover:text-blue-500" />
@@ -1811,7 +1814,7 @@
 								<button
 									type="button"
 									onclick={(e) => { e.stopPropagation(); viewStackLogs(stack); }}
-									title="View logs"
+									title={m.stacks_action_view_logs()}
 									class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 								>
 									<ScrollText class="grid-action-icon grid-action-logs text-muted-foreground hover:text-blue-500" />
@@ -1838,7 +1841,7 @@
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); startStack(stack.name); }}
-										title="Start"
+										title={m.common_start()}
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Play class="grid-action-icon grid-action-start text-muted-foreground hover:text-green-500" />
@@ -1851,7 +1854,7 @@
 											{#snippet child({ props })}
 												<button
 													type="button"
-													title="Restart"
+													title={m.common_restart()}
 													{...props}
 													onclick={(e) => { e.stopPropagation(); restartPopoverOpen[stack.name] = !restartPopoverOpen[stack.name]; }}
 													class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer inline-flex items-center"
@@ -1867,13 +1870,13 @@
 											sideOffset={8}
 										>
 											<div class="flex flex-col gap-1.5">
-												<span class="text-xs text-muted-foreground">Restart stack <strong>{stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name}</strong></span>
+												<span class="text-xs text-muted-foreground">{m.stacks_restart_stack_title({ name: stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name })}</span>
 												<div class="flex items-center gap-1.5">
 													<Button size="sm" variant="secondary" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>
-														Restart
+													{m.common_restart()}
 													</Button>
 													<Button size="sm" variant="default" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>
-														Recreate (stop & up)
+													{m.stacks_action_recreate()}
 													</Button>
 												</div>
 											</div>
@@ -1883,10 +1886,10 @@
 								{#if $canAccess('stacks', 'stop')}
 									<ConfirmPopover
 										open={confirmStopName === stack.name}
-										action="Stop"
-										itemType="stack"
+										action={m.common_stop()}
+										itemType={m.common_stop()}
 										itemName={stack.name}
-										title="Stop"
+										title={m.common_stop()}
 										onConfirm={() => stopStack(stack.name)}
 										onOpenChange={(open) => confirmStopName = open ? stack.name : null}
 									>
@@ -1900,10 +1903,10 @@
 						{#if $canAccess('stacks', 'stop') && stack.status !== 'created' && stack.status !== 'not deployed'}
 							<ConfirmPopover
 								open={confirmDownName === stack.name}
-								action="Down"
-								itemType="stack"
+								action={m.common_actions()}
+								itemType={m.stacks_action_down_title()}
 								itemName={stack.name}
-								title="Down (remove containers)"
+								title={m.stacks_action_down_title()}
 								onConfirm={() => downStack(stack.name)}
 								onOpenChange={(open) => confirmDownName = open ? stack.name : null}
 							>
@@ -1915,17 +1918,17 @@
 						{#if $canAccess('stacks', 'remove')}
 							<ConfirmPopover
 								open={confirmDeleteName === stack.name}
-								action="Delete"
-								itemType="stack"
+								action={m.common_remove()}
+								itemType={m.common_remove()}
 								itemName={stack.name}
-								title="Remove"
+								title={m.common_remove()}
 								onConfirm={() => removeStack(stack.name)}
 								onOpenChange={(open) => { confirmDeleteName = open ? stack.name : null; if (!open) deleteVolumes = false; }}
 							>
 								{#snippet extraContent()}
 									<label class="flex items-center gap-1.5 cursor-pointer">
 										<Checkbox bind:checked={deleteVolumes} />
-										<span class="text-xs text-muted-foreground">Also delete volumes</span>
+										<span class="text-xs text-muted-foreground">{m.stacks_delete_volumes_label()}</span>
 									</label>
 								{/snippet}
 								{#snippet children({ open })}
@@ -1958,7 +1961,14 @@
 												{/if}
 											</span>
 										{/if}
-										<span class={getStatusClasses(container.state)}>{container.state}</span>
+										<span class={getStatusClasses(container.state)}>
+														{container.state === 'running' ? m.stacks_container_state_running() :
+														container.state === 'exited' ? m.stacks_container_state_exited() :
+														container.state === 'paused' ? m.stacks_container_state_paused() :
+														container.state === 'restarting' ? m.stacks_container_state_restarting() :
+														container.state === 'created' ? m.stacks_container_state_created() :
+														container.state === 'dead' ? m.stacks_container_state_dead() : container.state}
+													</span>
 									</div>
 									<div class="text-muted-foreground mb-2 space-y-0.5">
 										<div class="truncate" title={container.image}>{container.image}</div>
@@ -1968,7 +1978,7 @@
 												{formatUptime(container.status)}
 											</span>
 											{#if container.restartCount > 0}
-												<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400" title="{container.restartCount} restart{container.restartCount > 1 ? 's' : ''}">
+												<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400" title={m.stacks_restarts_count({ count: container.restartCount, plural: container.restartCount > 1 ? 's' : '' })}>
 													<RotateCw class="w-2.5 h-2.5" />
 													{container.restartCount}
 												</span>
@@ -1984,7 +1994,7 @@
 											<!-- CPU sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">CPU</span>
+													<span class="text-muted-foreground">{m.common_cpu()}</span>
 													<span class="font-mono {stats?.cpuPercent && stats.cpuPercent > 80 ? 'text-red-500' : stats?.cpuPercent && stats.cpuPercent > 50 ? 'text-yellow-500' : 'text-muted-foreground'}">{stats?.cpuPercent?.toFixed(0) ?? '-'}%</span>
 												</div>
 												{#if history?.cpu && history.cpu.length >= 2}
@@ -1999,7 +2009,7 @@
 											<!-- Memory sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">Mem</span>
+													<span class="text-muted-foreground">{m.stacks_label_mem()}</span>
 													<span class="font-mono text-muted-foreground">{stats ? formatBytes(stats.memoryUsage) : '-'}</span>
 												</div>
 												{#if history?.mem && history.mem.length >= 2}
@@ -2014,7 +2024,7 @@
 											<!-- Network I/O sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">Net</span>
+													<span class="text-muted-foreground">{m.stacks_label_net()}</span>
 													<span class="font-mono text-muted-foreground">{stats ? formatBytes(stats.networkRx + stats.networkTx) : '-'}</span>
 												</div>
 												{#if history?.netRx && history.netRx.length >= 2}
@@ -2029,7 +2039,7 @@
 											<!-- Disk I/O sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">Disk</span>
+													<span class="text-muted-foreground">{m.stacks_label_disk()}</span>
 													<span class="font-mono text-muted-foreground">{stats ? formatBytes(stats.blockRead + stats.blockWrite) : '-'}</span>
 												</div>
 												{#if history?.diskR && history.diskR.length >= 2}
@@ -2055,7 +2065,7 @@
 													rel="noopener noreferrer"
 													onclick={(e) => e.stopPropagation()}
 													class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-													title="Open {stackParsedUrl.url} in new tab"
+													title={m.stacks_open_url_tooltip({ url: stackParsedUrl.url })}
 												>
 													<Globe class="w-2.5 h-2.5" />
 													<span class="max-w-[120px] truncate">{stackParsedUrl.name || stackParsedUrl.url.replace(/^https?:\/\//, '')}</span>
@@ -2072,7 +2082,7 @@
 													rel="noopener noreferrer"
 													onclick={(e) => e.stopPropagation()}
 													class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-													title="Traefik router {t.router} → {t.url}"
+													title={m.stacks_traefik_router_tooltip({ router: t.router, url: t.url })}
 												>
 													<Globe class="w-2.5 h-2.5" />
 													<span class="max-w-[120px] truncate">{t.url.replace(/^https?:\/\//, '')}</span>
@@ -2087,7 +2097,7 @@
 													rel="noopener noreferrer"
 													onclick={(e) => e.stopPropagation()}
 													class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-													title="Pangolin resource {p.resource} → {p.url}"
+													title={m.stacks_pangolin_resource_tooltip({ resource: p.resource, url: p.url })}
 												>
 													<Globe class="w-2.5 h-2.5" />
 													<span class="max-w-[120px] truncate">{p.displayName ?? p.url.replace(/^https?:\/\//, '')}</span>
@@ -2109,7 +2119,7 @@
 														rel="noopener noreferrer"
 														onclick={(e) => e.stopPropagation()}
 														class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded {portUrl ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800'} transition-colors"
-														title="Open {url} in new tab"
+														title={m.stacks_open_url_tooltip({ url })}
 													>
 														<code>{portParsed?.name ?? port.display}</code>
 														<ExternalLink class="w-2.5 h-2.5 {portUrl ? 'opacity-60' : ''}" />
@@ -2133,14 +2143,14 @@
 												</Tooltip.Trigger>
 												<Tooltip.Content class="whitespace-nowrap max-w-none">
 													{#each container.networks as net}
-														<div class="font-mono text-xs">{net.name}: {net.ipAddress || 'no IP'}</div>
+														<div class="font-mono text-xs">{net.name}: {net.ipAddress || m.stacks_no_ip()}</div>
 													{/each}
 												</Tooltip.Content>
 											</Tooltip.Root>
 										{/if}
 										<!-- Volumes -->
 										{#if container.volumeCount > 0}
-											<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title="{container.volumeCount} volume{container.volumeCount > 1 ? 's' : ''} mounted">
+											<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title={m.stacks_volumes_count({ count: container.volumeCount, plural: container.volumeCount > 1 ? 's' : '' })}>
 												<HardDrive class="w-2.5 h-2.5" />
 												{container.volumeCount}
 											</span>
@@ -2150,7 +2160,7 @@
 										<div class="flex gap-1">
 											<button
 												type="button"
-												title="Open logs inline"
+												title={m.containers_action_show_logs()}
 												onclick={(e) => { e.stopPropagation(); showContainerLogs(container); }}
 												class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer {currentLogsContainerId === container.id ? 'bg-muted text-blue-500' : ''}"
 											>
@@ -2158,7 +2168,7 @@
 											</button>
 											<button
 												type="button"
-												title="Open logs in full view"
+												title={m.containers_action_open_logs()}
 												onclick={(e) => { e.stopPropagation(); goto(appendEnvParam(`/logs?container=${container.id}`, envId)); }}
 												class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 											>
@@ -2167,7 +2177,7 @@
 											{#if container.state === 'running' && $canAccess('containers', 'exec')}
 												<button
 													type="button"
-													title="Open terminal"
+													title={m.containers_action_show_terminal()}
 													onclick={(e) => { e.stopPropagation(); goto(appendEnvParam(`/terminal?container=${container.id}`, envId)); }}
 													class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 												>
@@ -2177,7 +2187,7 @@
 											{#if container.state === 'running' && $canAccess('containers', 'files')}
 												<button
 													type="button"
-													title="Browse files"
+													title={m.containers_action_browse_files()}
 													onclick={(e) => { e.stopPropagation(); browseFiles(container.id, container.name); }}
 													class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 												>
@@ -2186,7 +2196,7 @@
 											{/if}
 											<button
 												type="button"
-												title="Inspect container"
+												title={m.containers_action_view_details()}
 												onclick={(e) => { e.stopPropagation(); inspectContainer(container.id, container.name); }}
 												class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 											>
@@ -2210,7 +2220,7 @@
 													{#if $canAccess('containers', 'unpause')}
 														<button
 															type="button"
-															title="Unpause"
+															title={m.containers_action_unpause()}
 															onclick={(e) => unpauseContainer(container.id, e)}
 															class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 														>
@@ -2221,7 +2231,7 @@
 													{#if $canAccess('containers', 'start')}
 														<button
 															type="button"
-															title="Start"
+															title={m.common_start()}
 															onclick={(e) => startContainer(container.id, e)}
 															class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 														>
@@ -2233,10 +2243,10 @@
 													{#if $canAccess('containers', 'restart')}
 														<ConfirmPopover
 															open={confirmRestartContainerId === container.id}
-															action="Restart"
-															itemType="container"
+															action={m.common_restart()}
+															itemType={m.common_restart()}
 															itemName={container.service}
-															title="Restart"
+															title={m.common_restart()}
 															onConfirm={() => restartContainer(container.id)}
 															onOpenChange={(open) => confirmRestartContainerId = open ? container.id : null}
 														>
@@ -2248,10 +2258,10 @@
 													{#if $canAccess('containers', 'pause')}
 														<ConfirmPopover
 															open={confirmPauseContainerId === container.id}
-															action="Pause"
-															itemType="container"
+															action={m.containers_action_pause()}
+															itemType={m.containers_action_pause()}
 															itemName={container.service}
-															title="Pause"
+															title={m.containers_action_pause()}
 															onConfirm={() => pauseContainer(container.id)}
 															onOpenChange={(open) => confirmPauseContainerId = open ? container.id : null}
 														>
@@ -2263,10 +2273,10 @@
 													{#if $canAccess('containers', 'stop')}
 														<ConfirmPopover
 															open={confirmStopContainerId === container.id}
-															action="Stop"
-															itemType="container"
+															action={m.common_stop()}
+															itemType={m.common_stop()}
 															itemName={container.service}
-															title="Stop"
+															title={m.common_stop()}
 															onConfirm={() => stopContainer(container.id)}
 															onOpenChange={(open) => confirmStopContainerId = open ? container.id : null}
 														>
@@ -2280,10 +2290,10 @@
 											{#if $canAccess('containers', 'remove')}
 												<ConfirmPopover
 													open={confirmRemoveContainerId === container.id}
-													action="Remove"
-													itemType="container"
+													action={m.common_remove()}
+													itemType={m.common_remove()}
 													itemName={container.service}
-													title="Remove"
+													title={m.common_remove()}
 													onConfirm={() => removeContainer(container.id)}
 													onOpenChange={(open) => confirmRemoveContainerId = open ? container.id : null}
 												>

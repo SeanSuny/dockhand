@@ -725,10 +725,10 @@
 							{#if onStop}
 								<ConfirmPopover
 									open={confirmStopOpen}
-									action={m.container_inspect_stop()}
+									action={m.common_stop()}
 									itemType="container"
 									itemName={displayName || containerId.slice(0, 12)}
-									title={m.container_inspect_stop()}
+									title={m.common_stop()}
 									onConfirm={doStop}
 									onOpenChange={(o) => confirmStopOpen = o}
 								>
@@ -740,10 +740,10 @@
 							{#if onRestart}
 								<ConfirmPopover
 									open={confirmRestartOpen}
-									action={m.container_inspect_restart()}
+									action={m.common_restart()}
 									itemType="container"
 									itemName={displayName || containerId.slice(0, 12)}
-									title={m.container_inspect_restart()}
+									title={m.common_restart()}
 									variant="secondary"
 									onConfirm={doRestart}
 									onOpenChange={(o) => confirmRestartOpen = o}
@@ -758,7 +758,7 @@
 								<button
 									type="button"
 									onclick={doStart}
-									title={m.container_inspect_start()}
+									title={m.common_start()}
 									disabled={starting}
 									class="p-1 rounded hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
 								>
@@ -823,11 +823,11 @@
 						<Tabs.Trigger value="logs" onclick={() => showLogs = true}>{m.container_inspect_tab_logs()}</Tabs.Trigger>
 						<Tabs.Trigger value="layers" onclick={() => showLogs = false}>{m.container_inspect_tab_layers()}</Tabs.Trigger>
 						<Tabs.Trigger value="processes" onclick={() => { showLogs = false; if (processesAutoRefresh) startProcessesCollection(); else fetchProcesses(); }}>{m.container_inspect_tab_processes()}</Tabs.Trigger>
-						<Tabs.Trigger value="network" onclick={() => showLogs = false}>{m.container_inspect_tab_network()}</Tabs.Trigger>
+						<Tabs.Trigger value="network" onclick={() => showLogs = false}>{m.common_network()}</Tabs.Trigger>
 						<Tabs.Trigger value="mounts" onclick={() => showLogs = false}>{m.container_inspect_tab_mounts()}</Tabs.Trigger>
 						<Tabs.Trigger value="files" onclick={() => showLogs = false}>{m.container_inspect_tab_files()}</Tabs.Trigger>
 						<Tabs.Trigger value="env" onclick={() => showLogs = false}>{m.container_inspect_tab_env()}</Tabs.Trigger>
-						<Tabs.Trigger value="labels" onclick={() => showLogs = false}>{m.container_inspect_tab_labels()}</Tabs.Trigger>
+						<Tabs.Trigger value="labels" onclick={() => showLogs = false}>{m.common_labels()}</Tabs.Trigger>
 						<Tabs.Trigger value="security" onclick={() => showLogs = false}>{m.container_inspect_tab_security()}</Tabs.Trigger>
 						<Tabs.Trigger value="resources" onclick={() => showLogs = false}>{m.container_inspect_tab_resources()}</Tabs.Trigger>
 						<Tabs.Trigger value="health" onclick={() => showLogs = false}>{m.container_inspect_tab_health()}</Tabs.Trigger>
@@ -842,7 +842,7 @@
 								<div class="p-3 border border-border rounded-lg">
 									<div class="flex items-center gap-2 mb-2">
 										<Cpu class="w-4 h-4 text-blue-500" />
-										<span class="text-xs font-medium">{m.container_inspect_cpu()}</span>
+										<span class="text-xs font-medium">{m.common_cpu()}</span>
 										<span class="ml-auto text-sm font-bold">{currentStats?.cpuPercent?.toFixed(1) ?? '—'}%</span>
 									</div>
 									{#if cpuHistory.length >= 2}
@@ -866,7 +866,7 @@
 								<div class="p-3 border border-border rounded-lg">
 									<div class="flex items-center gap-2 mb-2">
 										<MemoryStick class="w-4 h-4 text-green-500" />
-										<span class="text-xs font-medium">{m.container_inspect_memory_label()}</span>
+										<span class="text-xs font-medium">{m.common_memory()}</span>
 										<span class="ml-auto text-sm font-bold">{currentStats?.memoryPercent?.toFixed(1) ?? '—'}%</span>
 									</div>
 									{#if memoryHistory.length >= 2}
@@ -956,7 +956,7 @@
 							<div class="space-y-3">
 								<h3 class="text-sm font-semibold flex items-center gap-2">
 									<Info class="w-4 h-4" />
-									{m.container_inspect_status()}
+									{m.common_status()}
 								</h3>
 								<div class="grid grid-cols-2 gap-2 text-sm">
 									<div>
@@ -1015,7 +1015,7 @@
 						<!-- Command -->
 						{#if containerData.Path || containerData.Args}
 							<div class="space-y-2">
-								<h3 class="text-sm font-semibold">{m.container_inspect_command()}</h3>
+								<h3 class="text-sm font-semibold">{m.common_command()}</h3>
 								<div class="p-2 bg-muted rounded">
 									<code class="text-xs break-all">
 										{containerData.Path || ''} {containerData.Args?.join(' ') || ''}
@@ -1514,7 +1514,7 @@
 								</Badge>
 							</div>
 							<div class="p-3 border border-border rounded-lg">
-								<p class="text-xs text-muted-foreground mb-1">{m.container_inspect_user()}</p>
+								<p class="text-xs text-muted-foreground mb-1">{m.common_user()}</p>
 								<code class="text-xs">{containerData.Config?.User || 'root'}</code>
 							</div>
 							<div class="p-3 border border-border rounded-lg">
@@ -1602,7 +1602,7 @@
 									<code class="text-sm">{containerData.HostConfig?.NanoCpus ? (containerData.HostConfig.NanoCpus / 1e9).toFixed(2) : m.container_inspect_unlimited()}</code>
 								</div>
 								<div class="p-3 border border-border rounded-lg">
-									<p class="text-xs text-muted-foreground mb-1">{m.container_inspect_memory_label()}</p>
+									<p class="text-xs text-muted-foreground mb-1">{m.common_memory()}</p>
 									<code class="text-sm">{formatMemory(containerData.HostConfig?.Memory)}</code>
 								</div>
 								<div class="p-3 border border-border rounded-lg">
@@ -1684,7 +1684,7 @@
 										{@const req = containerData.HostConfig.DeviceRequests[0]}
 										<div class="p-3 border border-border rounded-lg">
 											<p class="text-xs text-muted-foreground mb-1">{m.container_inspect_count()}</p>
-											<code class="text-sm">{req.Count === -1 ? m.container_inspect_all() : req.Count}</code>
+											<code class="text-sm">{req.Count === -1 ? m.common_all() : req.Count}</code>
 										</div>
 										{#if req.Driver}
 											<div class="p-3 border border-border rounded-lg">
@@ -1750,7 +1750,7 @@
 										<h3 class="text-sm font-semibold mb-2">{m.container_inspect_health_config()}</h3>
 										<div class="grid grid-cols-2 gap-3 text-sm">
 											<div class="col-span-2">
-												<p class="text-muted-foreground">{m.container_inspect_health_command()}</p>
+												<p class="text-muted-foreground">{m.common_command()}</p>
 												<code class="text-xs break-all">{healthConfig.Test.join(' ')}</code>
 											</div>
 											<div>
@@ -1776,7 +1776,7 @@
 								<!-- {m.container_inspect_runtime()} Status -->
 								{#if healthState}
 									<div class="shrink-0">
-										<h3 class="text-sm font-semibold mb-2">{m.container_inspect_health_status()}</h3>
+										<h3 class="text-sm font-semibold mb-2">{m.common_status()}</h3>
 										<div class="grid grid-cols-2 gap-3 text-sm">
 											<div>
 												<p class="text-muted-foreground">{m.container_inspect_health_current_status()}</p>
@@ -1849,7 +1849,7 @@
 							</Tooltip.Trigger>
 							<Tooltip.Content>{m.container_inspect_copy_failed()}</Tooltip.Content>
 						</Tooltip.Root>
-						<span class="text-red-500">{m.container_inspect_failed()}</span>
+						<span class="text-red-500">{m.common_failed()}</span>
 					{:else if jsonCopied === 'ok'}
 						<Check class="w-4 h-4 mr-1.5 text-green-500" />
 						<span class="text-green-500">Copied!</span>

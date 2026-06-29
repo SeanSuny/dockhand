@@ -510,7 +510,7 @@ const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 							onclick={() => filterMode = 'failed'}
 						>
 							<XCircle class="w-3 h-3 mr-1" />
-							{m.container_batch_filter_failed()} ({summary.failed + summary.blocked})
+							{m.common_failed()} ({summary.failed + summary.blocked})
 						</Button>
 					</div>
 				{/if}

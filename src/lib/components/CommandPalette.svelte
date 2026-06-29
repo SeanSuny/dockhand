@@ -297,7 +297,7 @@
 		{/if}
 		{#if containers.length > 0}
 			<Command.Separator />
-			<Command.Group heading={m.command_palette_group_containers()}>
+			<Command.Group heading={m.common_containers()}>
 				{#each containers as container (container.id)}
 					<Command.Item
 						value={`container ${container.name} ${container.image} ${container.envName}`}

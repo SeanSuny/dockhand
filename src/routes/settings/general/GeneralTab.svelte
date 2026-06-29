@@ -1046,7 +1046,7 @@ services:
 									leftValue="any"
 									rightValue="all"
 									leftLabel={m.settings_general_label_filter_any()}
-									rightLabel={m.settings_general_label_filter_all()}
+									rightLabel={m.common_all()}
 									onchange={(mode) => appSettings.setLabelFilterMode(mode as LabelFilterMode)}
 									disabled={!$canAccess('settings', 'edit')}
 								/>

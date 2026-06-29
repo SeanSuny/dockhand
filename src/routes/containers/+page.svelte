@@ -1443,7 +1443,7 @@
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
-		<PageHeader icon={Box} title={m.containers_title()} count={containers.length} />
+		<PageHeader icon={Box} title={m.common_containers()} count={containers.length} />
 		<div class="flex flex-wrap items-center gap-2">
 			<div class="relative">
 				<Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -1470,7 +1470,7 @@
 				{#if $canAccess('containers', 'create')}
 				<Button size="sm" variant="secondary" onclick={() => (showCreateModal = true)}>
 					<Plus class="w-3.5 h-3.5" />
-					{m.containers_create()}
+					{m.common_create()}
 				</Button>
 				{/if}
 				<Button
@@ -1507,7 +1507,7 @@
 				{#if updatableContainersCount > 0}
 				<ConfirmPopover
 					open={confirmUpdateAll}
-					action={m.containers_batch_update_selected_action()}
+					action={m.common_update()}
 					itemType="all {updatableContainersCount} containers"
 					confirmText={m.containers_update_all_confirm()}
 					variant="default"
@@ -1596,7 +1596,7 @@
 			{#if selectedStopped.length > 0 && $canAccess('containers', 'start')}
 				<ConfirmPopover
 					open={confirmBulkStart}
-					action={m.containers_batch_start_action()}
+					action={m.common_start()}
 					itemType={m.containers_batch_start_item({ count: selectedStopped.length, plural: selectedStopped.length !== 1 ? 's' : '' })}
 					title={m.containers_batch_start_title({ count: selectedStopped.length })}
 					variant="secondary"
@@ -1607,7 +1607,7 @@
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
 							<Play class="w-3 h-3" />
-							{m.containers_batch_start_action()}
+							{m.common_start()}
 						</span>
 					{/snippet}
 				</ConfirmPopover>
@@ -1615,7 +1615,7 @@
 			{#if selectedRunning.length > 0 && $canAccess('containers', 'stop')}
 				<ConfirmPopover
 					open={confirmBulkStop}
-					action={m.containers_batch_stop_action()}
+					action={m.common_stop()}
 					itemType={m.containers_batch_stop_item({ count: selectedRunning.length, plural: selectedRunning.length !== 1 ? 's' : '' })}
 					title={m.containers_batch_stop_title({ count: selectedRunning.length })}
 					unstyled
@@ -1625,7 +1625,7 @@
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
 							<Square class="w-3 h-3" />
-							{m.containers_batch_stop_action()}
+							{m.common_stop()}
 						</span>
 					{/snippet}
 				</ConfirmPopover>
@@ -1669,7 +1669,7 @@
 			{#if selectedNonSystem.length > 0 && $canAccess('containers', 'restart')}
 			<ConfirmPopover
 				open={confirmBulkRestart}
-				action={m.containers_batch_restart_action()}
+				action={m.common_restart()}
 				itemType={m.containers_batch_restart_item({ count: selectedNonSystem.length, plural: selectedNonSystem.length !== 1 ? 's' : '' })}
 				title={m.containers_batch_restart_title({ count: selectedNonSystem.length })}
 				variant="secondary"
@@ -1680,7 +1680,7 @@
 				{#snippet children({ open })}
 					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
 						<RotateCw class="w-3 h-3" />
-						{m.containers_batch_restart_action()}
+						{m.common_restart()}
 					</span>
 				{/snippet}
 			</ConfirmPopover>
@@ -1688,7 +1688,7 @@
 			{#if selectedNonSystem.length > 0 && $canAccess('containers', 'remove')}
 			<ConfirmPopover
 				open={confirmBulkRemove}
-				action={m.containers_batch_remove_action()}
+				action={m.common_remove()}
 				itemType={m.containers_batch_restart_item({ count: selectedNonSystem.length, plural: selectedNonSystem.length !== 1 ? 's' : '' })}
 				title={m.containers_batch_remove_title({ count: selectedNonSystem.length })}
 				unstyled
@@ -1698,7 +1698,7 @@
 				{#snippet children({ open })}
 					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
 						<Trash2 class="w-3 h-3" />
-						{m.containers_batch_remove_action()}
+						{m.common_remove()}
 					</span>
 				{/snippet}
 			</ConfirmPopover>
@@ -1706,9 +1706,9 @@
 			{#if selectedHaveUpdates}
 			<ConfirmPopover
 				open={confirmUpdateSelected}
-				action={m.containers_batch_update_selected_action()}
+				action={m.common_update()}
 				itemType={m.containers_batch_update_selected_item({ count: selectedWithUpdatesCount })}
-				confirmText={m.containers_batch_update_selected_confirm()}
+				confirmText={m.common_update()}
 				variant="default"
 				title={m.containers_batch_update_selected_title()}
 				onConfirm={updateSelectedContainers}
@@ -2099,7 +2099,7 @@
 							{#if containersWithUpdatesSet.has(container.id) && !container.systemContainer}
 								<ConfirmPopover
 									open={confirmUpdateId === container.id}
-									action={m.containers_batch_update_selected_action()}
+									action={m.common_update()}
 									itemType="container"
 									itemName={container.name}
 									title={m.containers_action_update_single_title()}
@@ -2198,7 +2198,7 @@
 													</Select.Root>
 												</div>
 												<div class="space-y-1.5">
-													<Label class="text-xs">{m.containers_user_label()}</Label>
+													<Label class="text-xs">{m.common_user()}</Label>
 													<Select.Root type="single" bind:value={terminalUser}>
 														<Select.Trigger class="w-full h-8 text-xs">
 															<User class="w-3 h-3 mr-1.5 text-muted-foreground" />
@@ -2298,7 +2298,7 @@
 								<button
 									type="button"
 									onclick={() => startContainer(container.id)}
-									title={m.containers_action_start()}
+									title={m.common_start()}
 									class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 								>
 									<Play class="grid-action-icon grid-action-start text-muted-foreground hover:text-green-500" />
@@ -2308,10 +2308,10 @@
 							{#if $canAccess('containers', 'restart')}
 							<ConfirmPopover
 								open={confirmRestartId === container.id}
-								action={m.containers_batch_restart_action()}
+								action={m.common_restart()}
 								itemType="container"
 								itemName={container.name}
-								title={m.containers_action_restart()}
+								title={m.common_restart()}
 								variant="secondary"
 								onConfirm={() => restartContainer(container.id)}
 								onOpenChange={(open) => confirmRestartId = open ? container.id : null}
@@ -2335,10 +2335,10 @@
 								{#if $canAccess('containers', 'stop')}
 								<ConfirmPopover
 									open={confirmStopId === container.id}
-									action={m.containers_batch_stop_action()}
+									action={m.common_stop()}
 									itemType="container"
 									itemName={container.name}
-									title={m.containers_action_stop()}
+									title={m.common_stop()}
 									onConfirm={() => stopContainer(container.id)}
 									onOpenChange={(open) => confirmStopId = open ? container.id : null}
 								>
@@ -2355,7 +2355,7 @@
 								action="Delete"
 								itemType="container"
 								itemName={container.name}
-								title={m.containers_action_remove()}
+								title={m.common_remove()}
 								onConfirm={() => removeContainer(container.id)}
 								onOpenChange={(open) => confirmDeleteId = open ? container.id : null}
 							>

@@ -47,8 +47,9 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 		const validFontIds = fonts.map(f => f.id);
 		const validTerminalFontIds = monospaceFonts.map(f => f.id);
 		const validFontSizes = ['xsmall', 'small', 'normal', 'medium', 'large', 'xlarge'];
+		const validActionIconSizes = ['small', 'normal', 'large', 'xlarge'];
 
-		const updates: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean } = {};
+		const updates: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean; coloredActionButtons?: boolean; actionIconSize?: string } = {};
 
 		if (data.locale !== undefined) {
 			if (!VALID_LOCALES.includes(data.locale)) {
@@ -111,6 +112,20 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 				return json({ error: 'Invalid animateIcons' }, { status: 400 });
 			}
 			updates.animateIcons = data.animateIcons;
+		}
+
+		if (data.coloredActionButtons !== undefined) {
+			if (typeof data.coloredActionButtons !== 'boolean') {
+				return json({ error: 'Invalid coloredActionButtons' }, { status: 400 });
+			}
+			updates.coloredActionButtons = data.coloredActionButtons;
+		}
+
+		if (data.actionIconSize !== undefined) {
+			if (!validActionIconSizes.includes(data.actionIconSize)) {
+				return json({ error: 'Invalid actionIconSize' }, { status: 400 });
+			}
+			updates.actionIconSize = data.actionIconSize;
 		}
 
 		await setUserThemePreferences(currentUser.id, updates);

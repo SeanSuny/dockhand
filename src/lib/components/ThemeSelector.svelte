@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Sun, Moon, Type, AArrowUp, Table, Terminal, CodeXml } from 'lucide-svelte';
+	import { Sun, Moon, Type, AArrowUp, Table, Terminal, CodeXml, MousePointerClick } from 'lucide-svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
 	import { lightThemes, darkThemes, fonts, monospaceFonts } from '$lib/themes';
-	import { themeStore, applyTheme, type FontSize } from '$lib/stores/theme';
+	import { themeStore, applyTheme, type FontSize, type ActionIconSize } from '$lib/stores/theme';
 	import { authStore } from '$lib/stores/auth';
 
 	import * as m from '$lib/paraglide/messages';
@@ -21,6 +21,13 @@
 		{ id: 'medium', name: m.appearance_font_size_medium() },
 		{ id: 'large', name: m.appearance_font_size_large() },
 		{ id: 'xlarge', name: m.appearance_font_size_xlarge() }
+	];
+
+const actionIconSizes: { id: ActionIconSize; name: string }[] = [
+		{ id: 'small', name: 'Small' },
+		{ id: 'normal', name: 'Normal' },
+		{ id: 'large', name: 'Large' },
+		{ id: 'xlarge', name: 'Extra Large' }
 	];
 
 	function themeLabel(theme: ThemeMeta) {
@@ -53,6 +60,7 @@
 	let selectedFont = $state('system');
 	let selectedFontSize = $state<FontSize>('normal');
 	let selectedGridFontSize = $state<FontSize>('normal');
+	let selectedActionIconSize = $state<ActionIconSize>('normal');
 	let selectedTerminalFont = $state('system-mono');
 	let selectedEditorFont = $state('system-mono');
 
@@ -80,6 +88,7 @@
 			selectedFont = $themeStore.font;
 			selectedFontSize = $themeStore.fontSize;
 			selectedGridFontSize = $themeStore.gridFontSize;
+			selectedActionIconSize = $themeStore.actionIconSize;
 			selectedTerminalFont = $themeStore.terminalFont;
 			selectedEditorFont = $themeStore.editorFont;
 		} else {
@@ -93,6 +102,7 @@
 					selectedFont = data.font || 'system';
 					selectedFontSize = data.fontSize || 'normal';
 					selectedGridFontSize = data.gridFontSize || 'normal';
+					selectedActionIconSize = data.actionIconSize || 'normal';
 					selectedTerminalFont = data.terminalFont || 'system-mono';
 					selectedEditorFont = data.editorFont || 'system-mono';
 				}
@@ -110,6 +120,7 @@
 			selectedFont = $themeStore.font;
 			selectedFontSize = $themeStore.fontSize;
 			selectedGridFontSize = $themeStore.gridFontSize;
+			selectedActionIconSize = $themeStore.actionIconSize;
 			selectedTerminalFont = $themeStore.terminalFont;
 			selectedEditorFont = $themeStore.editorFont;
 		}
@@ -143,6 +154,12 @@
 		if (!value) return;
 		selectedGridFontSize = value as FontSize;
 		await themeStore.setPreference('gridFontSize', value as FontSize, userId, skipApply);
+	}
+
+	async function handleActionIconSizeChange(value: string | undefined) {
+		if (!value) return;
+		selectedActionIconSize = value as ActionIconSize;
+		await themeStore.setPreference('actionIconSize', value as ActionIconSize, userId, skipApply);
 	}
 
 	async function handleTerminalFontChange(value: string | undefined) {
@@ -296,6 +313,30 @@
 			</Select.Trigger>
 			<Select.Content>
 				{#each fontSizes as size}
+					<Select.Item value={size.id}>
+						<span>{size.name}</span>
+					</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	</div>
+
+	<!-- Grid Buttons Size (#1072) -->
+	<div class="flex items-center justify-between">
+		<div class="flex items-center gap-2">
+			<MousePointerClick class="w-4 h-4 text-muted-foreground" />
+			<Label>Grid buttons</Label>
+		</div>
+		<Select.Root type="single" value={selectedActionIconSize} onValueChange={handleActionIconSizeChange}>
+			<Select.Trigger class="w-56">
+				{#each actionIconSizes as size}
+					{#if size.id === selectedActionIconSize}
+						<span>{size.name}</span>
+					{/if}
+				{/each}
+			</Select.Trigger>
+			<Select.Content>
+				{#each actionIconSizes as size}
 					<Select.Item value={size.id}>
 						<span>{size.name}</span>
 					</Select.Item>

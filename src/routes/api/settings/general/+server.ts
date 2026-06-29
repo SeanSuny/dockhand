@@ -40,12 +40,17 @@ export type TimeFormat = '12h' | '24h';
 export type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'DD.MM.YYYY';
 export type DownloadFormat = 'tar' | 'tar.gz' | 'raw';
 export type EventCollectionMode = 'stream' | 'poll';
+export type ActionIconSize = 'small' | 'normal' | 'large' | 'xlarge';
+
+const VALID_ACTION_ICON_SIZES: ActionIconSize[] = ['small', 'normal', 'large', 'xlarge'];
 
 export interface GeneralSettings {
 	locale: string;
 	confirmDestructive: boolean;
 	showStoppedContainers: boolean;
 	highlightUpdates: boolean;
+	coloredActionButtons: boolean;
+	actionIconSize: ActionIconSize;
 	timeFormat: TimeFormat;
 	dateFormat: DateFormat;
 	downloadFormat: DownloadFormat;
@@ -103,6 +108,9 @@ export interface GeneralSettings {
 	animateIcons: boolean;
 	// Skip Dockhand's scanner images (grype, trivy) during 'prune all unused' (#625)
 	protectScannerImages: boolean;
+	// Scanner Advanced settings (#1219). Empty = use auto-detection.
+	defaultScannerNetworkMode: string;
+	defaultScannerDns: string[];
 }
 
 const DEFAULT_SETTINGS: Omit<GeneralSettings, 'scheduleRetentionDays' | 'eventRetentionDays' | 'scheduleCleanupCron' | 'eventCleanupCron' | 'scheduleCleanupEnabled' | 'eventCleanupEnabled' | 'scannerCleanupCron' | 'scannerCleanupEnabled'> = {
@@ -110,6 +118,8 @@ const DEFAULT_SETTINGS: Omit<GeneralSettings, 'scheduleRetentionDays' | 'eventRe
 	confirmDestructive: true,
 	showStoppedContainers: true,
 	highlightUpdates: true,
+	coloredActionButtons: false,
+	actionIconSize: 'normal' as const,
 	timeFormat: '24h',
 	dateFormat: 'DD.MM.YYYY',
 	downloadFormat: 'tar',
@@ -140,6 +150,8 @@ const DEFAULT_SETTINGS: Omit<GeneralSettings, 'scheduleRetentionDays' | 'eventRe
 	showImageChangelogLinks: true,
 	animateIcons: true,
 	protectScannerImages: true,
+	defaultScannerNetworkMode: '',
+	defaultScannerDns: [],
 	defaultComposeTemplate: `version: "3.8"
 
 services:
@@ -169,6 +181,24 @@ const VALID_EDITOR_FONTS = VALID_TERMINAL_FONTS;
 
 const VALID_DATE_FORMATS: DateFormat[] = ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'DD.MM.YYYY'];
 
+// Scanner DNS is stored as a JSON-stringified array in the settings KV store
+// (consistent with externalStackPaths). Tolerate the legacy/hand-edited
+// comma-separated form too.
+function parseScannerDnsStorage(raw: string | null | undefined): string[] {
+	if (!raw) return [];
+	const trimmed = raw.trim();
+	if (!trimmed) return [];
+	if (trimmed.startsWith('[')) {
+		try {
+			const parsed = JSON.parse(trimmed);
+			return Array.isArray(parsed) ? parsed.filter((v) => typeof v === 'string') : [];
+		} catch {
+			return [];
+		}
+	}
+	return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
 export const GET: RequestHandler = async ({ cookies }) => {
 	const auth = await authorize(cookies);
 	// UI preferences (time format, date format) should be available to all authenticated users
@@ -184,6 +214,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			confirmDestructive,
 			showStoppedContainers,
 			highlightUpdates,
+			coloredActionButtons,
+			actionIconSize,
 			timeFormat,
 			dateFormat,
 			downloadFormat,
@@ -222,11 +254,15 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			honorProxyLabels,
 			showImageChangelogLinks,
 			animateIcons,
-			protectScannerImages
+			protectScannerImages,
+			defaultScannerNetworkMode,
+			defaultScannerDnsRaw
 		] = await Promise.all([
 			getSetting('locale'),
 			getSetting('show_stopped_containers'),
 			getSetting('highlight_updates'),
+			getSetting('colored_action_buttons'),
+			getSetting('action_icon_size'),
 			getSetting('time_format'),
 			getSetting('date_format'),
 			getSetting('download_format'),
@@ -265,7 +301,9 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			getSetting('honor_proxy_labels'),
 			getSetting('show_image_changelog_links'),
 			getSetting('animate_icons'),
-			getSetting('protect_scanner_images')
+			getSetting('protect_scanner_images'),
+			getSetting('default_scanner_network_mode'),
+			getSetting('default_scanner_dns')
 		]);
 
 		const settings: GeneralSettings = {
@@ -273,6 +311,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			confirmDestructive: confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
 			showStoppedContainers: showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
 			highlightUpdates: highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
+			coloredActionButtons: coloredActionButtons ?? DEFAULT_SETTINGS.coloredActionButtons,
+			actionIconSize: (VALID_ACTION_ICON_SIZES.includes(actionIconSize as ActionIconSize) ? actionIconSize : DEFAULT_SETTINGS.actionIconSize) as ActionIconSize,
 			timeFormat: timeFormat ?? DEFAULT_SETTINGS.timeFormat,
 			dateFormat: dateFormat ?? DEFAULT_SETTINGS.dateFormat,
 			downloadFormat: downloadFormat ?? DEFAULT_SETTINGS.downloadFormat,
@@ -313,7 +353,9 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			honorProxyLabels: honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
 			showImageChangelogLinks: showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
 			animateIcons: animateIcons ?? DEFAULT_SETTINGS.animateIcons,
-			protectScannerImages: protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages
+			protectScannerImages: protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages,
+			defaultScannerNetworkMode: defaultScannerNetworkMode ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
+			defaultScannerDns: parseScannerDnsStorage(defaultScannerDnsRaw)
 		};
 
 		return json(settings);
@@ -331,7 +373,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	try {
 		const body = await request.json();
-		const { locale, confirmDestructive, showStoppedContainers, highlightUpdates, timeFormat, dateFormat, downloadFormat, defaultGrypeArgs, defaultTrivyArgs, scheduleRetentionDays, eventRetentionDays, scheduleCleanupCron, eventCleanupCron, scheduleCleanupEnabled, eventCleanupEnabled, scannerCleanupCron, scannerCleanupEnabled, logBufferSizeKb, logMaxLines, defaultTimezone, eventCollectionMode, eventPollInterval, metricsCollectionInterval, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, compactPorts, showExposedPorts, formatLogTimestamps, externalStackPaths, primaryStackLocation, defaultGrypeImage, defaultTrivyImage, defaultComposeTemplate, labelFilterMode, honorProxyLabels, showImageChangelogLinks, animateIcons, protectScannerImages } = body;
+		const { locale, confirmDestructive, showStoppedContainers, highlightUpdates, coloredActionButtons, actionIconSize, timeFormat, dateFormat, downloadFormat, defaultGrypeArgs, defaultTrivyArgs, scheduleRetentionDays, eventRetentionDays, scheduleCleanupCron, eventCleanupCron, scheduleCleanupEnabled, eventCleanupEnabled, scannerCleanupCron, scannerCleanupEnabled, logBufferSizeKb, logMaxLines, defaultTimezone, eventCollectionMode, eventPollInterval, metricsCollectionInterval, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, compactPorts, showExposedPorts, formatLogTimestamps, externalStackPaths, primaryStackLocation, defaultGrypeImage, defaultTrivyImage, defaultComposeTemplate, labelFilterMode, honorProxyLabels, showImageChangelogLinks, animateIcons, protectScannerImages, defaultScannerNetworkMode, defaultScannerDns } = body;
 
 		if (locale !== undefined && typeof locale === 'string') {
 			await setSetting('locale', locale);
@@ -344,6 +386,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 		if (highlightUpdates !== undefined) {
 			await setSetting('highlight_updates', highlightUpdates);
+		}
+		if (coloredActionButtons !== undefined) {
+			await setSetting('colored_action_buttons', coloredActionButtons);
+		}
+		if (actionIconSize !== undefined && VALID_ACTION_ICON_SIZES.includes(actionIconSize)) {
+			await setSetting('action_icon_size', actionIconSize);
 		}
 		if (timeFormat !== undefined && (timeFormat === '12h' || timeFormat === '24h')) {
 			await setSetting('time_format', timeFormat);
@@ -486,6 +534,20 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		if (protectScannerImages !== undefined && typeof protectScannerImages === 'boolean') {
 			await setSetting('protect_scanner_images', protectScannerImages);
 		}
+		if (defaultScannerNetworkMode !== undefined && typeof defaultScannerNetworkMode === 'string') {
+			// Free-form network mode (host / bridge / none / custom-network-name / '').
+			// Trim and cap length to avoid pathological values from a corrupted UI.
+			const trimmed = defaultScannerNetworkMode.trim().slice(0, 200);
+			await setSetting('default_scanner_network_mode', trimmed);
+		}
+		if (defaultScannerDns !== undefined && Array.isArray(defaultScannerDns)) {
+			const cleaned = defaultScannerDns
+				.filter((d) => typeof d === 'string')
+				.map((d: string) => d.trim())
+				.filter((d) => d.length > 0)
+				.slice(0, 10); // sane upper bound; Docker accepts more but no one needs it
+			await setSetting('default_scanner_dns', JSON.stringify(cleaned));
+		}
 
 		// Fetch all settings in parallel for the response
 		const [
@@ -493,6 +555,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			confirmDestructiveVal,
 			showStoppedContainersVal,
 			highlightUpdatesVal,
+			coloredActionButtonsVal,
+			actionIconSizeVal,
 			timeFormatVal,
 			dateFormatVal,
 			downloadFormatVal,
@@ -531,12 +595,16 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			honorProxyLabelsVal,
 			showImageChangelogLinksVal,
 			animateIconsVal,
-			protectScannerImagesVal
+			protectScannerImagesVal,
+			defaultScannerNetworkModeVal,
+			defaultScannerDnsRawVal
 		] = await Promise.all([
 			getSetting('locale'),
 			getSetting('confirm_destructive'),
 			getSetting('show_stopped_containers'),
 			getSetting('highlight_updates'),
+			getSetting('colored_action_buttons'),
+			getSetting('action_icon_size'),
 			getSetting('time_format'),
 			getSetting('date_format'),
 			getSetting('download_format'),
@@ -575,7 +643,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			getSetting('honor_proxy_labels'),
 			getSetting('show_image_changelog_links'),
 			getSetting('animate_icons'),
-			getSetting('protect_scanner_images')
+			getSetting('protect_scanner_images'),
+			getSetting('default_scanner_network_mode'),
+			getSetting('default_scanner_dns')
 		]);
 
 		const settings: GeneralSettings = {
@@ -583,6 +653,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			confirmDestructive: confirmDestructiveVal ?? DEFAULT_SETTINGS.confirmDestructive,
 			showStoppedContainers: showStoppedContainersVal ?? DEFAULT_SETTINGS.showStoppedContainers,
 			highlightUpdates: highlightUpdatesVal ?? DEFAULT_SETTINGS.highlightUpdates,
+			coloredActionButtons: coloredActionButtonsVal ?? DEFAULT_SETTINGS.coloredActionButtons,
+			actionIconSize: (VALID_ACTION_ICON_SIZES.includes(actionIconSizeVal as ActionIconSize) ? actionIconSizeVal : DEFAULT_SETTINGS.actionIconSize) as ActionIconSize,
 			timeFormat: timeFormatVal ?? DEFAULT_SETTINGS.timeFormat,
 			dateFormat: dateFormatVal ?? DEFAULT_SETTINGS.dateFormat,
 			downloadFormat: downloadFormatVal ?? DEFAULT_SETTINGS.downloadFormat,
@@ -623,7 +695,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			honorProxyLabels: honorProxyLabelsVal ?? DEFAULT_SETTINGS.honorProxyLabels,
 			protectScannerImages: protectScannerImagesVal ?? DEFAULT_SETTINGS.protectScannerImages,
 			showImageChangelogLinks: showImageChangelogLinksVal ?? DEFAULT_SETTINGS.showImageChangelogLinks,
-			animateIcons: animateIconsVal ?? DEFAULT_SETTINGS.animateIcons
+			animateIcons: animateIconsVal ?? DEFAULT_SETTINGS.animateIcons,
+			defaultScannerNetworkMode: defaultScannerNetworkModeVal ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
+			defaultScannerDns: parseScannerDnsStorage(defaultScannerDnsRawVal)
 		};
 
 		return json(settings);

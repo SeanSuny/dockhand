@@ -390,8 +390,10 @@ export async function getUserThemePreferences(userId: number): Promise<{
 	terminalFont: string;
 	editorFont: string;
 	animateIcons: boolean;
+	coloredActionButtons: boolean;
+	actionIconSize: string;
 }> {
-	const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, animateIcons] = await Promise.all([
+const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, animateIcons, coloredActionButtons, actionIconSize] = await Promise.all([
 		getUserSetting(userId, 'locale'),
 		getUserSetting(userId, 'light_theme'),
 		getUserSetting(userId, 'dark_theme'),
@@ -400,7 +402,9 @@ export async function getUserThemePreferences(userId: number): Promise<{
 		getUserSetting(userId, 'grid_font_size'),
 		getUserSetting(userId, 'terminal_font'),
 		getUserSetting(userId, 'editor_font'),
-		getUserSetting(userId, 'animate_icons')
+		getUserSetting(userId, 'animate_icons'),
+		getUserSetting(userId, 'colored_action_buttons'),
+		getUserSetting(userId, 'action_icon_size')
 	]);
 	return {
 		locale: locale || 'en',
@@ -412,13 +416,16 @@ export async function getUserThemePreferences(userId: number): Promise<{
 		terminalFont: terminalFont || 'system-mono',
 		editorFont: editorFont || 'system-mono',
 		// Default ON — only false when explicitly stored
-		animateIcons: animateIcons === 'false' ? false : true
+		animateIcons: animateIcons === 'false' ? false : true,
+		// Default OFF — only true when explicitly stored
+		coloredActionButtons: coloredActionButtons === 'true',
+		actionIconSize: actionIconSize || 'normal'
 	};
 }
 
 export async function setUserThemePreferences(
 	userId: number,
-	prefs: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean }
+prefs: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean; coloredActionButtons?: boolean; actionIconSize?: string }
 ): Promise<void> {
 	const updates: Promise<void>[] = [];
 	if (prefs.locale !== undefined) {
@@ -447,6 +454,12 @@ export async function setUserThemePreferences(
 	}
 	if (prefs.animateIcons !== undefined) {
 		updates.push(setUserSetting(userId, 'animate_icons', prefs.animateIcons ? 'true' : 'false'));
+	}
+	if (prefs.coloredActionButtons !== undefined) {
+		updates.push(setUserSetting(userId, 'colored_action_buttons', prefs.coloredActionButtons ? 'true' : 'false'));
+	}
+	if (prefs.actionIconSize !== undefined) {
+		updates.push(setUserSetting(userId, 'action_icon_size', prefs.actionIconSize));
 	}
 	await Promise.all(updates);
 }

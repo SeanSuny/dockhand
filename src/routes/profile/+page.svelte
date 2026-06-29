@@ -39,6 +39,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import ThemeSelector from '$lib/components/ThemeSelector.svelte';
 	import AnimateIconsToggle from '$lib/components/AnimateIconsToggle.svelte';
+	import ColoredActionsToggle from '$lib/components/ColoredActionsToggle.svelte';
 	import { themeStore } from '$lib/stores/theme';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocaleOptions, type SupportedLocale } from '$lib/i18n';
@@ -761,6 +762,7 @@
 					</div>
 
 					<ThemeSelector userId={profile.id} />
+					<ColoredActionsToggle userId={profile.id} />
 					<AnimateIconsToggle userId={profile.id} />
 				</Card.Content>
 			</Card.Root>

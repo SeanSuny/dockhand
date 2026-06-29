@@ -894,7 +894,8 @@
 		if (!formName.trim()) {
 			formErrors.name = m.settings_env_modal_err_name_required();
 			hasErrors = true;
-		} else {
+		} else if (formName.trim() !== environment.name) {
+			// Only validate name format on rename — existing names with legacy characters are allowed
 			const nameCheck = validateEnvName(formName.trim());
 			if (!nameCheck.ok) {
 				formErrors.name = nameCheck.reason!;

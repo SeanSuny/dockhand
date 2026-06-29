@@ -92,7 +92,7 @@
 					<Loader2 class="w-3 h-3 mr-1 animate-spin" />
 					{m.stacks_redeploy_deploying()}
 				{:else}
-					{m.stacks_redeploy_deploy()}
+					{m.common_deploy()}
 				{/if}
 			</Button>
 		</div>

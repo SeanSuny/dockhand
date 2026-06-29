@@ -1023,7 +1023,7 @@
 							: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
 						onclick={() => filterLabels = []}
 					>
-						{m.settings_general_label_filter_all()}
+						{m.common_all()}
 					</button>
 					{#each allLabels as label}
 						{@const isSelected = filterLabels.includes(label)}

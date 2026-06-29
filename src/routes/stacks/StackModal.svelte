@@ -1565,7 +1565,7 @@
 																</Tooltip.Trigger>
 																<Tooltip.Content>{m.stacks_modal_tooltip_copy_https_required()}</Tooltip.Content>
 															</Tooltip.Root>
-															{m.stacks_modal_button_copy_failed()}
+															{m.common_failed()}
 														{:else if composeContentCopied === 'ok'}
 															<Check class="w-3 h-3 text-green-500" />
 															{m.stacks_modal_button_copied()}
@@ -1651,7 +1651,7 @@
 							{m.stacks_modal_button_creating()}
 						{:else}
 							<Save class="w-4 h-4" />
-							{m.stacks_modal_button_create()}
+							{m.common_create()}
 						{/if}
 					</Button>
 					<Button onclick={() => handleCreate(true)} disabled={saving}>

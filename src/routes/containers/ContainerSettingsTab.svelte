@@ -967,7 +967,7 @@
 			</div>
 
 			<div class="space-y-1.5">
-				<Label class="text-xs font-medium">{m.container_settings_network()}</Label>
+				<Label class="text-xs font-medium">{m.common_network()}</Label>
 				<Popover.Root bind:open={networkModePickerOpen}>
 					<Popover.Trigger bind:ref={networkModePickerTriggerRef}>
 						{#snippet child({ props })}
@@ -1408,7 +1408,7 @@
 	<!-- Labels -->
 	<div class="space-y-2">
 		<div class="flex justify-between items-center pb-2 border-b">
-			<h3 class="text-sm font-semibold text-foreground">{m.container_settings_labels()}</h3>
+			<h3 class="text-sm font-semibold text-foreground">{m.common_labels()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addLabel} class="h-7 text-xs">
 				<Plus class="w-3.5 h-3.5" />
 				Add
@@ -1565,7 +1565,7 @@
 			<div class="px-3 pb-3 space-y-3 border-t">
 				<div class="grid grid-cols-2 gap-3 pt-2">
 					<div class="space-y-1.5">
-						<Label for="containerUser" class="text-xs font-medium">{m.container_settings_user()}</Label>
+						<Label for="containerUser" class="text-xs font-medium">{m.common_user()}</Label>
 						<Input id="containerUser" bind:value={containerUser} placeholder={m.container_settings_user_placeholder()} class="h-9" />
 					</div>
 					<div class="space-y-1.5 flex flex-col justify-center pt-4">
@@ -1690,7 +1690,7 @@
 				</div>
 				{#if healthcheckEnabled}
 					<div class="space-y-1.5">
-						<Label for="healthcheckCommand" class="text-xs font-medium">{m.container_settings_command()}</Label>
+						<Label for="healthcheckCommand" class="text-xs font-medium">{m.common_command()}</Label>
 						<Input id="healthcheckCommand" bind:value={healthcheckCommand} placeholder={m.container_settings_healthcheck_command_placeholder()} class="h-9" />
 					</div>
 					<div class="grid grid-cols-4 gap-3">
@@ -1932,7 +1932,7 @@
 						<ToggleGroup
 							value={gpuMode}
 							options={[
-								{ value: 'all', label: m.container_settings_gpu_mode_all() },
+								{ value: 'all', label: m.common_all() },
 								{ value: 'count', label: m.container_settings_gpu_mode_count() },
 								{ value: 'specific', label: m.container_settings_gpu_mode_specific() }
 							]}

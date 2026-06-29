@@ -201,7 +201,7 @@
 				{#if overallStatus === 'complete'}
 					<Badge variant="outline" class="ml-auto shrink-0 text-green-600 border-green-600/30">{m.stacks_git_deploy_badge_complete()}</Badge>
 				{:else if overallStatus === 'error'}
-					<Badge variant="outline" class="ml-auto shrink-0 text-red-600 border-red-600/30">{m.stacks_git_deploy_badge_failed()}</Badge>
+					<Badge variant="outline" class="ml-auto shrink-0 text-red-600 border-red-600/30">{m.common_failed()}</Badge>
 				{:else if isDeploying}
 					<Badge variant="secondary" class="ml-auto shrink-0 tabular-nums text-xs">
 						{#if currentStep?.step && currentStep?.totalSteps}
@@ -287,7 +287,7 @@
 				{#if overallStatus === 'confirming'}
 					<Button onclick={handleConfirmDeploy}>
 						<Rocket class="w-4 h-4" />
-						{m.stacks_git_deploy_deploy()}
+						{m.common_deploy()}
 					</Button>
 				{:else}
 					<Button

@@ -1372,7 +1372,7 @@
 				</Button>
 				<Button size="sm" variant="secondary" onclick={() => showCreateModal = true}>
 					<Plus class="w-3.5 h-3.5" />
-					{m.stacks_create()}
+					{m.common_create()}
 				</Button>
 				<Button size="sm" variant="outline" onclick={() => showImportModal = true}>
 					<Import class="w-3.5 h-3.5" />
@@ -1396,10 +1396,10 @@
 				{#if selectedStopped.length > 0 && $canAccess('stacks', 'start')}
 					<ConfirmPopover
 						open={confirmBulkStart}
-						action={m.stacks_action_start()}
+						action={m.common_start()}
 						itemType={m.stacks_selected_count({ count: selectedStopped.length })}
 						itemName=""
-						title={m.stacks_action_start()}
+						title={m.common_start()}
 						variant="secondary"
 						unstyled
 						onConfirm={bulkStart}
@@ -1408,7 +1408,7 @@
 						{#snippet children({ open })}
 							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer">
 								<Play class="w-3 h-3" />
-								{m.stacks_action_start()}
+								{m.common_start()}
 							</span>
 						{/snippet}
 					</ConfirmPopover>
@@ -1416,10 +1416,10 @@
 				{#if selectedRunning.length > 0 && $canAccess('stacks', 'restart')}
 					<ConfirmPopover
 						open={confirmBulkRestart}
-						action={m.stacks_action_restart()}
+						action={m.common_restart()}
 						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
 						itemName=""
-						title={m.stacks_action_restart()}
+						title={m.common_restart()}
 						variant="secondary"
 						unstyled
 						onConfirm={bulkRestart}
@@ -1428,7 +1428,7 @@
 						{#snippet children({ open })}
 							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-amber-600 hover:border-amber-500/40 hover:shadow transition-all cursor-pointer">
 								<RotateCcw class="w-3 h-3" />
-													{m.stacks_action_restart()}
+													{m.common_restart()}
 							</span>
 						{/snippet}
 					</ConfirmPopover>
@@ -1436,10 +1436,10 @@
 				{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
 					<ConfirmPopover
 						open={confirmBulkStop}
-						action={m.stacks_action_stop()}
+						action={m.common_stop()}
 						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
 						itemName=""
-						title={m.stacks_action_stop()}
+						title={m.common_stop()}
 						unstyled
 						onConfirm={bulkStop}
 						onOpenChange={(open) => confirmBulkStop = open}
@@ -1447,7 +1447,7 @@
 						{#snippet children({ open })}
 							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer">
 								<Square class="w-3 h-3" />
-								{m.stacks_action_stop()}
+								{m.common_stop()}
 							</span>
 						{/snippet}
 					</ConfirmPopover>
@@ -1474,10 +1474,10 @@
 				{#if $canAccess('stacks', 'remove')}
 				<ConfirmPopover
 					open={confirmBulkRemove}
-					action={m.stacks_action_remove()}
+					action={m.common_remove()}
 					itemType={m.stacks_selected_count({ count: selectedInFilter.length })}
 					itemName=""
-						title={m.stacks_action_remove()}
+						title={m.common_remove()}
 					unstyled
 					onConfirm={bulkRemove}
 					onOpenChange={(open) => confirmBulkRemove = open}
@@ -1485,7 +1485,7 @@
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
 							<Trash2 class="w-3 h-3" />
-							{m.stacks_action_remove()}
+							{m.common_remove()}
 						</span>
 					{/snippet}
 				</ConfirmPopover>
@@ -1763,7 +1763,7 @@
 								{#snippet children()}
 									<button
 										type="button"
-										title={m.stacks_action_deploy()}
+										title={m.common_deploy()}
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Rocket class="grid-action-icon grid-action-start text-muted-foreground hover:text-violet-500" />
@@ -1841,7 +1841,7 @@
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); startStack(stack.name); }}
-										title={m.stacks_action_start()}
+										title={m.common_start()}
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Play class="grid-action-icon grid-action-start text-muted-foreground hover:text-green-500" />
@@ -1854,7 +1854,7 @@
 											{#snippet child({ props })}
 												<button
 													type="button"
-													title={m.stacks_action_restart()}
+													title={m.common_restart()}
 													{...props}
 													onclick={(e) => { e.stopPropagation(); restartPopoverOpen[stack.name] = !restartPopoverOpen[stack.name]; }}
 													class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer inline-flex items-center"
@@ -1873,7 +1873,7 @@
 												<span class="text-xs text-muted-foreground">{m.stacks_restart_stack_title({ name: stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name })}</span>
 												<div class="flex items-center gap-1.5">
 													<Button size="sm" variant="secondary" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>
-													{m.stacks_action_restart()}
+													{m.common_restart()}
 													</Button>
 													<Button size="sm" variant="default" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>
 													{m.stacks_action_recreate()}
@@ -1886,10 +1886,10 @@
 								{#if $canAccess('stacks', 'stop')}
 									<ConfirmPopover
 										open={confirmStopName === stack.name}
-										action={m.stacks_action_stop()}
-										itemType={m.stacks_action_stop()}
+										action={m.common_stop()}
+										itemType={m.common_stop()}
 										itemName={stack.name}
-										title={m.stacks_action_stop()}
+										title={m.common_stop()}
 										onConfirm={() => stopStack(stack.name)}
 										onOpenChange={(open) => confirmStopName = open ? stack.name : null}
 									>
@@ -1918,10 +1918,10 @@
 						{#if $canAccess('stacks', 'remove')}
 							<ConfirmPopover
 								open={confirmDeleteName === stack.name}
-								action={m.stacks_action_remove()}
-								itemType={m.stacks_action_remove()}
+								action={m.common_remove()}
+								itemType={m.common_remove()}
 								itemName={stack.name}
-								title={m.stacks_action_remove()}
+								title={m.common_remove()}
 								onConfirm={() => removeStack(stack.name)}
 								onOpenChange={(open) => { confirmDeleteName = open ? stack.name : null; if (!open) deleteVolumes = false; }}
 							>
@@ -1994,7 +1994,7 @@
 											<!-- CPU sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">{m.stacks_label_cpu()}</span>
+													<span class="text-muted-foreground">{m.common_cpu()}</span>
 													<span class="font-mono {stats?.cpuPercent && stats.cpuPercent > 80 ? 'text-red-500' : stats?.cpuPercent && stats.cpuPercent > 50 ? 'text-yellow-500' : 'text-muted-foreground'}">{stats?.cpuPercent?.toFixed(0) ?? '-'}%</span>
 												</div>
 												{#if history?.cpu && history.cpu.length >= 2}
@@ -2231,7 +2231,7 @@
 													{#if $canAccess('containers', 'start')}
 														<button
 															type="button"
-															title={m.containers_action_start()}
+															title={m.common_start()}
 															onclick={(e) => startContainer(container.id, e)}
 															class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 														>
@@ -2243,10 +2243,10 @@
 													{#if $canAccess('containers', 'restart')}
 														<ConfirmPopover
 															open={confirmRestartContainerId === container.id}
-															action={m.containers_action_restart()}
-															itemType={m.containers_action_restart()}
+															action={m.common_restart()}
+															itemType={m.common_restart()}
 															itemName={container.service}
-															title={m.containers_action_restart()}
+															title={m.common_restart()}
 															onConfirm={() => restartContainer(container.id)}
 															onOpenChange={(open) => confirmRestartContainerId = open ? container.id : null}
 														>
@@ -2273,10 +2273,10 @@
 													{#if $canAccess('containers', 'stop')}
 														<ConfirmPopover
 															open={confirmStopContainerId === container.id}
-															action={m.containers_action_stop()}
-															itemType={m.containers_action_stop()}
+															action={m.common_stop()}
+															itemType={m.common_stop()}
 															itemName={container.service}
-															title={m.containers_action_stop()}
+															title={m.common_stop()}
 															onConfirm={() => stopContainer(container.id)}
 															onOpenChange={(open) => confirmStopContainerId = open ? container.id : null}
 														>
@@ -2290,10 +2290,10 @@
 											{#if $canAccess('containers', 'remove')}
 												<ConfirmPopover
 													open={confirmRemoveContainerId === container.id}
-													action={m.containers_action_remove()}
-													itemType={m.containers_action_remove()}
+													action={m.common_remove()}
+													itemType={m.common_remove()}
 													itemName={container.service}
-													title={m.containers_action_remove()}
+													title={m.common_remove()}
 													onConfirm={() => removeContainer(container.id)}
 													onOpenChange={(open) => confirmRemoveContainerId = open ? container.id : null}
 												>

@@ -30,7 +30,7 @@
 	const pieData = $derived(
 		[
 			{ key: 'images', label: m.sidebar_images(), value: imagesSize, color: '#0ea5e9' },
-			{ key: 'containers', label: m.sidebar_containers(), value: containersSize, color: '#10b981' },
+			{ key: 'containers', label: m.common_containers(), value: containersSize, color: '#10b981' },
 			{ key: 'volumes', label: m.sidebar_volumes(), value: volumesSize, color: '#f59e0b' },
 			{ key: 'buildCache', label: m.dashboard_build_cache(), value: buildCacheSize, color: '#8b5cf6' }
 		].filter(d => d.value > 0)
@@ -136,7 +136,7 @@
 				<div
 					class="bg-emerald-500 h-full transition-all duration-300"
 					style="width: {getPercentage(containersSize)}%"
-					title="{m.sidebar_containers()}: {formatBytes(containersSize)}"
+					title="{m.common_containers()}: {formatBytes(containersSize)}"
 				></div>
 			{/if}
 			{#if volumesSize > 0}
@@ -169,7 +169,7 @@
 				<div class="flex items-center gap-1.5">
 					<div class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></div>
 					<Box class="w-3 h-3 text-muted-foreground shrink-0" />
-					<span class="text-muted-foreground truncate">{m.sidebar_containers()}</span>
+					<span class="text-muted-foreground truncate">{m.common_containers()}</span>
 					<span class="ml-auto font-medium tabular-nums">{formatBytes(containersSize)}</span>
 				</div>
 			{/if}

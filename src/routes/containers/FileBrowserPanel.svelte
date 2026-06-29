@@ -1200,7 +1200,7 @@
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
-				<Label for="create-name">{m.container_files_label_name()}</Label>
+				<Label for="create-name">{m.common_name()}</Label>
 				<Input
 					id="create-name"
 					bind:value={createName}

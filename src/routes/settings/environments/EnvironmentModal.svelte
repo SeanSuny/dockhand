@@ -1593,7 +1593,7 @@
 					<Tabs.Content value="general" class="space-y-4 mt-0 h-full">
 						<!-- Name field -->
 						<div class="space-y-2">
-							<Label for="edit-env-name">{m.settings_env_modal_name()}</Label>
+							<Label for="edit-env-name">{m.common_name()}</Label>
 							<div class="flex gap-2">
 								{#if isCustomIcon(formIcon) || pendingIconData}
 									<Button variant="outline" size="sm" class="h-9 w-9 p-0 relative group" type="button" onclick={() => iconFileInput?.click()}>
@@ -1635,7 +1635,7 @@
 						<!-- Labels section -->
 						<div class="space-y-2">
 							<div class="flex items-center gap-1.5">
-								<Label>{m.settings_env_modal_labels()}</Label>
+								<Label>{m.common_labels()}</Label>
 								<span class="text-xs text-muted-foreground">({formLabels.length}/{MAX_LABELS})</span>
 							</div>
 							{#if formLabels.length > 0}
@@ -2573,7 +2573,7 @@
 														{:else}
 															<Trash2 class="w-2.5 h-2.5 mr-0.5" />
 														{/if}
-														{m.settings_env_modal_scanner_remove()}
+														{m.common_remove()}
 													</button>
 													{#if grypeUpdateStatus === 'up-to-date'}
 														<span class="inline-flex items-center text-2xs px-1.5 py-0 h-4 text-green-600">
@@ -2591,7 +2591,7 @@
 																{m.settings_env_modal_scanner_pulling()}
 															{:else}
 																<Download class="w-2.5 h-2.5 mr-0.5" />
-																{m.settings_env_modal_scanner_update()}
+																{m.common_update()}
 															{/if}
 														</button>
 													{:else}
@@ -2650,7 +2650,7 @@
 														{:else}
 															<Trash2 class="w-2.5 h-2.5 mr-0.5" />
 														{/if}
-														{m.settings_env_modal_scanner_remove()}
+														{m.common_remove()}
 													</button>
 													{#if trivyUpdateStatus === 'up-to-date'}
 														<span class="inline-flex items-center text-2xs px-1.5 py-0 h-4 text-green-600">
@@ -2668,7 +2668,7 @@
 																{m.settings_env_modal_scanner_pulling()}
 															{:else}
 																<Download class="w-2.5 h-2.5 mr-0.5" />
-																{m.settings_env_modal_scanner_update()}
+																{m.common_update()}
 															{/if}
 														</button>
 													{:else}
@@ -2952,7 +2952,7 @@
 						{:else}
 							<Plus class="w-4 h-4" />
 						{/if}
-						{m.settings_env_modal_add_btn()}
+						{m.common_add()}
 					</Button>
 				{:else}
 					<!-- Edit mode -->

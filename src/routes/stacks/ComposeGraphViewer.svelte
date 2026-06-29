@@ -1466,7 +1466,7 @@
 	function getElementTypeLabel(type: string) {
 		switch (type) {
 			case 'service': return m.stacks_graph_type_service();
-			case 'network': return m.stacks_graph_type_network();
+			case 'network': return m.common_network();
 			case 'volume': return m.stacks_graph_type_volume();
 			case 'config': return m.stacks_graph_type_config();
 			case 'secret': return m.stacks_graph_type_secret();
@@ -2113,7 +2113,7 @@
 					onclick={() => showAddMenu = !showAddMenu}
 				>
 					<Plus class="w-3 h-3" />
-					{m.stacks_graph_button_add()}
+					{m.common_add()}
 					<ChevronDown class="w-2.5 h-2.5" />
 				</Button>
 
@@ -2131,7 +2131,7 @@
 							onclick={() => openAddDialog('network')}
 						>
 							<Network class="w-3.5 h-3.5 text-violet-500" />
-							{m.stacks_graph_type_network()}
+							{m.common_network()}
 						</button>
 						<button
 							class="w-full px-2.5 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center gap-2 transition-colors"
@@ -2317,7 +2317,7 @@
 					</div>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-violet-500 flex-shrink-0"></div>
-						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_legend_network()}</span>
+						<span class="text-zinc-600 dark:text-zinc-300">{m.common_network()}</span>
 					</div>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-emerald-500 flex-shrink-0"></div>
@@ -2450,7 +2450,7 @@
 
 								<!-- Command -->
 								<div class="space-y-1.5">
-									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_command()}</span>
+									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.common_command()}</span>
 									<Input
 										bind:value={editServiceCommand}
 										oninput={markServiceDirty}
@@ -2571,7 +2571,7 @@
 								<!-- Labels -->
 								<div class="space-y-1.5">
 									<div class="flex items-center justify-between">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_labels()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.common_labels()}</span>
 										<button onclick={addServiceLabel} class="text-xs text-blue-500 hover:text-blue-600">
 											<Plus class="w-3.5 h-3.5" />
 										</button>
@@ -2731,7 +2731,7 @@
 								<!-- Labels -->
 								<div class="space-y-1.5">
 									<div class="flex items-center justify-between">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_labels()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.common_labels()}</span>
 										<button onclick={addNetworkLabel} class="text-xs text-blue-500 hover:text-blue-600">
 											<Plus class="w-3.5 h-3.5" />
 										</button>
@@ -2800,7 +2800,7 @@
 								<!-- Labels -->
 								<div class="space-y-1.5">
 									<div class="flex items-center justify-between">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_labels()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.common_labels()}</span>
 										<button onclick={addVolumeLabel} class="text-xs text-blue-500 hover:text-blue-600">
 											<Plus class="w-3.5 h-3.5" />
 										</button>
@@ -2964,13 +2964,13 @@
 			<Dialog.Title class="flex items-center gap-2">
 				{@const DialogIcon = getNodeIcon(addElementType)}
 				<DialogIcon class="w-5 h-5" />
-				{m.stacks_graph_title_add_element()} {getElementTypeLabel(addElementType)}
+				{m.common_add()} {getElementTypeLabel(addElementType)}
 			</Dialog.Title>
 		</Dialog.Header>
 
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
-				<Label for="element-name">{m.stacks_graph_label_name()}</Label>
+				<Label for="element-name">{m.common_name()}</Label>
 				<Input
 					id="element-name"
 					bind:value={newElementName}
@@ -3003,7 +3003,7 @@
 			<Button variant="outline" size="sm" onclick={() => showAddDialog = false}>{m.stacks_graph_button_dialog_cancel()}</Button>
 			<Button variant="secondary" size="sm" onclick={addElement} disabled={!newElementName.trim()}>
 				<Plus class="w-3.5 h-3.5 mr-1.5" />
-				{m.stacks_graph_button_dialog_add()} {getElementTypeLabel(addElementType)}
+				{m.common_add()} {getElementTypeLabel(addElementType)}
 			</Button>
 		</div>
 	</Dialog.Content>

@@ -104,7 +104,7 @@
 		<!-- Memory chart -->
 		<div class="mb-3">
 			<div class="flex items-center justify-between text-xs mb-1">
-				<span class="text-muted-foreground">{m.dashboard_memory()}</span>
+				<span class="text-muted-foreground">{m.common_memory()}</span>
 				<span class="font-medium">{memoryPercent.toFixed(1)}% ({formatBytes(memoryUsed)})</span>
 			</div>
 			{#if hasHistory}

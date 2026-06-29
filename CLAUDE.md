@@ -34,7 +34,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **重复定义就地翻译**：同一文本在多处重复定义时，各处用**同一组 key**，不重构抽取（如通知事件类型在 `EnvironmentModal` 与 `EventTypesEditor` 各有一份）。
 
 ### 2. key 命名与复用
-- **复用优先**：新建 key 前必先 `grep -i "英文" src/lib/i18n/messages/en.json` 确认无现成项；命中则复用（如 `common_cancel`、`common_save`、`settings_tab_general`）。
+- **复用优先**：新建 key 前必先 `grep -i "英文" src/lib/i18n/messages/en.json` 确认无现成项；命中则复用（如 `common_cancel`、`common_save`、`settings_tab_general`）。**别只盯 `common_*`**——`grep` 全前缀，跨域 key 一样能复用。
+- **value 全量去重（每文件收尾必做）**：key 加完后按 **value 分组**扫 en.json，同一英文落在多个 key 上的逐组判断：
+  ```bash
+  python3 -c "import json;from collections import defaultdict;e=json.load(open('src/lib/i18n/messages/en.json'));d=defaultdict(list);[d[v].append(k) for k,v in e.items()];[print(repr(v),ks) for v,ks in d.items() if len(ks)>1]"
+  ```
+  判断看 `zh-CN.json` 中文是否同译：同译就删重复 key、引用指向已有（如 `images_prune`→`containers_prune`、`images_copied`→`container_inspect_copied`）；**同形不同义则保留**（列头 `Created=创建时间` vs 状态 `Created=已创建`；动词 `Tag=标记` vs 名词 `Tag=标签`）。改完重跑 4 步验证。
 - 新 key 按区域加前缀：`settings_env_*`、`settings_env_modal_*`、`settings_env_updates_*`、`settings_env_activity_*`、`settings_env_event_*`（对齐 general tab 的 `settings_general_*`）。
 - **加 key 方式**：用脚本以字符串拼接向两个 JSON **追加**（保 TAB 格式），**不要** `JSON.stringify` 整文件（会打乱缩进/顺序、毁掉 diff）。en 填英文原文，zh 填中文。一个文件的 key **一次性批量追加**，别分多轮反复读写、反复对齐。
 
@@ -57,6 +62,13 @@ python3 -c "import json;e=json.load(open('src/lib/i18n/messages/en.json'));z=jso
 # 3) 残留英文：grep -nE '>[A-Za-z][A-Za-z ]{2,}<|placeholder="[A-Z]|title="[A-Z]' FILE | grep -vE 'm\.|Grype|Trivy|Hawser|HTTP|class=|</'
 # 4) npm run check 2>&1 | grep '<目标文件路径>'  —— 只看自己改的文件
 ```
+
+### 5. 提速：每文件闭环
+慢不在磁盘，在「重试多 + 多步绕路 + check 慢」。压成 3 步：
+1. **一个 Python 脚本做完写操作**：追加 key（两 JSON）→ 改引用 → value 去重，别 Bash 来回 `cat`/`sed`/逐行 Edit。
+2. **替换用批量 + assert 计数**：列 `(old, new, count)`，先全 `s.count()` 校验、任一不符整体 abort，再统一 `replace`。裸文本 pattern 加 `\n` 前缀锚定行首（少 tab 的 pattern 会误匹配深缩进行尾部 tab）。根除 svelte tab 错位的 "String not found" 重试。
+3. **验证 1-3 拼一条命令**（毫秒级），整文件收尾**才跑一次** `npm run check`（全项目扫十几秒，别中途跑）。
+4. **翻译期停 `npm run dev`**：watcher + 同 pts 输出是之前终端串字符、Edit 失败的元凶。`npx kill-port 5173 5174` 停掉，要预览再起。
 
 ---
 

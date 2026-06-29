@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Checkbox } from '$lib/components/ui/checkbox';
@@ -50,7 +51,7 @@
 		{#snippet child({ props })}
 			<button
 				type="button"
-				title="Redeploy"
+				title={m.stacks_redeploy_title()}
 				{...props}
 				onclick={handleTriggerClick}
 				class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer inline-flex items-center"
@@ -66,19 +67,19 @@
 		sideOffset={8}
 	>
 		<div class="space-y-3">
-			<p class="text-xs font-medium">Redeploy stack</p>
+			<p class="text-xs font-medium">{m.stacks_redeploy_title()}</p>
 			<div class="space-y-2">
 				<label class="flex items-center gap-2 cursor-pointer">
 					<Checkbox bind:checked={pull} disabled={deploying} />
-					<span class="text-xs">Pull images</span>
+					<span class="text-xs">{m.stacks_redeploy_pull_images()}</span>
 				</label>
 				<label class="flex items-center gap-2 cursor-pointer">
 					<Checkbox bind:checked={build} disabled={deploying} />
-					<span class="text-xs">Build images</span>
+					<span class="text-xs">{m.stacks_redeploy_build_images()}</span>
 				</label>
 				<label class="flex items-center gap-2 cursor-pointer">
 					<Checkbox bind:checked={forceRecreate} disabled={deploying} />
-					<span class="text-xs">Force recreate</span>
+					<span class="text-xs">{m.stacks_redeploy_force_recreate()}</span>
 				</label>
 			</div>
 			<Button
@@ -89,9 +90,9 @@
 			>
 				{#if deploying}
 					<Loader2 class="w-3 h-3 mr-1 animate-spin" />
-					Deploying...
+					{m.stacks_redeploy_deploying()}
 				{:else}
-					Deploy
+					{m.stacks_redeploy_deploy()}
 				{/if}
 			</Button>
 		</div>

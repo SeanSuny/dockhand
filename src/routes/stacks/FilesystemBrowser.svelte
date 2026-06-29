@@ -5,6 +5,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Loader2, FolderOpen, File, FileText, ChevronRight, ArrowUp, AlertCircle, FolderPlus, Search, Import, Check, X } from 'lucide-svelte';
 	import type { Component } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import RecentLocationsPanel from './RecentLocationsPanel.svelte';
 
 	export interface FileEntry {
@@ -29,7 +30,7 @@
 		highlightFilter?: RegExp;
 		/** For adopt mode: called when user clicks on a matching file */
 		onFilePreview?: (entry: FileEntry) => void;
-		/** For adopt mode: called when user clicks "Scan this folder" */
+		/** For adopt mode: called when user clicks "{m.stacks_filesystem_scan_folder()}" */
 		onScanDirectory?: (path: string) => void;
 		/** For adopt mode: show loading state on scan button */
 		scanning?: boolean;
@@ -316,7 +317,7 @@
 						class="p-1 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
 						disabled={!canGoUp}
 						onclick={handleGoUp}
-						title="Go up"
+						title={m.stacks_filesystem_go_up()}
 					>
 						<ArrowUp class="w-4 h-4" />
 					</button>
@@ -326,7 +327,7 @@
 							<Input
 								bind:ref={folderInputEl}
 								bind:value={newFolderName}
-								placeholder="Folder name"
+								placeholder={m.stacks_filesystem_folder_name_placeholder()}
 								class="h-7 w-40 max-w-40 text-xs"
 								onkeydown={handleFolderKeydown}
 							/>
@@ -335,7 +336,7 @@
 								class="p-1 rounded hover:bg-muted text-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
 								disabled={!newFolderName.trim()}
 								onclick={confirmCreateFolder}
-								title="Create folder"
+								title={m.stacks_filesystem_create_folder()}
 							>
 								<Check class="w-4 h-4" />
 							</button>
@@ -343,7 +344,7 @@
 								type="button"
 								class="p-1 rounded hover:bg-muted text-muted-foreground"
 								onclick={cancelCreatingFolder}
-								title="Cancel"
+								title={m.stacks_filesystem_cancel()}
 							>
 								<X class="w-4 h-4" />
 							</button>
@@ -356,7 +357,7 @@
 							type="button"
 							class="p-1 rounded hover:bg-muted text-muted-foreground"
 							onclick={startCreatingFolder}
-							title="New folder"
+							title={m.stacks_filesystem_new_folder()}
 						>
 							<FolderPlus class="w-4 h-4" />
 						</button>
@@ -370,10 +371,10 @@
 						>
 							{#if scanning}
 								<Loader2 class="w-4 h-4 animate-spin" />
-								Scanning...
+								{m.stacks_filesystem_scanning()}
 							{:else}
 								<Search class="w-4 h-4" />
-								Scan this folder
+								{m.stacks_filesystem_scan_folder()}
 							{/if}
 						</Button>
 					{/if}
@@ -390,16 +391,16 @@
 						<div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
 							<AlertCircle class="w-8 h-8 text-red-500" />
 						</div>
-						<p class="text-red-600 dark:text-red-400 font-medium">Unable to browse files</p>
+						<p class="text-red-600 dark:text-red-400 font-medium">{m.stacks_filesystem_unable_browse()}</p>
 						<p class="text-sm text-muted-foreground mt-1">{error}</p>
 						<Button variant="outline" size="sm" class="mt-4" onclick={() => currentPath && loadDirectory(currentPath)}>
-							Retry
+							{m.stacks_filesystem_retry()}
 						</Button>
 					</div>
 				{:else if filteredEntries.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-muted-foreground">
 						<FolderOpen class="w-12 h-12 mb-3 opacity-50" />
-						<p>{selectMode === 'directory' ? 'No subdirectories' : 'Directory is empty'}</p>
+						<p>{selectMode === 'directory' ? m.stacks_filesystem_no_subdirectories() : m.stacks_filesystem_directory_empty()}</p>
 					</div>
 				{:else}
 					<div class="divide-y">
@@ -426,7 +427,7 @@
 									{entry.name}
 								</span>
 								{#if highlighted && isAdoptMode}
-									<Badge variant="secondary" class="text-xs">Compose file</Badge>
+									<Badge variant="secondary" class="text-xs">{m.stacks_filesystem_compose_file()}</Badge>
 								{:else if entry.type !== 'directory' && !isAdoptMode}
 									<span class="text-xs text-muted-foreground">{formatSize(entry.size)}</span>
 								{/if}
@@ -445,46 +446,46 @@
 			<Dialog.Footer class="border-t pt-4">
 				{#if selectMode === 'directory'}
 					<div class="flex-1 flex items-center gap-2 min-w-0">
-						<span class="text-xs text-muted-foreground shrink-0">Selected:</span>
+						<span class="text-xs text-muted-foreground shrink-0">{m.stacks_filesystem_selected()}</span>
 						<code class="text-xs font-mono bg-muted px-2 py-1 rounded truncate" title={currentPath || '/'}>{currentPath || '/'}</code>
 					</div>
 				{:else if selectMode === 'file_or_directory'}
 					<div class="flex-1 flex items-center gap-2 min-w-0">
 						{#if selectedPath}
-							<span class="text-xs text-muted-foreground shrink-0">Selected:</span>
+							<span class="text-xs text-muted-foreground shrink-0">{m.stacks_filesystem_selected()}</span>
 							<code class="text-xs font-mono bg-muted px-2 py-1 rounded truncate" title={selectedPath}>{selectedPath}</code>
 						{:else}
-							<span class="text-xs text-muted-foreground">Click to select file or folder, double-click to enter folder</span>
+							<span class="text-xs text-muted-foreground">{m.stacks_filesystem_click_select_file_or_folder()}</span>
 						{/if}
 					</div>
 				{:else if selectedPath}
 					<div class="flex-1 flex items-center gap-2 min-w-0">
-						<span class="text-xs text-muted-foreground shrink-0">Selected:</span>
+						<span class="text-xs text-muted-foreground shrink-0">{m.stacks_filesystem_selected()}</span>
 						<code class="text-xs font-mono bg-muted px-2 py-1 rounded truncate" title={selectedPath}>{selectedPath}</code>
 					</div>
 				{:else}
 					<div class="flex-1 text-xs text-muted-foreground">
-						Click a file to select it
+						{m.stacks_filesystem_click_select_file()}
 					</div>
 				{/if}
 				<Button variant="outline" onclick={handleClose}>
-					Cancel
+					{m.stacks_filesystem_cancel()}
 				</Button>
 				{#if selectMode === 'directory'}
 					<Button onclick={handleConfirm}>
 						<FolderPlus class="w-4 h-4" />
-						Select
+						{m.stacks_filesystem_select()}
 					</Button>
 				{:else if selectMode === 'file_or_directory'}
 					<Button onclick={handleConfirm}>
-						Select
+						{m.stacks_filesystem_select()}
 					</Button>
 				{:else}
 					<Button
 						disabled={!selectedPath}
 						onclick={handleConfirm}
 					>
-						Select
+						{m.stacks_filesystem_select()}
 					</Button>
 				{/if}
 			</Dialog.Footer>

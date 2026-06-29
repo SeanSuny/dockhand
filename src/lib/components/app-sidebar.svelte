@@ -117,7 +117,7 @@
 
 	const menuItems: readonly MenuItem[] = [
 		{ href: '/', Icon: LayoutDashboard, label: m.sidebar_dashboard(), permission: 'always' },
-		{ href: '/containers', Icon: Box, label: m.sidebar_containers(), permission: 'containers' },
+		{ href: '/containers', Icon: Box, label: m.common_containers(), permission: 'containers' },
 		{ href: '/logs', Icon: ScrollText, label: m.sidebar_logs(), permission: 'containers' },
 		{ href: '/terminal', Icon: Terminal, label: m.sidebar_shell(), permission: 'containers' },
 		{ href: '/stacks', Icon: Layers, label: m.sidebar_stacks(), permission: 'stacks' },

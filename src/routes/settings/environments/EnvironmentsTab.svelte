@@ -419,12 +419,12 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-[200px]">{m.settings_env_col_name()}</Table.Head>
+						<Table.Head class="w-[200px]">{m.common_name()}</Table.Head>
 						<Table.Head>{m.settings_env_col_connection()}</Table.Head>
-						<Table.Head class="w-[120px]">{m.settings_env_col_labels()}</Table.Head>
+						<Table.Head class="w-[120px]">{m.common_labels()}</Table.Head>
 						<Table.Head class="w-[140px]">{m.settings_env_col_timezone()}</Table.Head>
 						<Table.Head class="w-[100px]">{m.settings_env_col_features()}</Table.Head>
-						<Table.Head class="w-[120px]">{m.settings_env_col_status()}</Table.Head>
+						<Table.Head class="w-[120px]">{m.common_status()}</Table.Head>
 						<Table.Head class="w-[100px]">Docker</Table.Head>
 						<Table.Head class="w-[100px]">Hawser</Table.Head>
 						<Table.Head class="w-[180px] text-right">{m.common_actions()}</Table.Head>
@@ -562,7 +562,7 @@
 											{:else}
 												<WifiOff class="w-3.5 h-3.5" />
 											{/if}
-											<span>{m.settings_env_status_failed()}</span>
+											<span>{m.common_failed()}</span>
 										</div>
 									{/if}
 								{:else if isTesting}

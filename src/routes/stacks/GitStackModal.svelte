@@ -1121,9 +1121,9 @@
 				<Button onclick={() => saveGitStack(formDeployNow)} disabled={formSaving}>
 					{#if formSaving}
 						<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-						{formDeployNow ? m.stacks_git_modal_button_deploy() + '...' : 'Creating...'}
+						{formDeployNow ? m.common_deploy() + '...' : 'Creating...'}
 					{:else}
-						{formDeployNow ? m.stacks_git_modal_button_deploy() : m.stacks_git_modal_button_create()}
+						{formDeployNow ? m.common_deploy() : m.common_create()}
 					{/if}
 				</Button>
 			{/if}

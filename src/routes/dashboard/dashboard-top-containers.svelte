@@ -61,7 +61,7 @@
 					<span class="tabular-nums">{container.cpuPercent.toFixed(1)}%</span>
 				</span>
 				<!-- Memory -->
-				<span class="flex items-center gap-0.5 text-muted-foreground whitespace-nowrap" title={m.dashboard_memory()}>
+				<span class="flex items-center gap-0.5 text-muted-foreground whitespace-nowrap" title={m.common_memory()}>
 					<MemoryStick class="w-3 h-3 shrink-0" />
 					<span class="tabular-nums">{container.memoryPercent.toFixed(1)}%</span>
 				</span>

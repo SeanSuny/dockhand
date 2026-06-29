@@ -186,7 +186,7 @@
 					onclick={(e) => { e.stopPropagation(); toggleGroupAll(group); }}
 					{disabled}
 				>
-					{allSelected ? m.settings_env_event_all() : someSelected ? m.settings_env_event_some() : m.settings_env_event_none()}
+					{allSelected ? m.common_all() : someSelected ? m.settings_env_event_some() : m.settings_env_event_none()}
 				</button>
 			</div>
 

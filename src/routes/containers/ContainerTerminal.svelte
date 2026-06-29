@@ -353,7 +353,7 @@
 							</div>
 
 							<div class="space-y-2">
-								<Label>{m.container_terminal_user_label()}</Label>
+								<Label>{m.common_user()}</Label>
 								<Select.Root type="single" bind:value={selectedUser}>
 									<Select.Trigger class="w-full h-10">
 										<User class="w-4 h-4 mr-2 text-muted-foreground" />

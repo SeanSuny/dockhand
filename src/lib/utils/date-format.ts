@@ -14,10 +14,23 @@ export interface DateTimeFormatters {
 	time: Intl.DateTimeFormat;
 }
 
+// A corrupt/unknown timezone string (e.g. a stale "stream" in settings) makes
+// Intl.DateTimeFormat throw RangeError, which would crash every grid that renders
+// a date. Probe once and fall back to the runtime's local zone if it's invalid.
+function safeTimeZone(timeZone: string | undefined): string | undefined {
+	if (!timeZone) return undefined;
+	try {
+		new Intl.DateTimeFormat('en-GB', { timeZone });
+		return timeZone;
+	} catch {
+		return undefined;
+	}
+}
+
 // Intl.DateTimeFormat construction is expensive; the caller caches one pair per
 // timezone and rebuilds only when the timezone setting changes.
 export function buildFormatters(timeZone: string | undefined): DateTimeFormatters {
-	const tz = timeZone || undefined;
+	const tz = safeTimeZone(timeZone);
 	return {
 		date: new Intl.DateTimeFormat('en-GB', {
 			timeZone: tz,

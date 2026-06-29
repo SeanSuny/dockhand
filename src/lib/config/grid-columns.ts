@@ -25,20 +25,20 @@ export const containerColumns: ColumnConfig[] = [
 export const imageColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
 	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
-	{ id: 'image', label: 'Image', sortable: true, sortField: 'name', width: 220, minWidth: 120, grow: true },
-	{ id: 'tags', label: 'Tags', sortable: true, sortField: 'tags', width: 80, minWidth: 50 },
-	{ id: 'size', label: 'Size', sortable: true, sortField: 'size', width: 80, minWidth: 60 },
-	{ id: 'updated', label: 'Updated', sortable: true, sortField: 'created', width: 140, minWidth: 100 },
+	{ id: 'image', get label() { return m.containers_col_image(); }, sortable: true, sortField: 'name', width: 220, minWidth: 120, grow: true },
+	{ id: 'tags', get label() { return m.images_col_tags(); }, sortable: true, sortField: 'tags', width: 80, minWidth: 50 },
+	{ id: 'size', get label() { return m.container_files_size(); }, sortable: true, sortField: 'size', width: 80, minWidth: 60 },
+	{ id: 'updated', get label() { return m.images_col_updated(); }, sortable: true, sortField: 'created', width: 140, minWidth: 100 },
 	{ id: 'actions', label: '', fixed: 'end', width: 120, resizable: false }
 ];
 
 // Image tags grid columns (nested inside expanded image row)
 export const imageTagColumns: ColumnConfig[] = [
-	{ id: 'tag', label: 'Tag', width: 180, minWidth: 60 },
-	{ id: 'id', label: 'ID', width: 120, minWidth: 80 },
-	{ id: 'size', label: 'Size', width: 80, minWidth: 60 },
-	{ id: 'created', label: 'Created', width: 140, minWidth: 100 },
-	{ id: 'used', label: 'Used by', width: 100, minWidth: 70 },
+	{ id: 'tag', get label() { return m.images_col_tag(); }, width: 180, minWidth: 60 },
+	{ id: 'id', get label() { return m.container_inspect_id(); }, width: 120, minWidth: 80 },
+	{ id: 'size', get label() { return m.container_files_size(); }, width: 80, minWidth: 60 },
+	{ id: 'created', get label() { return m.container_inspect_created(); }, width: 140, minWidth: 100 },
+	{ id: 'used', get label() { return m.images_col_used_by(); }, width: 100, minWidth: 70 },
 	{ id: 'actions', label: '', fixed: 'end', width: 200, resizable: false }
 ];
 

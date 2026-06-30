@@ -5,13 +5,30 @@
 	import { Check, X, Loader2, Circle, Ban } from 'lucide-svelte';
 	import { onDestroy } from 'svelte';
 	import { formatBytes } from '$lib/utils/format';
+	import * as m from '$lib/paraglide/messages';
 
-	const progressText: Record<string, string> = {
-		remove: 'removing',
-		start: 'starting',
-		stop: 'stopping',
-		restart: 'restarting',
-		down: 'stopping'
+	const operationProgressLabels: Record<string, () => string> = {
+		remove: () => m.batch_operation_progress_remove(),
+		start: () => m.stacks_modal_button_starting(),
+		stop: () => m.batch_operation_progress_stop(),
+		restart: () => m.batch_operation_progress_restart(),
+		down: () => m.batch_operation_progress_stop()
+	};
+
+	const entityTypeLabels: Record<string, () => string> = {
+		containers: () => m.common_containers_lowercase(),
+		images: () => m.common_entity_images(),
+		volumes: () => m.common_entity_volumes(),
+		networks: () => m.common_entity_networks(),
+		stacks: () => m.common_entity_stacks()
+	};
+
+	const operationLabels: Record<string, () => string> = {
+		remove: () => m.common_remove_lowercase(),
+		start: () => m.common_start_lowercase(),
+		stop: () => m.common_stop_lowercase(),
+		restart: () => m.common_restart_lowercase(),
+		down: () => m.common_stop_lowercase()
 	};
 
 	// Local type definitions (matching server types)
@@ -177,7 +194,7 @@
 	function handleClose() {
 		if (isRunning) {
 			// Confirm before closing during operation
-			if (!confirm('Operation is still running. Cancel and close?')) {
+			if (!confirm(m.batch_operation_running_confirm())) {
 				return;
 			}
 			handleCancel();
@@ -215,11 +232,11 @@
 			<Dialog.Title>{title}</Dialog.Title>
 			<Dialog.Description>
 				{#if isRunning}
-					Processing {items.length} {entityType}...
+					{m.batch_operation_processing({ count: items.length, entityType: entityTypeLabels[entityType]() })}
 				{:else if isComplete}
-					Completed: {successCount} succeeded{#if failCount > 0}, {failCount} failed{/if}{#if cancelledCount > 0}, {cancelledCount} cancelled{/if}{#if totalSize && successCount > 0} ({formatBytes(totalSize)}){/if}
+					{m.batch_operation_completed_prefix({ count: successCount })}{#if failCount > 0}{m.batch_operation_failed_suffix({ count: failCount })}{/if}{#if cancelledCount > 0}{m.batch_operation_cancelled_suffix({ count: cancelledCount })}{/if}{#if totalSize && successCount > 0} ({formatBytes(totalSize)}){/if}
 				{:else}
-					Preparing to {operation} {items.length} {entityType}...
+					{m.batch_operation_preparing({ operation: operationLabels[operation](), count: items.length, entityType: entityTypeLabels[entityType]() })}
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
@@ -260,15 +277,15 @@
 						<!-- Status text -->
 						<span class="text-xs text-muted-foreground flex-shrink-0">
 							{#if item.status === 'pending'}
-								pending
+								{m.batch_title_pending()}
 							{:else if item.status === 'processing'}
-								{progressText[operation] ?? operation}...
+								{operationProgressLabels[operation]()}
 							{:else if item.status === 'success'}
-								done
+								{m.images_push_done()}
 							{:else if item.status === 'error'}
-								<span class="text-red-500">failed</span>
+								<span class="text-red-500">{m.common_failed()}</span>
 							{:else if item.status === 'cancelled'}
-								<span class="text-amber-500">cancelled</span>
+								<span class="text-amber-500">{m.batch_title_cancelled()}</span>
 							{/if}
 						</span>
 					</div>
@@ -285,30 +302,30 @@
 		<!-- Footer: Summary + Button in one row -->
 		<div class="flex items-center justify-between pt-2">
 			<div class="flex items-center gap-3 text-sm">
-				<div class="flex items-center gap-1" title="Succeeded">
+				<div class="flex items-center gap-1" title={m.batch_title_succeeded()}>
 					<Check class="w-4 h-4 text-green-500" />
 					<span class="tabular-nums">{successCount}</span>
 				</div>
-				<div class="flex items-center gap-1" title="Failed">
+				<div class="flex items-center gap-1" title={m.common_failed()}>
 					<X class="w-4 h-4 text-red-500" />
 					<span class="tabular-nums">{failCount}</span>
 				</div>
-				<div class="flex items-center gap-1" title="Cancelled">
+				<div class="flex items-center gap-1" title={m.batch_title_cancelled()}>
 					<Ban class="w-4 h-4 text-amber-500" />
 					<span class="tabular-nums">{cancelledCount}</span>
 				</div>
-				<div class="flex items-center gap-1 text-muted-foreground" title="Pending">
+				<div class="flex items-center gap-1 text-muted-foreground" title={m.batch_title_pending()}>
 					<Circle class="w-4 h-4" />
 					<span class="tabular-nums">{items.length - successCount - failCount - cancelledCount}</span>
 				</div>
 			</div>
 			{#if isRunning}
 				<Button variant="outline" size="sm" onclick={handleCancel}>
-					Cancel
+					{m.common_cancel()}
 				</Button>
 			{:else}
 				<Button size="sm" onclick={handleOk}>
-					OK
+					{m.containers_toast_ok()}
 				</Button>
 			{/if}
 		</div>

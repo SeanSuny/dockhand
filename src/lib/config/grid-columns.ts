@@ -75,13 +75,13 @@ export const stackColumns: ColumnConfig[] = [
 // Volume grid columns
 export const volumeColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
-	{ id: 'name', label: 'Name', sortable: true, sortField: 'name', width: 400, minWidth: 150, grow: true },
-	{ id: 'driver', label: 'Driver', sortable: true, sortField: 'driver', width: 80, minWidth: 60 },
-	{ id: 'type', label: 'Type', sortable: true, sortField: 'type', width: 80, minWidth: 60 },
-	{ id: 'scope', label: 'Scope', width: 70, minWidth: 50 },
-	{ id: 'stack', label: 'Stack', sortable: true, sortField: 'stack', width: 120, minWidth: 80 },
-	{ id: 'usedBy', label: 'Used by', width: 150, minWidth: 80 },
-	{ id: 'created', label: 'Created', sortable: true, sortField: 'created', width: 160, minWidth: 120 },
+	{ id: 'name', get label() { return m.common_name(); }, sortable: true, sortField: 'name', width: 400, minWidth: 150, grow: true },
+	{ id: 'driver', get label() { return m.volumes_col_driver(); }, sortable: true, sortField: 'driver', width: 80, minWidth: 60 },
+	{ id: 'type', get label() { return m.volumes_col_type(); }, sortable: true, sortField: 'type', width: 80, minWidth: 60 },
+	{ id: 'scope', get label() { return m.common_scope(); }, width: 70, minWidth: 50 },
+	{ id: 'stack', get label() { return m.containers_col_stack(); }, sortable: true, sortField: 'stack', width: 120, minWidth: 80 },
+	{ id: 'usedBy', get label() { return m.images_col_used_by(); }, width: 150, minWidth: 80 },
+	{ id: 'created', get label() { return m.volumes_col_created(); }, sortable: true, sortField: 'created', width: 160, minWidth: 120 },
 	{ id: 'actions', label: '', fixed: 'end', width: 160, resizable: false }
 ];
 

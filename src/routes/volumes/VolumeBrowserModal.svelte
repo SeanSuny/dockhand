@@ -3,6 +3,7 @@
 	import { HardDrive, Lock, Container } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import FileBrowserPanel from '../containers/FileBrowserPanel.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	interface VolumeUsageInfo {
 		containerId: string;
@@ -54,11 +55,11 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<HardDrive class="w-5 h-5" />
-				<span>Browse volume - {volumeName}</span>
+				<span>{m.volumes_browse_title({ name: volumeName })}</span>
 				{#if isInUse}
 					<Badge variant="secondary" class="flex items-center gap-1 ml-2">
 						<Lock class="w-3 h-3" />
-						<span>Read-only</span>
+						<span>{m.container_inspect_read_only()}</span>
 					</Badge>
 				{/if}
 			</Dialog.Title>
@@ -66,7 +67,7 @@
 				{#if isInUse}
 					<span class="flex items-center gap-1.5 flex-wrap">
 						<Lock class="w-3.5 h-3.5 text-muted-foreground inline" />
-						<span>Volume is in use by:</span>
+						<span>{m.volumes_browse_in_use_by()}</span>
 						{#each volumeUsage as container, i}
 							<span class="inline-flex items-center gap-1 text-foreground font-medium">
 								<Container class="w-3 h-3" />
@@ -74,10 +75,10 @@
 								<span class="text-muted-foreground">({container.state})</span>{#if i < volumeUsage.length - 1}<span>,</span>{/if}
 							</span>
 						{/each}
-						<span class="text-muted-foreground">- editing disabled</span>
+						<span class="text-muted-foreground">{m.volumes_browse_editing_disabled()}</span>
 					</span>
 				{:else}
-					Browse, edit, and manage files in the volume.
+					{m.volumes_browse_description()}
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>

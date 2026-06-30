@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Popover from '$lib/components/ui/popover';
 	import type { Snippet } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { appSettings } from '$lib/stores/settings';
 
 	interface Props {
@@ -29,7 +30,7 @@
 		action,
 		itemName = '',
 		itemType,
-		confirmText = 'Confirm',
+		confirmText: confirmTextProp = '',
 		variant = 'destructive',
 		autoHideMs = 3000,
 		title = '',
@@ -41,6 +42,8 @@
 		children,
 		extraContent
 	}: Props = $props();
+
+	const confirmText = $derived(confirmTextProp || m.common_confirm());
 
 	const triggerClass = $derived(unstyled
 		? 'inline-flex items-center cursor-pointer'

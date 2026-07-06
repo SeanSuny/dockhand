@@ -1856,5 +1856,19 @@
 	"logs_failed_fetch_logs": "获取日志失败：{error}",
 	"logs_layout_single": "单容器",
 	"logs_layout_multi": "多容器",
-	"logs_layout_grouped": "分组"
+	"logs_layout_grouped": "分组",
+	"terminal_search_placeholder": "搜索运行中的容器...",
+	"terminal_dropdown_connected": "已连接",
+	"terminal_disconnect": "断开连接",
+	"terminal_select_container_prompt": "选择容器打开 Shell",
+	"terminal_no_shell_title": "该容器没有可用的 Shell",
+	"terminal_no_shell_desc": "该容器可能未安装 Shell",
+	"terminal_copy_output": "复制输出",
+	"terminal_clear_cmd_l": "清空 (Cmd+L)",
+	"terminal_reconnect": "重新连接",
+	"terminal_reconnecting": "重新连接中...",
+	"terminal_loading": "正在加载终端...",
+	"terminal_panel_label": "终端：",
+	"terminal_clear_terminal_ctrl_l": "清空终端 (Ctrl+L)",
+	"terminal_close_terminal": "关闭终端"
 }

@@ -1856,5 +1856,19 @@
 	"logs_failed_fetch_logs": "Failed to fetch logs: {error}",
 	"logs_layout_single": "Single",
 	"logs_layout_multi": "Multi",
-	"logs_layout_grouped": "Grouped"
+	"logs_layout_grouped": "Grouped",
+	"terminal_search_placeholder": "Search running containers...",
+	"terminal_dropdown_connected": "connected",
+	"terminal_disconnect": "Disconnect",
+	"terminal_select_container_prompt": "Select a container to open shell",
+	"terminal_no_shell_title": "No shell available in this container",
+	"terminal_no_shell_desc": "This container may not have a shell installed.",
+	"terminal_copy_output": "Copy output",
+	"terminal_clear_cmd_l": "Clear (Cmd+L)",
+	"terminal_reconnect": "Reconnect",
+	"terminal_reconnecting": "Reconnecting...",
+	"terminal_loading": "Loading terminal...",
+	"terminal_panel_label": "Terminal:",
+	"terminal_clear_terminal_ctrl_l": "Clear terminal (Ctrl+L)",
+	"terminal_close_terminal": "Close terminal"
 }

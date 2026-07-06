@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { RefreshCw, Copy, Download, WrapText, ArrowDownToLine, Search, ChevronUp, ChevronDown, X, Type, Eraser, Filter, Hash } from 'lucide-svelte';
 	import { wrapHtmlLines } from '$lib/utils/log-lines';
 	import { copyToClipboard } from '$lib/utils/clipboard';
@@ -219,7 +220,7 @@
 			<button
 				onclick={() => onAutoRefreshChange?.(!autoRefresh)}
 				class="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors {autoRefresh ? 'bg-amber-500/20 ring-1 ring-amber-500/50 text-amber-400' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}"
-				title="Toggle auto-refresh"
+				title={m.logs_toggle_auto_refresh()}
 			>
 				<RefreshCw class="w-3 h-3" />
 			</button>
@@ -227,7 +228,7 @@
 			<button
 				onclick={() => onAutoScrollChange?.(!autoScroll)}
 				class="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors {autoScroll ? 'bg-amber-500/20 ring-1 ring-amber-500/50 text-amber-400' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}"
-				title="Toggle auto-scroll"
+				title={m.logs_toggle_auto_scroll()}
 			>
 				<ArrowDownToLine class="w-3 h-3" />
 			</button>
@@ -250,7 +251,7 @@
 			<button
 				onclick={() => wordWrap = !wordWrap}
 				class="p-1 rounded hover:bg-zinc-800 transition-colors {wordWrap ? 'bg-amber-500/20 ring-1 ring-amber-500/50' : ''}"
-				title="Toggle word wrap"
+				title={m.logs_toggle_word_wrap()}
 			>
 				<WrapText class="w-3 h-3 transition-colors {wordWrap ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}" />
 			</button>
@@ -269,7 +270,7 @@
 					<input
 						bind:this={logSearchInputRef}
 						type="text"
-						placeholder="Search..."
+						placeholder={m.common_search_placeholder()}
 						bind:value={logSearchQuery}
 						onkeydown={handleLogSearchKeydown}
 						class="bg-transparent border-none outline-none text-xs text-zinc-200 w-20 placeholder:text-zinc-500"
@@ -286,13 +287,13 @@
 					{:else if logSearchQuery}
 						<span class="text-xs text-zinc-500">0/0</span>
 					{/if}
-					<button onclick={() => navigateMatch('prev')} class="p-0.5 rounded hover:bg-zinc-700" title="Previous">
+					<button onclick={() => navigateMatch('prev')} class="p-0.5 rounded hover:bg-zinc-700" title={m.logs_previous()}>
 						<ChevronUp class="w-3 h-3 text-zinc-400" />
 					</button>
-					<button onclick={() => navigateMatch('next')} class="p-0.5 rounded hover:bg-zinc-700" title="Next">
+					<button onclick={() => navigateMatch('next')} class="p-0.5 rounded hover:bg-zinc-700" title={m.logs_next()}>
 						<ChevronDown class="w-3 h-3 text-zinc-400" />
 					</button>
-					<button onclick={closeLogSearch} class="p-0.5 rounded hover:bg-zinc-700" title="Close">
+					<button onclick={closeLogSearch} class="p-0.5 rounded hover:bg-zinc-700" title={m.common_close()}>
 						<X class="w-3 h-3 text-zinc-400" />
 					</button>
 				</div>
@@ -300,7 +301,7 @@
 				<button
 					onclick={toggleLogSearch}
 					class="p-1 rounded hover:bg-zinc-800 transition-colors"
-					title="Search logs"
+					title={m.logs_search_logs()}
 				>
 					<Search class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 				</button>
@@ -309,7 +310,7 @@
 			<button
 				onclick={copyLogs}
 				class="p-1 rounded hover:bg-zinc-800 transition-colors"
-				title="Copy logs"
+				title={m.logs_copy_logs()}
 			>
 				<Copy class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 			</button>
@@ -317,7 +318,7 @@
 			<button
 				onclick={downloadLogs}
 				class="p-1 rounded hover:bg-zinc-800 transition-colors"
-				title="Download logs"
+				title={m.logs_download_logs()}
 			>
 				<Download class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 			</button>
@@ -325,7 +326,7 @@
 			<button
 				onclick={() => onClear?.()}
 				class="p-1 rounded hover:bg-zinc-800 transition-colors"
-				title="Clear logs"
+				title={m.logs_clear_logs()}
 			>
 				<Eraser class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 			</button>
@@ -333,7 +334,7 @@
 			<button
 				onclick={() => onRefresh?.()}
 				class="p-1 rounded hover:bg-zinc-800 transition-colors"
-				title="Refresh logs"
+				title={m.logs_refresh_logs()}
 			>
 				<RefreshCw class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 			</button>
@@ -347,10 +348,10 @@
 		{:else if loading}
 			<div class="flex items-center justify-center h-full text-muted-foreground">
 				<RefreshCw class="w-5 h-5 animate-spin mr-2" />
-				Loading logs...
+				{m.logs_loading_logs()}
 			</div>
 		{:else}
-			<p class="text-zinc-500 text-sm">No logs available</p>
+			<p class="text-zinc-500 text-sm">{m.logs_no_logs()}</p>
 		{/if}
 	</div>
 </div>

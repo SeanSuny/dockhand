@@ -45,12 +45,12 @@ export const imageTagColumns: ColumnConfig[] = [
 // Network grid columns
 export const networkColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
-	{ id: 'name', label: 'Name', sortable: true, sortField: 'name', width: 260, minWidth: 120, grow: true },
-	{ id: 'driver', label: 'Driver', sortable: true, sortField: 'driver', width: 100, resizable: false },
-	{ id: 'scope', label: 'Scope', width: 80, minWidth: 50 },
-	{ id: 'subnet', label: 'Subnet', sortable: true, sortField: 'subnet', width: 160, minWidth: 100 },
-	{ id: 'gateway', label: 'Gateway', sortable: true, sortField: 'gateway', width: 140, minWidth: 100 },
-	{ id: 'containers', label: 'Containers', sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
+	{ id: 'name', get label() { return m.common_name(); }, sortable: true, sortField: 'name', width: 260, minWidth: 120, grow: true },
+	{ id: 'driver', get label() { return m.volumes_col_driver(); }, sortable: true, sortField: 'driver', width: 100, resizable: false },
+	{ id: 'scope', get label() { return m.common_scope(); }, width: 80, minWidth: 50 },
+	{ id: 'subnet', get label() { return m.stacks_graph_label_subnet(); }, sortable: true, sortField: 'subnet', width: 160, minWidth: 100 },
+	{ id: 'gateway', get label() { return m.container_inspect_gateway(); }, sortable: true, sortField: 'gateway', width: 140, minWidth: 100 },
+	{ id: 'containers', get label() { return m.common_containers(); }, sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
 	{ id: 'actions', label: '', fixed: 'end', width: 160, resizable: false }
 ];
 
@@ -111,12 +111,12 @@ export const auditColumns: ColumnConfig[] = [
 // Schedule grid columns
 export const scheduleColumns: ColumnConfig[] = [
 	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
-	{ id: 'schedule', label: 'Schedule', width: 450, minWidth: 300, grow: true },
-	{ id: 'environment', label: 'Environment', width: 140, minWidth: 100 },
-	{ id: 'cron', label: 'Schedule', width: 180, minWidth: 120 },
-	{ id: 'lastRun', label: 'Last run', width: 160, minWidth: 120 },
-	{ id: 'nextRun', label: 'Next run', width: 160, minWidth: 100 },
-	{ id: 'status', label: 'Status', width: 70, resizable: false },
+	{ id: 'schedule', get label() { return m.schedules_col_schedule(); }, width: 450, minWidth: 300, grow: true },
+	{ id: 'environment', get label() { return m.dashboard_col_environment(); }, width: 140, minWidth: 100 },
+	{ id: 'cron', get label() { return m.schedules_col_cron(); }, width: 180, minWidth: 120 },
+	{ id: 'lastRun', get label() { return m.schedules_col_last_run(); }, width: 160, minWidth: 120 },
+	{ id: 'nextRun', get label() { return m.schedules_col_next_run(); }, width: 160, minWidth: 100 },
+	{ id: 'status', get label() { return m.common_status(); }, width: 70, resizable: false },
 	{ id: 'actions', label: '', fixed: 'end', width: 100, resizable: false }
 ];
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { onMount, onDestroy } from 'svelte';
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { themeStore } from '$lib/stores/theme';
@@ -75,7 +76,7 @@
 			ws = null;
 		}
 		connected = false;
-		terminal?.writeln('\x1b[90m\r\nReconnecting...\x1b[0m');
+		terminal?.writeln(`\x1b[90m\r\n${m.terminal_reconnecting()}\x1b[0m`);
 		connect();
 	}
 
@@ -183,8 +184,8 @@
 			wsUrl += `&envId=${envId}`;
 		}
 
-		terminal.writeln(`\x1b[90mConnecting to ${containerName}...\x1b[0m`);
-		terminal.writeln(`\x1b[90mShell: ${shell}, User: ${user || 'default'}\x1b[0m`);
+		terminal.writeln(`\x1b[90m${m.container_terminal_connecting({ name: containerName })}\x1b[0m`);
+		terminal.writeln(`\x1b[90m${m.container_terminal_shell_user({ shell, user: user || m.user_container_default() })}\x1b[0m`);
 		terminal.writeln('');
 
 		ws = new WebSocket(wsUrl);
@@ -207,9 +208,9 @@
 					terminal?.write(msg.data);
 				} else if (msg.type === 'error') {
 					error = msg.message;
-					terminal?.writeln(`\x1b[31mError: ${msg.message}\x1b[0m`);
+					terminal?.writeln(`\x1b[31m${m.container_terminal_error({ message: msg.message })}\x1b[0m`);
 				} else if (msg.type === 'exit') {
-					terminal?.writeln('\x1b[90m\r\nSession ended.\x1b[0m');
+					terminal?.writeln(`\x1b[90m\r\n${m.container_terminal_session_ended()}\x1b[0m`);
 					connected = false;
 				}
 			} catch {
@@ -218,13 +219,13 @@
 		};
 
 		ws.onerror = () => {
-			error = 'Connection error';
-			terminal?.writeln('\x1b[31mConnection error\x1b[0m');
+			error = m.container_terminal_connection_error();
+			terminal?.writeln(`\x1b[31m${m.container_terminal_connection_error()}\x1b[0m`);
 		};
 
 		ws.onclose = () => {
 			connected = false;
-			terminal?.writeln('\x1b[90mDisconnected.\x1b[0m');
+			terminal?.writeln(`\x1b[90m${m.container_terminal_disconnected()}\x1b[0m`);
 		};
 	}
 

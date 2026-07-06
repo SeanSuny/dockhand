@@ -45,12 +45,12 @@ export const imageTagColumns: ColumnConfig[] = [
 // Network grid columns
 export const networkColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
-	{ id: 'name', label: 'Name', sortable: true, sortField: 'name', width: 260, minWidth: 120, grow: true },
-	{ id: 'driver', label: 'Driver', sortable: true, sortField: 'driver', width: 100, resizable: false },
-	{ id: 'scope', label: 'Scope', width: 80, minWidth: 50 },
-	{ id: 'subnet', label: 'Subnet', sortable: true, sortField: 'subnet', width: 160, minWidth: 100 },
-	{ id: 'gateway', label: 'Gateway', sortable: true, sortField: 'gateway', width: 140, minWidth: 100 },
-	{ id: 'containers', label: 'Containers', sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
+	{ id: 'name', get label() { return m.common_name(); }, sortable: true, sortField: 'name', width: 260, minWidth: 120, grow: true },
+	{ id: 'driver', get label() { return m.volumes_col_driver(); }, sortable: true, sortField: 'driver', width: 100, resizable: false },
+	{ id: 'scope', get label() { return m.common_scope(); }, width: 80, minWidth: 50 },
+	{ id: 'subnet', get label() { return m.stacks_graph_label_subnet(); }, sortable: true, sortField: 'subnet', width: 160, minWidth: 100 },
+	{ id: 'gateway', get label() { return m.container_inspect_gateway(); }, sortable: true, sortField: 'gateway', width: 140, minWidth: 100 },
+	{ id: 'containers', get label() { return m.common_containers(); }, sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
 	{ id: 'actions', label: '', fixed: 'end', width: 160, resizable: false }
 ];
 

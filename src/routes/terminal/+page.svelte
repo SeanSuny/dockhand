@@ -1,8 +1,9 @@
 <svelte:head>
-	<title>Terminal - Dockhand</title>
+	<title>{m.container_terminal_title({ name: 'Dockhand' })}</title>
 </svelte:head>
 
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
@@ -256,21 +257,21 @@
 
 {#if $environments.length === 0 || !$currentEnvironment}
 	<div class="flex flex-col flex-1 min-h-0 h-full">
-		<PageHeader icon={TerminalIcon} title="Shell" class="h-9 mb-3" />
+		<PageHeader icon={TerminalIcon} title={m.containers_shell_label()} class="h-9 mb-3" />
 		<NoEnvironment />
 	</div>
 {:else}
 <div class="flex flex-col flex-1 min-h-0 h-full gap-3">
 	<!-- Header with container selector -->
 	<div class="flex items-center gap-4 flex-wrap">
-		<PageHeader icon={TerminalIcon} title="Shell" />
+		<PageHeader icon={TerminalIcon} title={m.containers_shell_label()} />
 		<div class="relative flex-1 max-w-md min-w-[200px]">
 			<!-- Search input - always visible, shows selected container or placeholder -->
 			<div class="relative">
 				<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
 				<Input
 					type="text"
-					placeholder={selectedContainer ? selectedContainer.name : "Search running containers..."}
+					placeholder={selectedContainer ? selectedContainer.name : m.terminal_search_placeholder()}
 					bind:value={searchQuery}
 					onfocus={handleInputFocus}
 					onblur={handleInputBlur}
@@ -285,7 +286,7 @@
 				<div class="absolute top-full left-0 right-0 mt-1 border rounded-md bg-popover shadow-lg z-50 max-h-64 overflow-auto">
 					{#if filteredContainers().length === 0}
 						<div class="px-3 py-2 text-sm text-muted-foreground">
-							{containers.length === 0 ? 'No running containers' : 'No matches found'}
+							{containers.length === 0 ? m.dashboard_no_running_containers() : m.logs_no_matches()}
 						</div>
 					{:else}
 						{#each filteredContainers() as container}
@@ -297,7 +298,7 @@
 								<span class="font-medium truncate">{container.name}</span>
 								<span class="text-muted-foreground text-xs truncate">({container.image})</span>
 								{#if selectedContainer?.id === container.id}
-									<span class="ml-auto text-xs text-primary">connected</span>
+									<span class="ml-auto text-xs text-primary">{m.terminal_dropdown_connected()}</span>
 								{/if}
 							</button>
 						{/each}
@@ -309,13 +310,13 @@
 		{#if selectedContainer}
 			<Button size="sm" variant="ghost" onclick={clearSelection} class="h-9 px-3 text-sm text-muted-foreground hover:text-foreground">
 				<Unplug class="w-4 h-4 mr-1.5" />
-				Disconnect
+				{m.terminal_disconnect()}
 			</Button>
 		{/if}
 
 		<!-- Shell selector - always visible -->
 		<div class="flex items-center gap-2">
-			<Label class="text-sm text-muted-foreground">Shell:</Label>
+			<Label class="text-sm text-muted-foreground">{m.container_terminal_shell_label()}:</Label>
 			{#if detectingShells}
 				<div class="h-9 w-36 flex items-center justify-center border rounded-md bg-muted/50">
 					<Loader2 class="w-4 h-4 animate-spin text-muted-foreground" />
@@ -326,10 +327,10 @@
 						<Shell class="w-4 h-4 mr-2 text-muted-foreground" />
 						<span class={!selectedShellAvailable ? 'text-muted-foreground line-through' : ''}>
 							{shellDetection?.allShells.find(o => o.path === selectedShell)?.label ||
-							 (selectedShell === '/bin/bash' ? 'Bash' :
-							  selectedShell === '/bin/sh' ? 'Shell (sh)' :
-							  selectedShell === '/bin/zsh' ? 'Zsh' :
-							  selectedShell === '/bin/ash' ? 'Ash (Alpine)' : 'Select')}
+							 (selectedShell === '/bin/bash' ? m.shell_label_bash() :
+							  selectedShell === '/bin/sh' ? m.shell_label_sh() :
+							  selectedShell === '/bin/zsh' ? m.shell_label_zsh() :
+							  selectedShell === '/bin/ash' ? m.shell_label_ash() : m.containers_shell_select())}
 						</span>
 					</Select.Trigger>
 					<Select.Content>
@@ -344,27 +345,27 @@
 									<span class={option.available ? 'text-foreground' : 'text-muted-foreground/60'}>
 										{option.label}
 										{#if !option.available}
-											<span class="text-xs ml-1">(unavailable)</span>
+											<span class="text-xs ml-1">({m.container_terminal_unavailable()})</span>
 										{/if}
 									</span>
 								</Select.Item>
 							{/each}
 						{:else}
-							<Select.Item value="/bin/bash" label="Bash">
+							<Select.Item value="/bin/bash" label={m.shell_label_bash()}>
 								<Shell class="w-4 h-4 mr-2 text-muted-foreground" />
-								Bash
+								{m.shell_label_bash()}
 							</Select.Item>
-							<Select.Item value="/bin/sh" label="Shell (sh)">
+							<Select.Item value="/bin/sh" label={m.shell_label_sh()}>
 								<Shell class="w-4 h-4 mr-2 text-muted-foreground" />
-								Shell (sh)
+								{m.shell_label_sh()}
 							</Select.Item>
-							<Select.Item value="/bin/zsh" label="Zsh">
+							<Select.Item value="/bin/zsh" label={m.shell_label_zsh()}>
 								<Shell class="w-4 h-4 mr-2 text-muted-foreground" />
-								Zsh
+								{m.shell_label_zsh()}
 							</Select.Item>
-							<Select.Item value="/bin/ash" label="Ash (Alpine)">
+							<Select.Item value="/bin/ash" label={m.shell_label_ash()}>
 								<Shell class="w-4 h-4 mr-2 text-muted-foreground" />
-								Ash (Alpine)
+								{m.shell_label_ash()}
 							</Select.Item>
 						{/if}
 					</Select.Content>
@@ -374,11 +375,11 @@
 
 		<!-- User selector - always visible -->
 		<div class="flex items-center gap-2">
-			<Label class="text-sm text-muted-foreground">User:</Label>
+			<Label class="text-sm text-muted-foreground">{m.common_user()}:</Label>
 			<Select.Root type="single" bind:value={selectedUser} onValueChange={onUserSelectChange}>
 				<Select.Trigger class="h-9 w-48">
 					<User class="w-4 h-4 mr-2 text-muted-foreground" />
-					<span>{USER_OPTIONS.find(o => o.value === selectedUser)?.label || selectedUser || 'Select'}</span>
+					<span>{USER_OPTIONS.find(o => o.value === selectedUser)?.label || selectedUser || m.containers_user_select()}</span>
 				</Select.Trigger>
 				<Select.Content>
 					{#each USER_OPTIONS as option}
@@ -399,7 +400,7 @@
 									type="button"
 									class="p-1 mr-1 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
 									onclick={(e) => { e.stopPropagation(); e.preventDefault(); removeCustomUser(cu); customUsers = getCustomUsers(); if (selectedUser === cu) { selectedUser = 'root'; commitUser('root'); } }}
-									title="Remove user"
+									title={m.containers_user_remove()}
 								>
 									<Trash2 class="w-3 h-3" />
 								</button>
@@ -411,7 +412,7 @@
 					<div class="px-2 py-1">
 						<Input
 							class="h-7 text-xs"
-							placeholder="Add user... (Enter)"
+							placeholder={m.containers_user_add_placeholder()}
 							bind:value={customUserInput}
 							onkeydown={onCustomUserKeydown}
 							onclick={(e) => e.stopPropagation()}
@@ -428,25 +429,23 @@
 			<div class="flex items-center justify-center h-full text-muted-foreground">
 				<div class="text-center">
 					<TerminalIcon class="w-12 h-12 mx-auto mb-3 opacity-50" />
-					<p>Select a container to open shell</p>
+					<p>{m.terminal_select_container_prompt()}</p>
 				</div>
 			</div>
 		{:else if detectingShells}
 			<div class="flex items-center justify-center h-full text-muted-foreground">
 				<div class="text-center">
 					<Loader2 class="w-12 h-12 mx-auto mb-3 opacity-50 animate-spin" />
-					<p>Detecting available shells...</p>
+					<p>{m.container_terminal_detecting_shells()}</p>
 				</div>
 			</div>
 		{:else if !anyShellAvailable}
 			<div class="flex items-center justify-center h-full text-muted-foreground">
 				<div class="text-center">
 					<AlertCircle class="w-12 h-12 mx-auto mb-3 opacity-50 text-amber-500" />
-					<p class="font-medium text-amber-500">No shell available in this container</p>
-					<p class="text-sm mt-2">This container may not have a shell installed.</p>
-					<p class="text-xs mt-1 text-muted-foreground/70">
-						Containers built from scratch or distroless images often don't include shells.
-					</p>
+					<p class="font-medium text-amber-500">{m.terminal_no_shell_title()}</p>
+					<p class="text-sm mt-2">{m.terminal_no_shell_desc()}</p>
+					<p class="text-xs mt-1 text-muted-foreground/70">{m.container_terminal_no_shell_hint()}</p>
 				</div>
 			</div>
 		{:else}
@@ -454,12 +453,9 @@
 			<div class="flex items-center justify-between px-3 py-1.5 border-b border-zinc-800 bg-zinc-900/50 shrink-0">
 				<div class="flex items-center gap-2">
 					{#if connected}
-						<span class="inline-flex items-center gap-1 text-xs text-green-500">
-							<span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-							Connected
-						</span>
+						<span class="inline-flex items-center gap-1 text-xs text-green-500"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>{m.container_terminal_connected()}</span>
 					{:else}
-						<span class="text-xs text-zinc-500">Disconnected</span>
+						<span class="text-xs text-zinc-500">{m.logs_disconnected()}</span>
 					{/if}
 				</div>
 				<div class="flex items-center gap-3">
@@ -476,21 +472,21 @@
 					<button
 						onclick={() => terminalComponent?.copyOutput()}
 						class="p-1 rounded hover:bg-zinc-800 transition-colors"
-						title="Copy output"
+						title={m.terminal_copy_output()}
 					>
 						<Copy class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 					</button>
 					<button
 						onclick={() => terminalComponent?.clear()}
 						class="p-1 rounded hover:bg-zinc-800 transition-colors"
-						title="Clear (Cmd+L)"
+						title={m.terminal_clear_cmd_l()}
 					>
 						<Trash2 class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 					</button>
 					<button
 						onclick={() => terminalComponent?.reconnect()}
 						class="p-1 rounded hover:bg-zinc-800 transition-colors"
-						title="Reconnect"
+						title={m.terminal_reconnect()}
 					>
 						<RefreshCw class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 					</button>

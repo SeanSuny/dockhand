@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
+	import * as m from '$lib/paraglide/messages';
 	import type { Component } from 'svelte';
 
 	interface FilterOption {
@@ -78,7 +79,7 @@
 				class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 				onclick={clearAndClose}
 			>
-				Clear
+				{m.containers_clear_selection()}
 			</button>
 		{/if}
 		{#each options as option}

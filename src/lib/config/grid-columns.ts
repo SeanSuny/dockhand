@@ -111,12 +111,12 @@ export const auditColumns: ColumnConfig[] = [
 // Schedule grid columns
 export const scheduleColumns: ColumnConfig[] = [
 	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
-	{ id: 'schedule', label: 'Schedule', width: 450, minWidth: 300, grow: true },
-	{ id: 'environment', label: 'Environment', width: 140, minWidth: 100 },
-	{ id: 'cron', label: 'Schedule', width: 180, minWidth: 120 },
-	{ id: 'lastRun', label: 'Last run', width: 160, minWidth: 120 },
-	{ id: 'nextRun', label: 'Next run', width: 160, minWidth: 100 },
-	{ id: 'status', label: 'Status', width: 70, resizable: false },
+	{ id: 'schedule', get label() { return m.schedules_col_schedule(); }, width: 450, minWidth: 300, grow: true },
+	{ id: 'environment', get label() { return m.dashboard_col_environment(); }, width: 140, minWidth: 100 },
+	{ id: 'cron', get label() { return m.schedules_col_cron(); }, width: 180, minWidth: 120 },
+	{ id: 'lastRun', get label() { return m.schedules_col_last_run(); }, width: 160, minWidth: 120 },
+	{ id: 'nextRun', get label() { return m.schedules_col_next_run(); }, width: 160, minWidth: 100 },
+	{ id: 'status', get label() { return m.common_status(); }, width: 70, resizable: false },
 	{ id: 'actions', label: '', fixed: 'end', width: 100, resizable: false }
 ];
 

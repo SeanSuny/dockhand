@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -56,19 +57,19 @@
 
 	const ALL_STEPS = [
 		// Preparation (from SSE)
-		{ id: 'pulling_image', label: 'Pulling new image' },
-		{ id: 'building_config', label: 'Building container config' },
-		{ id: 'pulling_updater', label: 'Pulling updater' },
-		{ id: 'creating_container', label: 'Creating new container' },
-		{ id: 'launching_updater', label: 'Launching updater' },
+		{ id: 'pulling_image', label: m.settings_selfupdate_step_pulling_image() },
+		{ id: 'building_config', label: m.settings_selfupdate_step_building_config() },
+		{ id: 'pulling_updater', label: m.settings_selfupdate_step_pulling_updater() },
+		{ id: 'creating_container', label: m.settings_selfupdate_step_creating_container() },
+		{ id: 'launching_updater', label: m.settings_selfupdate_step_launching_updater() },
 		// Update (from updater container logs)
-		{ id: 'stopping', label: 'Stopping Dockhand' },
-		{ id: 'removing', label: 'Removing old container' },
-		{ id: 'renaming', label: 'Renaming container' },
-		{ id: 'connecting', label: 'Connecting networks' },
-		{ id: 'starting', label: 'Starting Dockhand' },
+		{ id: 'stopping', label: m.settings_selfupdate_step_stopping() },
+		{ id: 'removing', label: m.settings_selfupdate_step_removing() },
+		{ id: 'renaming', label: m.settings_selfupdate_step_renaming() },
+		{ id: 'connecting', label: m.settings_selfupdate_step_connecting() },
+		{ id: 'starting', label: m.settings_selfupdate_step_starting() },
 		// Reconnect
-		{ id: 'reconnecting', label: 'Waiting for Dockhand' }
+		{ id: 'reconnecting', label: m.settings_selfupdate_waiting() }
 	] as const;
 
 	// Updater log markers → step id mapping
@@ -222,14 +223,14 @@
 			if (contentType.includes('application/json')) {
 				const data = await response.json();
 				phase = 'error';
-				errorMessage = data.error || 'Update failed';
+				errorMessage = data.error || m.settings_selfupdate_error_failed();
 				return;
 			}
 
 			// It's an SSE stream
 			if (!response.body) {
 				phase = 'error';
-				errorMessage = 'No response body';
+				errorMessage = m.settings_selfupdate_error_no_body();
 				return;
 			}
 
@@ -258,7 +259,7 @@
 		} catch (err) {
 			if (phase === 'preparing') {
 				phase = 'error';
-				errorMessage = 'Connection lost: ' + String(err);
+				errorMessage = m.settings_selfupdate_error_connection_lost() + String(err);
 			}
 		}
 	}
@@ -284,7 +285,7 @@
 			startProgressPolling();
 		} else if (event === 'error') {
 			phase = 'error';
-			errorMessage = data.message || 'Update failed';
+			errorMessage = data.message || m.settings_selfupdate_error_failed();
 			// Mark current active step as error
 			const currentId = activeStepId();
 			if (currentId) {
@@ -328,7 +329,7 @@
 					switchToRestarting();
 				} else {
 					phase = 'error';
-					errorMessage = `Updater exited with code ${data.exitCode}`;
+					errorMessage = m.settings_selfupdate_error_updater_exit({ code: data.exitCode });
 					const currentId = activeStepId();
 					if (currentId) setStepStatus(currentId, 'error');
 				}
@@ -428,7 +429,7 @@
 				phase = 'completed';
 				const step = getStep('reconnecting');
 				if (step) {
-					step.label = 'Dockhand is back online';
+					step.label = m.settings_selfupdate_back_online();
 					step.status = 'completed';
 					steps = [...steps];
 				}
@@ -482,9 +483,9 @@
 			<Dialog.Title class="flex items-center gap-2">
 				<CircleArrowUp class="w-5 h-5 text-amber-500" />
 				{#if phase === 'confirm'}
-					Update Dockhand
+					{m.settings_selfupdate_title_confirm()}
 				{:else}
-					Updating Dockhand
+					{m.settings_selfupdate_title_updating()}
 				{/if}
 			</Dialog.Title>
 			{#if phase !== 'confirm'}
@@ -493,11 +494,11 @@
 						<span class="text-primary font-medium">{activeStep.label}...</span>
 						<span class="text-muted-foreground ml-2">({completedCount}/{ALL_STEPS.length})</span>
 					{:else if phase === 'completed'}
-						Update complete
+						{m.settings_selfupdate_status_complete()}
 					{:else if phase === 'error'}
-						Update failed
+						{m.settings_selfupdate_status_failed()}
 					{:else}
-						Preparing...
+						{m.settings_selfupdate_status_preparing()}
 					{/if}
 				</Dialog.Description>
 			{/if}
@@ -508,7 +509,7 @@
 			<div class="space-y-4 py-2 overflow-y-auto min-h-0 flex-1">
 				<div class="space-y-2">
 					<div class="flex items-center justify-between text-sm">
-						<span class="text-muted-foreground">Container</span>
+						<span class="text-muted-foreground">{m.container_create_tab_container()}</span>
 						<span class="font-medium flex items-center gap-1.5">
 							<Ship class="w-3.5 h-3.5" />
 							{containerName}
@@ -516,26 +517,26 @@
 					</div>
 					{#if isVersionUpdate}
 						<div class="flex items-center justify-between text-sm">
-							<span class="text-muted-foreground">Current image</span>
+							<span class="text-muted-foreground">{m.settings_selfupdate_current_image()}</span>
 							<Badge variant="secondary" class="font-mono text-xs">{currentImage}</Badge>
 						</div>
 						<div class="flex items-center justify-between text-sm">
-							<span class="text-muted-foreground">New image</span>
+							<span class="text-muted-foreground">{m.settings_selfupdate_new_image()}</span>
 							<Badge variant="default" class="font-mono text-xs">{newImage}</Badge>
 						</div>
 					{:else}
 						<div class="flex items-center justify-between text-sm">
-							<span class="text-muted-foreground">Image</span>
+							<span class="text-muted-foreground">{m.container_inspect_image()}</span>
 							<Badge variant="secondary" class="font-mono text-xs">{currentImage}</Badge>
 						</div>
 						{#if currentDigest || newDigest}
 							<div class="flex items-center justify-between text-sm">
-								<span class="text-muted-foreground">Current digest</span>
-								<span class="font-mono text-xs text-muted-foreground">{currentDigest ? currentDigest.replace('sha256:', '').slice(0, 12) : 'unknown'}</span>
+								<span class="text-muted-foreground">{m.settings_selfupdate_current_digest()}</span>
+								<span class="font-mono text-xs text-muted-foreground">{currentDigest ? currentDigest.replace('sha256:', '').slice(0, 12) : m.settings_selfupdate_unknown()}</span>
 							</div>
 							<div class="flex items-center justify-between text-sm">
-								<span class="text-muted-foreground">New digest</span>
-								<span class="font-mono text-xs text-amber-500">{newDigest ? newDigest.replace('sha256:', '').slice(0, 12) : 'unknown'}</span>
+								<span class="text-muted-foreground">{m.settings_selfupdate_new_digest()}</span>
+								<span class="font-mono text-xs text-amber-500">{newDigest ? newDigest.replace('sha256:', '').slice(0, 12) : m.settings_selfupdate_unknown()}</span>
 							</div>
 						{/if}
 					{/if}
@@ -544,12 +545,12 @@
 				{#if loadingNotes}
 					<div class="flex items-center gap-2 text-sm text-muted-foreground py-2">
 						<Loader2 class="w-4 h-4 animate-spin" />
-						Loading release notes...
+						{m.settings_selfupdate_loading_notes()}
 					</div>
 				{:else if releaseNotes.length > 0}
 					<div class="border rounded-md overflow-hidden">
 						<div class="bg-muted/50 px-3 py-2 border-b">
-							<p class="text-sm font-medium">What's new</p>
+							<p class="text-sm font-medium">{m.settings_selfupdate_whats_new()}</p>
 						</div>
 						<div class="p-3 space-y-3 overflow-y-auto">
 							{#each releaseNotes as entry}
@@ -576,7 +577,7 @@
 				{#if isComposeManaged}
 					<div class="rounded-md border border-blue-500/30 bg-blue-500/5 p-3">
 						<p class="text-xs text-muted-foreground">
-							<span class="font-medium text-blue-400">Note:</span> This container is managed by Docker Compose. After update it will continue to work but may lose Compose tracking. Use <code class="text-2xs">docker compose pull && docker compose up -d</code> for Compose-aware updates.
+							<span class="font-medium text-blue-400">{m.volumes_inspect_warning_note()}</span>{m.settings_selfupdate_compose_note()}<code class="text-2xs">docker compose pull && docker compose up -d</code> for Compose-aware updates.
 						</p>
 					</div>
 				{/if}
@@ -584,11 +585,11 @@
 
 			<Dialog.Footer>
 				<Button variant="outline" onclick={handleClose}>
-					Cancel
+					{m.common_cancel()}
 				</Button>
 				<Button onclick={startUpdate}>
 					<CircleArrowUp class="w-4 h-4 mr-2" />
-					Update now
+					{m.settings_selfupdate_update_now()}
 				</Button>
 			</Dialog.Footer>
 
@@ -598,7 +599,7 @@
 				<!-- Progress bar -->
 				<div class="space-y-2 shrink-0">
 					<div class="flex items-center justify-between text-sm">
-						<span class="text-muted-foreground">Progress</span>
+						<span class="text-muted-foreground">{m.container_batch_progress()}</span>
 						<Badge variant="secondary">{completedCount}/{ALL_STEPS.length}</Badge>
 					</div>
 					<Progress value={progressPercentage} class="h-2" />
@@ -650,16 +651,16 @@
 				{#if phase === 'completed'}
 					<Button onclick={() => window.location.reload()}>
 						<RotateCcw class="w-4 h-4 mr-2" />
-						Reload
+						{m.settings_selfupdate_reload()}
 					</Button>
 				{:else if phase === 'error'}
 					<Button variant="outline" onclick={handleClose}>
-						Close
+						{m.common_close()}
 					</Button>
 				{:else}
 					<Button variant="outline" disabled>
 						<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-						Updating...
+						{m.container_batch_updating()}
 					</Button>
 				{/if}
 			</Dialog.Footer>

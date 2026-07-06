@@ -5,6 +5,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Plus, Check, RefreshCw, Wifi, CircleCheck, CircleX } from 'lucide-svelte';
 	import { focusFirstInput } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages';
 
 	export interface Registry {
 		id: number;
@@ -64,7 +65,7 @@
 
 	async function testConnection() {
 		if (!formUrl.trim()) {
-			formError = 'URL is required to test';
+			formError = m.settings_registry_modal_test_url_required();
 			return;
 		}
 
@@ -95,7 +96,7 @@
 
 			testResult = await response.json();
 		} catch {
-			testResult = { success: false, message: 'Failed to test connection' };
+			testResult = { success: false, message: m.settings_registry_modal_test_failed() };
 		} finally {
 			testLoading = false;
 		}
@@ -103,7 +104,7 @@
 
 	async function save() {
 		if (!formName.trim() || !formUrl.trim()) {
-			formError = 'Name and URL are required';
+			formError = m.settings_registry_modal_required();
 			return;
 		}
 
@@ -136,10 +137,10 @@
 				onSaved();
 			} else {
 				const data = await response.json();
-				formError = data.error || `Failed to ${isEditing ? 'update' : 'create'} registry`;
+				formError = data.error || (isEditing ? m.settings_registry_modal_update_failed() : m.settings_registry_modal_create_failed());
 			}
 		} catch {
-			formError = `Failed to ${isEditing ? 'update' : 'create'} registry`;
+			formError = isEditing ? m.settings_registry_modal_update_failed() : m.settings_registry_modal_create_failed();
 		} finally {
 			formSaving = false;
 		}
@@ -154,29 +155,29 @@
 <Dialog.Root bind:open onOpenChange={(o) => { if (o) { formError = ''; focusFirstInput(); } }}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>{isEditing ? 'Edit' : 'Add'} registry</Dialog.Title>
+			<Dialog.Title>{isEditing ? m.settings_registry_modal_edit_title() : m.settings_registry_add()}</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4">
 			{#if formError}
 				<div class="text-sm text-red-600 dark:text-red-400">{formError}</div>
 			{/if}
 			<div class="space-y-2">
-				<Label for="reg-name">Name</Label>
-				<Input id="reg-name" bind:value={formName} placeholder="My Private Registry" />
+				<Label for="reg-name">{m.common_name()}</Label>
+				<Input id="reg-name" bind:value={formName} placeholder={m.settings_registry_modal_name_ph()} />
 			</div>
 			<div class="space-y-2">
-				<Label for="reg-url">URL</Label>
-				<Input id="reg-url" bind:value={formUrl} placeholder="https://registry.example.com" />
+				<Label for="reg-url">{m.settings_registry_modal_url()}</Label>
+				<Input id="reg-url" bind:value={formUrl} placeholder={m.settings_registry_modal_url_ph()} />
 			</div>
 			<div class="space-y-4 pt-2 border-t">
-				<p class="text-xs text-muted-foreground">Credentials {isEditing ? '(leave password blank to keep existing)' : '(optional)'}</p>
+				<p class="text-xs text-muted-foreground">{isEditing ? m.settings_registry_modal_credentials_edit() : m.settings_registry_modal_credentials_add()}</p>
 				<div class="space-y-2">
-					<Label for="reg-username">Username</Label>
-					<Input id="reg-username" bind:value={formUsername} placeholder="username" />
+					<Label for="reg-username">{m.login_username()}</Label>
+					<Input id="reg-username" bind:value={formUsername} placeholder={m.settings_registry_modal_username_ph()} />
 				</div>
 				<div class="space-y-2">
-					<Label for="reg-password">Password / Token</Label>
-					<Input id="reg-password" type="password" bind:value={formPassword} placeholder={isEditing ? 'leave blank to keep existing' : 'password or access token'} />
+					<Label for="reg-password">{m.settings_registry_modal_password()}</Label>
+					<Input id="reg-password" type="password" bind:value={formPassword} placeholder={isEditing ? m.settings_registry_modal_password_ph_edit() : m.settings_registry_modal_password_ph_add()} />
 				</div>
 			</div>
 		</div>
@@ -200,7 +201,7 @@
 				Test
 			</Button>
 			<div class="flex-1"></div>
-			<Button variant="outline" onclick={handleClose}>Cancel</Button>
+			<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving}>
 				{#if formSaving}
 					<RefreshCw class="w-4 h-4 mr-1 animate-spin" />
@@ -209,7 +210,7 @@
 				{:else}
 					<Plus class="w-4 h-4" />
 				{/if}
-				{isEditing ? 'Save' : 'Add'}
+				{isEditing ? m.common_save() : m.common_add()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -7,3 +7,5 @@ bun.lock
 package-lock.json
 data/db
 data/.encryption_key
+.omo/
+.cortexkit/

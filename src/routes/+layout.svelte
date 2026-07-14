@@ -17,15 +17,16 @@
 	import { authStore } from '$lib/stores/auth';
 	import { themeStore, applyTheme } from '$lib/stores/theme';
 	import { gridPreferencesStore } from '$lib/stores/grid-preferences';
-import { loadLocaleFromStorage, setActiveLocale } from '$lib/i18n';
-import * as m from '$lib/paraglide/messages';
+	import { appSettings } from '$lib/stores/settings';
+	import { loadLocaleFromStorage, setActiveLocale } from '$lib/i18n';
+	import * as m from '$lib/paraglide/messages';
 	import { shouldShowWhatsNew } from '$lib/utils/version';
 	import { AlertTriangle, Search } from 'lucide-svelte';
 
 	// Check if current route is login page (no sidebar needed)
 	const isLoginPage = $derived($page.url.pathname === '/login');
 
-	let { children } = $props();
+	let { children, data } = $props();
 	let envId = $state<number | null>(null);
 	let commandPaletteOpen = $state(false);
 
@@ -96,6 +97,9 @@ import * as m from '$lib/paraglide/messages';
 	});
 
 	async function checkWhatsNew() {
+		// Suppressed via DISABLE_WHATS_NEW env var or the "Show What's New" setting (#1235)
+		if (data?.disableWhatsNew) return;
+		if ($appSettings.showWhatsNew === false) return;
 		if (browser && currentVersion && currentVersion !== 'unknown') {
 			lastSeenVersion = localStorage.getItem('dockhand-whats-new-version');
 			if (shouldShowWhatsNew(currentVersion, lastSeenVersion)) {

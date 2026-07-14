@@ -16,10 +16,11 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import { formatBytes } from '$lib/utils/format';
 	import MultiSelectFilter from '$lib/components/MultiSelectFilter.svelte';
-	import { Play, Square, Trash2, Plus, ArrowBigDown, Search, Pencil, ExternalLink, GitBranch, RefreshCw, Loader2, FileCode, FileText, FileOutput, Box, RotateCcw, ScrollText, Terminal, Eye, Network, HardDrive, Heart, HeartPulse, HeartOff, ChevronsUpDown, ChevronsDownUp, Rocket, AlertTriangle, X, Layers, Pause, CircleDashed, Skull, FolderOpen, Variable, Clock, RotateCw, Import, Ship, Cable, LayoutPanelLeft, Rows3, GripVertical, Globe } from 'lucide-svelte';
+	import { Play, Square, Trash2, Plus, ArrowBigDown, Search, Pencil, ExternalLink, GitBranch, RefreshCw, Loader2, FileCode, FileText, FileOutput, Box, RotateCcw, ScrollText, Terminal, Eye, Network, HardDrive, Heart, HeartPulse, HeartOff, ChevronsUpDown, ChevronsDownUp, Rocket, AlertTriangle, X, Layers, Pause, CircleDashed, Skull, FolderOpen, Variable, Clock, RotateCw, Import, Ship, Cable, LayoutPanelLeft, Rows3, GripVertical, Globe, CircleArrowUp, NotepadText } from 'lucide-svelte';
 	import { formatPorts } from '$lib/utils/port-format';
 	import { parseCustomUrl } from '$lib/utils/custom-url';
 	import { extractTraefikUrls } from '$lib/utils/traefik-urls';
+	import { resolveChangelogUrl } from '$lib/utils/changelog-url';
 	import { extractPangolinUrls } from '$lib/utils/pangolin-urls';
 	import { appSettings } from '$lib/stores/settings';
 	import ConfirmPopover from '$lib/components/ConfirmPopover.svelte';
@@ -32,6 +33,8 @@
 	import RedeployPopover from './RedeployPopover.svelte';
 	import ContainerInspectModal from '../containers/ContainerInspectModal.svelte';
 	import FileBrowserModal from '../containers/FileBrowserModal.svelte';
+	import BatchUpdateModal from '../containers/BatchUpdateModal.svelte';
+	import CheckUpdatesButton from '$lib/components/CheckUpdatesButton.svelte';
 	import LogsPanel from '../logs/LogsPanel.svelte';
 	import { currentEnvironment, environments, appendEnvParam, clearStaleEnvironment } from '$lib/stores/environment';
 	import { onDockerEvent, isContainerListChange } from '$lib/stores/events';
@@ -65,6 +68,53 @@
 	let editingStackName = $state('');
 	let editingGitStack = $state<any>(null);
 	let envId = $state<number | null>(null);
+
+	// Single-container update (mirrors the containers page action)
+	let showBatchUpdateModal = $state(false);
+	let singleUpdateContainerId = $state<string | null>(null);
+	let singleUpdateContainerName = $state<string | null>(null);
+	let envHasScanning = $state(false);
+	let envVulnerabilityCriteria = $state<'never' | 'any' | 'critical_high' | 'critical' | 'more_than_current'>('never');
+
+	async function loadScannerSettings() {
+		if (!envId) {
+			envHasScanning = false;
+			envVulnerabilityCriteria = 'never';
+			return;
+		}
+		try {
+			const [scannerRes, updateCheckRes] = await Promise.all([
+				fetch(`/api/settings/scanner?env=${envId}&settingsOnly=true`),
+				fetch(`/api/environments/${envId}/update-check`)
+			]);
+			if (scannerRes.ok) {
+				const data = await scannerRes.json();
+				const settings = data.settings || data;
+				envHasScanning = settings.scanner !== 'none';
+			}
+			if (updateCheckRes.ok) {
+				const data = await updateCheckRes.json();
+				envVulnerabilityCriteria = data.settings?.vulnerabilityCriteria || 'never';
+			}
+		} catch {
+			// Non-fatal: fall back to no vuln blocking
+		}
+	}
+
+	function updateSingleContainer(containerId: string, containerName: string) {
+		singleUpdateContainerId = containerId;
+		singleUpdateContainerName = containerName;
+		showBatchUpdateModal = true;
+	}
+
+	function handleSingleUpdateComplete(results: { success: string[]; failed: string[]; blocked: string[] }) {
+		if (results.success.length > 0) toast.success(`Updated ${results.success.length} container(s)`);
+		if (results.failed.length > 0) toast.error(`Failed to update ${results.failed.length} container(s)`);
+		if (results.blocked.length > 0) toast.warning(`${results.blocked.length} update(s) blocked by vulnerability policy`);
+		singleUpdateContainerId = null;
+		singleUpdateContainerName = null;
+		fetchStacks();
+	}
 
 	// Derived: current environment details for reactive port URL generation
 	const currentEnvDetails = $derived($environments.find(e => e.id === $currentEnvironment?.id) ?? null);
@@ -691,6 +741,7 @@
 			initialFetchDone = true;
 			fetchStacks();
 			fetchStats();
+			loadScannerSettings();
 		} else if (!env) {
 			// No environment - clear data and stop loading
 			envId = null;
@@ -1352,6 +1403,11 @@
 				<RefreshCw class="w-3.5 h-3.5" />
 				{m.common_refresh()}
 			</Button>
+			<CheckUpdatesButton
+				{envId}
+				hasPendingUpdates={stacks.some((s) => s.updatesAvailable)}
+				onComplete={() => fetchStacks()}
+			/>
 			<Button
 				size="sm"
 				variant="outline"
@@ -1535,18 +1591,19 @@
 				{@const source = getStackSource(stack.name)}
 				{#if column.id === 'name'}
 					{@const systemType = getStackSystemType(stack)}
+					<span class="flex items-center gap-1 min-w-0 w-full">
 					{#if source.sourceType !== 'git'}
 						<!-- Internal stacks (including those needing file location) are clickable -->
 						<button
 							type="button"
-							class="font-medium text-xs hover:text-primary hover:underline cursor-pointer text-left"
+							class="font-medium text-xs hover:text-primary hover:underline cursor-pointer text-left truncate min-w-0"
 							onclick={(e) => { e.stopPropagation(); editStack(stack.name); }}
 						>
 							{stack.name}
 						</button>
 					{:else}
 						<!-- Git stacks open in GitStackModal instead -->
-						<span class="font-medium text-xs">{stack.name}</span>
+						<span class="font-medium text-xs truncate min-w-0">{stack.name}</span>
 					{/if}
 					{#if systemType}
 						<Tooltip.Root>
@@ -1568,7 +1625,7 @@
 					{#if stackEnvVarCounts[stack.name]}
 						<Tooltip.Root>
 							<Tooltip.Trigger>
-								<span class="inline-flex items-center gap-0.5 ml-1.5 text-2xs px-1 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300">
+								<span class="inline-flex items-center gap-0.5 shrink-0 text-2xs px-1 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300">
 									<Variable class="w-2.5 h-2.5" />
 									{stackEnvVarCounts[stack.name]}
 								</span>
@@ -1578,54 +1635,110 @@
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
-					{:else if column.id === 'source'}
-						{#if source.sourceType === 'git'}
-							<span
-								class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 shadow-sm min-w-[5.5rem]"
-								title={source.repository ? `${source.repository.url} (${source.repository.branch})` : m.stacks_source_git_tooltip()}
+					{#if stack.updatesAvailable && $appSettings.highlightUpdates}
+						{#if source.sourceType === 'git' && source.gitStack}
+							<!-- Git stack: updates applied by deploying from the repo -->
+							<GitDeployProgressPopover
+								stackId={source.gitStack.id}
+								stackName={stack.name}
+								onComplete={fetchStacks}
 							>
-								<GitBranch class="w-3 h-3" />
-								{m.stacks_source_git()}
-							</span>
-						{:else if source.sourceType === 'internal'}
-							<span
-								class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 shadow-sm min-w-[5.5rem]"
-								title={m.stacks_source_internal_tooltip()}
-							>
-								<FileCode class="w-3 h-3" />
-								{m.stacks_source_internal()}
-							</span>
-						{:else}
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<span
-										class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 shadow-sm min-w-[5.5rem]"
+								{#snippet children()}
+									<button
+										type="button"
+										title="Image updates available — deploy from Git to apply"
+										onclick={(e) => e.stopPropagation()}
+										class="shrink-0 rounded hover:bg-muted transition-colors cursor-pointer inline-flex items-center gap-0.5"
 									>
-										<ExternalLink class="w-3 h-3" />
-										{m.stacks_source_untracked()}
-									</span>
+										<CircleArrowUp class="w-3.5 h-3.5 text-amber-500" />
+										{#if (stack.updateCount ?? 0) > 1}
+											<span class="text-2xs font-medium text-amber-500 leading-none">{stack.updateCount}</span>
+										{/if}
+									</button>
+								{/snippet}
+							</GitDeployProgressPopover>
+						{:else if source.sourceType !== 'external' && $canAccess('stacks', 'start')}
+							<!-- Internal stack: updates applied by redeploying with pull -->
+							<RedeployPopover
+								stackName={stack.name}
+								{envId}
+								side="bottom"
+								align="start"
+								disabled={stackActionLoading === stack.name}
+								onDeploy={(options) => redeployStack(stack.name, options)}
+							>
+								{#snippet children()}
+									<CircleArrowUp class="w-3.5 h-3.5 text-amber-500 shrink-0" />
+									{#if (stack.updateCount ?? 0) > 1}
+										<span class="ml-0.5 text-2xs font-medium text-amber-500 leading-none">{stack.updateCount}</span>
+									{/if}
+								{/snippet}
+							</RedeployPopover>
+						{:else}
+							<!-- External/untracked stack: no stack-level action, passive indicator -->
+							<Tooltip.Root>
+								<Tooltip.Trigger class="inline-flex items-center gap-0.5">
+									<CircleArrowUp class="w-3.5 h-3.5 text-amber-500" />
+									{#if (stack.updateCount ?? 0) > 1}
+										<span class="text-2xs font-medium text-amber-500 leading-none">{stack.updateCount}</span>
+									{/if}
 								</Tooltip.Trigger>
 								<Tooltip.Content class="whitespace-nowrap">
-									{m.stacks_source_untracked_tooltip()}
+									External stack - update possible for individual containers only.
 								</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
-					{:else if column.id === 'location'}
-						{#if source.composePath}
-							{@const dirPath = source.composePath.replace(/\/[^/]+$/, '')}
-							<Tooltip.Root>
-								<Tooltip.Trigger class="w-full text-left">
-									<span class="text-xs text-muted-foreground block truncate">
-										{dirPath}
-									</span>
-								</Tooltip.Trigger>
-								<Tooltip.Content class="max-w-md">
-									<code class="text-xs">{source.composePath}</code>
-								</Tooltip.Content>
-							</Tooltip.Root>
-						{:else}
-							<span class="text-xs text-muted-foreground/50 italic">{m.stacks_location_not_set()}</span>
-						{/if}
+					{/if}
+					</span>
+
+				{:else if column.id === 'source'}
+					{#if source.sourceType === 'git'}
+						<span
+							class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 shadow-sm min-w-[5.5rem]"
+							title={source.repository ? `${source.repository.url} (${source.repository.branch})` : m.stacks_source_git_tooltip()}
+						>
+							<GitBranch class="w-3 h-3" />
+							{m.stacks_source_git()}
+						</span>
+					{:else if source.sourceType === 'internal'}
+						<span
+							class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 shadow-sm min-w-[5.5rem]"
+							title={m.stacks_source_internal_tooltip()}
+						>
+							<FileCode class="w-3 h-3" />
+							{m.stacks_source_internal()}
+						</span>
+					{:else}
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								<span
+									class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 shadow-sm min-w-[5.5rem]"
+								>
+									<ExternalLink class="w-3 h-3" />
+									{m.stacks_source_untracked()}
+								</span>
+							</Tooltip.Trigger>
+							<Tooltip.Content class="whitespace-nowrap">
+								{m.stacks_source_untracked_tooltip()}
+							</Tooltip.Content>
+						</Tooltip.Root>
+					{/if}
+				{:else if column.id === 'location'}
+					{#if source.composePath}
+						{@const dirPath = source.composePath.replace(/\/[^/]+$/, '')}
+						<Tooltip.Root>
+							<Tooltip.Trigger class="w-full text-left">
+								<span class="text-xs text-muted-foreground block truncate">
+									{dirPath}
+								</span>
+							</Tooltip.Trigger>
+							<Tooltip.Content class="max-w-md">
+								<code class="text-xs">{source.composePath}</code>
+							</Tooltip.Content>
+						</Tooltip.Root>
+					{:else}
+						<span class="text-xs text-muted-foreground/50 italic">{m.stacks_location_not_set()}</span>
+					{/if}
 				{:else if column.id === 'containers'}
 					<div class="flex items-center gap-1">
 						{#if getContainerStateCounts(stack).running}
@@ -1949,7 +2062,42 @@
 								<div class="p-3 rounded-lg bg-background border text-xs">
 									<div class="flex items-center gap-2 mb-2">
 										<Box class="w-4 h-4 shrink-0 {container.state === 'running' ? 'text-emerald-500' : 'text-muted-foreground'}" />
-										<span class="font-medium truncate flex-1" title={container.name}>{container.service}</span>
+										<span class="font-medium truncate" title={container.name}>{container.service}</span>
+										{#if container.updateAvailable && $appSettings.highlightUpdates}
+											<!-- Update arrow + changelog link read as one pair — keep them tight. -->
+											<span class="inline-flex items-center gap-0.5 shrink-0">
+												{#if $canAccess('containers', 'manage')}
+													<ConfirmPopover
+														action="Update"
+														itemType="container"
+														itemName={container.name}
+														position="left"
+														title="Update available - click to update"
+														onConfirm={() => updateSingleContainer(container.id, container.name)}
+													>
+														{#snippet children({ open })}
+															<CircleArrowUp class="w-3.5 h-3.5 shrink-0 text-amber-500 cursor-pointer" />
+														{/snippet}
+													</ConfirmPopover>
+												{/if}
+												{#if $appSettings.showImageChangelogLinks}
+													{@const changelogUrl = resolveChangelogUrl(container.image, container.labels)}
+													{#if changelogUrl}
+														<a
+															href={changelogUrl}
+															target="_blank"
+															rel="noopener noreferrer"
+															onclick={(e) => e.stopPropagation()}
+															title="View changelog"
+															class="shrink-0 text-amber-500 hover:text-amber-400 transition-colors"
+														>
+															<NotepadText class="w-3 h-3" />
+														</a>
+													{/if}
+												{/if}
+											</span>
+										{/if}
+										<span class="flex-1"></span>
 										{#if container.health}
 											<span title={container.health}>
 												{#if container.health === 'healthy'}
@@ -2416,6 +2564,16 @@
 	containerName={fileBrowserContainerName}
 	envId={envId ?? undefined}
 	onclose={() => showFileBrowserModal = false}
+/>
+
+<BatchUpdateModal
+	bind:open={showBatchUpdateModal}
+	containerIds={singleUpdateContainerId ? [singleUpdateContainerId] : []}
+	containerNames={singleUpdateContainerId && singleUpdateContainerName ? new Map([[singleUpdateContainerId, singleUpdateContainerName]]) : new Map()}
+	{envId}
+	vulnerabilityCriteria={envHasScanning ? envVulnerabilityCriteria : 'never'}
+	onClose={() => { showBatchUpdateModal = false; singleUpdateContainerId = null; singleUpdateContainerName = null; }}
+	onComplete={handleSingleUpdateComplete}
 />
 
 <BatchOperationModal

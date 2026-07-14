@@ -6,7 +6,8 @@
 	import { appSettings } from '$lib/stores/settings';
 
 	interface Props {
-		open: boolean;
+		/** Optional — the popover self-manages its open state; bind only if the parent needs it. */
+		open?: boolean;
 		action: string;
 		itemName?: string;
 		itemType: string;
@@ -18,7 +19,8 @@
 		unstyled?: boolean;
 		disabled?: boolean;
 		onConfirm: () => void;
-		onOpenChange: (open: boolean) => void;
+		/** Optional — notified when the popover opens/closes. */
+		onOpenChange?: (open: boolean) => void;
 		children: Snippet<[{ open: boolean }]>;
 		extraContent?: Snippet;
 	}
@@ -59,7 +61,7 @@
 		if (open && autoHideMs > 0) {
 			const timeout = setTimeout(() => {
 				open = false;
-				onOpenChange(false);
+				onOpenChange?.(false);
 			}, autoHideMs);
 			return () => clearTimeout(timeout);
 		}
@@ -68,7 +70,7 @@
 	function handleConfirm() {
 		onConfirm();
 		open = false;
-		onOpenChange(false);
+		onOpenChange?.(false);
 	}
 
 	function handleTriggerClick(e: MouseEvent) {
@@ -79,17 +81,17 @@
 			return;
 		}
 		open = !open;
-		onOpenChange(open);
+		onOpenChange?.(open);
 	}
 
 	function handleOpenChange(newOpen: boolean) {
 		open = newOpen;
-		onOpenChange(newOpen);
+		onOpenChange?.(newOpen);
 	}
 </script>
 
 <Popover.Root bind:open onOpenChange={handleOpenChange}>
-	<Popover.Trigger asChild>
+	<Popover.Trigger>
 		{#snippet child({ props })}
 			<button
 				type="button"

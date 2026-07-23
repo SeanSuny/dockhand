@@ -2151,5 +2151,9 @@
 	"settings_about_https_tls": "HTTPS (TLS)",
 	"common_new": "New",
 	"common_fix": "Fix",
-	"settings_about_translator_credit": "Chinese translation by {name}"
+	"settings_about_translator_credit": "Chinese translation by {name}",
+	"stacks_modal_desc_readonly": "View compose file and dependency graph",
+	"stacks_modal_state_readonly": "Read-only",
+	"stacks_modal_empty_compose_not_available": "Compose file not available",
+	"stacks_modal_empty_deploy_first_hint": "Deploy or sync this Git stack first so Dockhand has a local copy of its compose file."
 }

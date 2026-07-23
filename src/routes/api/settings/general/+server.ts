@@ -45,7 +45,7 @@ export type ActionIconSize = 'small' | 'normal' | 'large' | 'xlarge';
 const VALID_ACTION_ICON_SIZES: ActionIconSize[] = ['small', 'normal', 'large', 'xlarge'];
 
 export interface GeneralSettings {
-	locale: string;
+	locale: string | null;
 	confirmDestructive: boolean;
 	showStoppedContainers: boolean;
 	highlightUpdates: boolean;
@@ -312,7 +312,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 		]);
 
 		const settings: GeneralSettings = {
-			locale: locale ?? 'en',
+			locale: locale ?? null,
 			confirmDestructive: confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
 			showStoppedContainers: showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
 			highlightUpdates: highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
@@ -660,7 +660,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		]);
 
 		const settings: GeneralSettings = {
-			locale: localeVal ?? DEFAULT_SETTINGS.locale,
+			locale: localeVal ?? null,
 			confirmDestructive: confirmDestructiveVal ?? DEFAULT_SETTINGS.confirmDestructive,
 			showStoppedContainers: showStoppedContainersVal ?? DEFAULT_SETTINGS.showStoppedContainers,
 			highlightUpdates: highlightUpdatesVal ?? DEFAULT_SETTINGS.highlightUpdates,

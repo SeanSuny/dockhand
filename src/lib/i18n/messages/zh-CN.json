@@ -2151,5 +2151,9 @@
 	"settings_about_https_tls": "HTTPS（TLS）",
 	"common_new": "新功能",
 	"common_fix": "修复",
-	"settings_about_translator_credit": "中文翻译：{name}"
+	"settings_about_translator_credit": "中文翻译：{name}",
+	"stacks_modal_desc_readonly": "查看 Compose 文件和依赖图",
+	"stacks_modal_state_readonly": "只读",
+	"stacks_modal_empty_compose_not_available": "Compose 文件不可用",
+	"stacks_modal_empty_deploy_first_hint": "请先部署或同步此 Git 栈，Dockhand 才能在本地获取其 Compose 文件副本。"
 }

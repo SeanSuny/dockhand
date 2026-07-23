@@ -144,10 +144,12 @@ function createSettingsStore() {
 			if (response.ok) {
 				const settings = await response.json();
 
-				// Apply server-persisted locale without re-persisting it
-				if (settings.locale) {
-					setActiveLocale(settings.locale, { skipPersist: true });
-				}
+			// Apply server-persisted locale without re-persisting it.
+			// With auth enabled the per-user preference (theme.init) wins — applying the
+			// global value here too would ping-pong setLocale → reload forever.
+			if (settings.locale && !get(authStore).authEnabled) {
+				setActiveLocale(settings.locale, { skipPersist: true });
+			}
 
 				set({
 					locale: settings.locale ?? DEFAULT_SETTINGS.locale,

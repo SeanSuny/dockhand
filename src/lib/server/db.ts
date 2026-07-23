@@ -382,7 +382,7 @@ export async function setUserSetting(userId: number, key: string, value: any): P
 }
 
 export async function getUserThemePreferences(userId: number): Promise<{
-	locale: string;
+	locale: string | null;
 	lightTheme: string;
 	darkTheme: string;
 	font: string;
@@ -408,7 +408,8 @@ const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont
 		getUserSetting(userId, 'action_icon_size')
 	]);
 	return {
-		locale: locale || 'en',
+		// null = user never chose a locale; client must not override current locale with a fake default
+		locale: locale || null,
 		lightTheme: lightTheme || 'default',
 		darkTheme: darkTheme || 'default',
 		font: font || 'system',

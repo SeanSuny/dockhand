@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
@@ -41,7 +42,7 @@
 			notifications = await response.json();
 		} catch (error) {
 			console.error('Failed to fetch notifications:', error);
-			toast.error('Failed to fetch notification channels');
+			toast.error(m.settings_notif_fetch_failed());
 		} finally {
 			notifLoading = false;
 		}
@@ -60,13 +61,13 @@
 
 			if (response.ok) {
 				await fetchNotifications();
-				toast.success('Notification channel deleted');
+				toast.success(m.settings_notif_deleted());
 			} else {
 				const data = await response.json();
-				toast.error(data.error || 'Failed to delete notification channel');
+				toast.error(data.error || m.settings_notif_delete_failed());
 			}
 		} catch (error) {
-			toast.error('Failed to delete notification channel');
+			toast.error(m.settings_notif_delete_failed());
 		}
 	}
 
@@ -79,13 +80,13 @@
 			});
 			if (response.ok) {
 				await fetchNotifications();
-				toast.success(`Channel ${notif.enabled ? 'disabled' : 'enabled'}`);
+				toast.success(notif.enabled ? m.settings_notif_toggled_disabled() : m.settings_notif_toggled_enabled());
 			} else {
-				toast.error('Failed to toggle notification channel');
+				toast.error(m.settings_notif_toggle_failed());
 			}
 		} catch (error) {
 			console.error('Failed to toggle notification:', error);
-			toast.error('Failed to toggle notification channel');
+			toast.error(m.settings_notif_toggle_failed());
 		}
 	}
 
@@ -100,13 +101,13 @@
 			});
 			testResult = await response.json();
 			if (testResult?.success) {
-				toast.success('Test notification sent successfully');
+				toast.success(m.settings_notif_test_sent());
 			} else {
-				toast.error(`Test failed: ${testResult?.error || 'Unknown error'}`);
+				toast.error(m.settings_notif_test_failed({ error: testResult?.error || m.stacks_git_modal_error_unknown() }));
 			}
 		} catch (error) {
-			testResult = { success: false, error: 'Failed to test notification' };
-			toast.error('Failed to test notification');
+			testResult = { success: false, error: m.settings_notif_test_action_failed() };
+			toast.error(m.settings_notif_test_action_failed());
 		}
 
 		// Store which notification was tested, clear testing state
@@ -131,13 +132,13 @@
 			<div class="flex items-start gap-3">
 				<Bell class="w-5 h-5 text-muted-foreground mt-0.5" />
 				<div>
-					<p class="text-sm font-medium">Notification channels</p>
+					<p class="text-sm font-medium">{m.settings_env_modal_notif_channels()}</p>
 					<p class="text-xs text-muted-foreground mt-1">
-						Configure notification channels to receive alerts about Docker events. Supports SMTP email and webhook URLs (Discord, Slack, Telegram, ntfy, Bark, Signal, Apprise, and more).
+						{m.settings_notif_desc()}
 					</p>
 					<p class="text-xs text-amber-600 dark:text-amber-500 mt-2 flex items-center gap-1">
 						<Info class="w-3 h-3" />
-						Detailed notification settings (event types, enable/disable) are configured per environment in Environment settings.
+						{m.settings_notif_per_env_hint()}
 					</p>
 				</div>
 			</div>
@@ -146,26 +147,26 @@
 
 	<div class="flex justify-between items-center">
 		<div class="flex items-center gap-3">
-			<Badge variant="secondary" class="text-xs">{notifications.length} channels</Badge>
+			<Badge variant="secondary" class="text-xs">{m.settings_notif_channels_count({ count: notifications.length })}</Badge>
 		</div>
 		<div class="flex gap-2">
 			{#if $canAccess('notifications', 'create')}
 				<Button size="sm" onclick={() => openNotifModal()}>
 					<Plus class="w-4 h-4" />
-					Add channel
+					{m.settings_notif_add_channel()}
 				</Button>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchNotifications}>Refresh</Button>
+			<Button size="sm" variant="outline" onclick={fetchNotifications}>{m.common_refresh()}</Button>
 		</div>
 	</div>
 
 	{#if notifLoading && notifications.length === 0}
-		<p class="text-muted-foreground text-sm">Loading notification channels...</p>
+		<p class="text-muted-foreground text-sm">{m.settings_notif_loading()}</p>
 	{:else if notifications.length === 0}
 		<EmptyState
 			icon={Bell}
-			title="No notification channels configured"
-			description="Add a channel to start receiving alerts about Docker events"
+			title={m.settings_env_modal_notif_none2()}
+			description={m.settings_notif_empty_desc()}
 		/>
 	{:else}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -189,7 +190,7 @@
 								/>
 							{:else}
 								<Badge variant={notif.enabled ? 'default' : 'secondary'} class="text-xs">
-									{notif.enabled ? 'Enabled' : 'Disabled'}
+									{notif.enabled ? m.toast_setting_enabled() : m.toast_setting_disabled()}
 								</Badge>
 							{/if}
 						</div>
@@ -199,23 +200,23 @@
 							{#if notif.type === 'smtp'}
 								<span>SMTP: {notif.config.host}:{notif.config.port}</span>
 							{:else}
-								<span>Webhook: {notif.config.urls?.length || 0} URL{notif.config.urls?.length === 1 ? '' : 's'}</span>
+								<span>Webhook: {notif.config.urls?.length || 0} {notif.config.urls?.length === 1 ? m.settings_notif_url_word() : m.settings_notif_urls_word()}</span>
 							{/if}
 						</div>
 
 						{#if testingNotif === notif.id}
 							<div class="text-xs text-muted-foreground flex items-center gap-1">
 								<RefreshCw class="w-3 h-3 animate-spin" />
-								Sending test...
+								{m.settings_notif_sending_test()}
 							</div>
 						{:else if testResult && testedNotifId === notif.id}
 							<div class="text-xs flex items-center gap-1 {testResult.success ? 'text-green-600' : 'text-destructive'}">
 								{#if testResult.success}
 									<CheckCircle2 class="w-3 h-3" />
-									Test sent successfully
+									{m.settings_notif_test_success()}
 								{:else}
 									<XCircle class="w-3 h-3" />
-									{testResult.error || 'Test failed'}
+									{testResult.error || m.settings_notif_test_error_fallback()}
 								{/if}
 							</div>
 						{/if}
@@ -228,7 +229,7 @@
 								disabled={testingNotif !== null}
 							>
 								<Send class="w-3 h-3" />
-								Test
+								{m.settings_registry_modal_test()}
 							</Button>
 							{#if $canAccess('notifications', 'edit')}
 								<Button
@@ -242,10 +243,10 @@
 							{#if $canAccess('notifications', 'delete')}
 								<ConfirmPopover
 									open={confirmDeleteNotificationId === notif.id}
-									action="Delete"
-									itemType="channel"
+									action={m.common_delete()}
+									itemType={m.settings_notif_item_type()}
 									itemName={notif.name}
-									title="Remove"
+									title={m.common_remove()}
 									position="left"
 									onConfirm={() => deleteNotification(notif.id)}
 									onOpenChange={(open) => confirmDeleteNotificationId = open ? notif.id : null}

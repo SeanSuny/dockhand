@@ -7,10 +7,11 @@
 	import { ToggleGroup } from '$lib/components/ui/toggle-pill';
 	import { Key, KeyRound, Lock } from 'lucide-svelte';
 	import { focusFirstInput } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages';
 
 	// Auth type options with icons
 	const authTypeOptions = [
-		{ value: 'password', label: 'Password/Token', icon: Lock },
+		{ value: 'password', label: m.settings_git_cred_modal_option_password_token(), icon: Lock },
 		{ value: 'ssh', label: 'SSH Key', icon: KeyRound }
 	];
 
@@ -85,17 +86,17 @@
 		let hasErrors = false;
 
 		if (!formName.trim()) {
-			errors.name = 'Name is required';
+			errors.name = m.settings_env_modal_err_name_required();
 			hasErrors = true;
 		}
 
 		if (formAuthType === 'password' && !formPassword.trim() && !credential?.hasPassword) {
-			errors.password = 'Password is required';
+			errors.password = m.settings_git_cred_modal_err_password_required();
 			hasErrors = true;
 		}
 
 		if (formAuthType === 'ssh' && !formSshKey.trim() && !credential?.hasSshKey) {
-			errors.sshKey = 'SSH private key is required';
+			errors.sshKey = m.settings_git_cred_modal_err_ssh_key_required();
 			hasErrors = true;
 		}
 
@@ -134,17 +135,17 @@
 			const data = await response.json();
 
 			if (!response.ok) {
-				formError = data.error || 'Failed to save credential';
+				formError = data.error || m.settings_git_cred_modal_error_save_failed();
 				toast.error(formError);
 				return;
 			}
 
 			onSaved();
 			onClose();
-			toast.success(credential ? 'Credential updated' : 'Credential created');
+			toast.success(credential ? m.settings_git_cred_modal_toast_updated() : m.settings_git_cred_modal_toast_created());
 		} catch (error) {
-			formError = 'Failed to save credential';
-			toast.error('Failed to save credential');
+			formError = m.settings_git_cred_modal_error_save_failed();
+			toast.error(m.settings_git_cred_modal_error_save_failed());
 		} finally {
 			formSaving = false;
 		}
@@ -157,32 +158,32 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<Key class="w-5 h-5" />
-				{isEditing ? 'Edit' : 'Add'} Git credential
+				{isEditing ? m.settings_git_cred_modal_title_edit() : m.settings_git_cred_modal_title_add()}
 			</Dialog.Title>
 			<Dialog.Description>
-				{isEditing ? 'Update credential settings' : 'Create a new credential for accessing Git repositories'}
+				{isEditing ? m.settings_git_cred_modal_desc_edit() : m.settings_git_cred_modal_desc_add()}
 			</Dialog.Description>
 		</Dialog.Header>
 
 		<form onsubmit={(e) => { e.preventDefault(); saveCredential(); }} class="space-y-4">
 			<div class="space-y-2">
-				<Label for="cred-name">Name</Label>
+				<Label for="cred-name">{m.common_name()}</Label>
 				<Input
 					id="cred-name"
 					bind:value={formName}
-					placeholder="e.g., GitHub Personal"
+					placeholder={m.settings_git_cred_modal_placeholder_name()}
 					class={errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
 					oninput={() => errors.name = undefined}
 				/>
 				{#if errors.name}
 					<p class="text-xs text-destructive">{errors.name}</p>
 				{:else if !isEditing}
-					<p class="text-xs text-muted-foreground">A friendly name to identify this credential</p>
+					<p class="text-xs text-muted-foreground">{m.settings_git_cred_modal_helper_name()}</p>
 				{/if}
 			</div>
 
 			<div class="space-y-2">
-				<Label>Authentication type</Label>
+				<Label>{m.settings_git_cred_modal_label_auth_type()}</Label>
 				<ToggleGroup
 					value={formAuthType}
 					options={authTypeOptions}
@@ -194,28 +195,28 @@
 			<div class="min-h-[220px] space-y-4">
 				{#if formAuthType === 'password'}
 					<div class="space-y-2">
-						<Label for="cred-username">Username</Label>
-						<Input id="cred-username" bind:value={formUsername} placeholder="Username or email" />
+						<Label for="cred-username">{m.login_username()}</Label>
+						<Input id="cred-username" bind:value={formUsername} placeholder={m.settings_git_cred_modal_placeholder_username()} />
 					</div>
 					<div class="space-y-2">
-						<Label for="cred-password">Password or token</Label>
+						<Label for="cred-password">{m.settings_git_cred_modal_label_password_token()}</Label>
 						<Input
 							id="cred-password"
 							type="password"
 							bind:value={formPassword}
-							placeholder={isEditing ? 'Leave empty to keep current' : 'Password or personal access token'}
+							placeholder={isEditing ? m.settings_git_cred_modal_hint_keep_current() : m.settings_git_cred_modal_placeholder_password()}
 							class={errors.password ? 'border-destructive focus-visible:ring-destructive' : ''}
 							oninput={() => errors.password = undefined}
 						/>
 						{#if errors.password}
 							<p class="text-xs text-destructive">{errors.password}</p>
 						{:else if isEditing && credential?.hasPassword}
-							<p class="text-xs text-muted-foreground">Current password is set. Leave empty to keep it.</p>
+							<p class="text-xs text-muted-foreground">{m.settings_git_cred_modal_hint_password_set()}</p>
 						{/if}
 					</div>
 				{:else if formAuthType === 'ssh'}
 					<div class="space-y-2">
-						<Label for="cred-ssh-key">SSH private key</Label>
+						<Label for="cred-ssh-key">{m.settings_git_cred_modal_label_ssh_key()}</Label>
 						<textarea
 							id="cred-ssh-key"
 							bind:value={formSshKey}
@@ -226,12 +227,12 @@
 						{#if errors.sshKey}
 							<p class="text-xs text-destructive">{errors.sshKey}</p>
 						{:else if isEditing && credential?.hasSshKey}
-							<p class="text-xs text-muted-foreground">Current SSH key is set. Leave empty to keep it.</p>
+							<p class="text-xs text-muted-foreground">{m.settings_git_cred_modal_hint_sshkey_set()}</p>
 						{/if}
 					</div>
 					<div class="space-y-2">
-						<Label for="cred-ssh-passphrase">SSH passphrase (optional)</Label>
-						<Input id="cred-ssh-passphrase" type="password" bind:value={formSshPassphrase} placeholder="Passphrase for encrypted key" />
+						<Label for="cred-ssh-passphrase">{m.settings_git_cred_modal_label_ssh_passphrase()}</Label>
+						<Input id="cred-ssh-passphrase" type="password" bind:value={formSshPassphrase} placeholder={m.settings_git_cred_modal_placeholder_ssh_passphrase()} />
 					</div>
 				{/if}
 			</div>
@@ -241,9 +242,9 @@
 			{/if}
 
 			<Dialog.Footer>
-				<Button variant="outline" type="button" onclick={onClose}>Cancel</Button>
+				<Button variant="outline" type="button" onclick={onClose}>{m.common_cancel()}</Button>
 				<Button type="submit" disabled={formSaving}>
-					{formSaving ? 'Saving...' : (isEditing ? 'Save changes' : 'Add credential')}
+					{formSaving ? m.stacks_modal_button_saving() : (isEditing ? m.stacks_git_modal_button_save_changes() : m.settings_git_cred_button_add())}
 				</Button>
 			</Dialog.Footer>
 		</form>

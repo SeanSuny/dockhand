@@ -9,6 +9,7 @@
 	import { Network, Pencil, Plus, Check, RefreshCw, TriangleAlert, Trash2, Star } from 'lucide-svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { focusFirstInput } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages';
 
 	export interface LdapRoleMapping {
 		groupDn: string;
@@ -155,15 +156,15 @@
 		let hasErrors = false;
 
 		if (!formName.trim()) {
-			formErrors.name = 'Name is required';
+			formErrors.name = m.settings_env_modal_err_name_required();
 			hasErrors = true;
 		}
 		if (!formServerUrl.trim()) {
-			formErrors.serverUrl = 'Server URL is required';
+			formErrors.serverUrl = m.settings_auth_ldap_modal_err_server_url();
 			hasErrors = true;
 		}
 		if (!formBaseDn.trim()) {
-			formErrors.baseDn = 'Base DN is required';
+			formErrors.baseDn = m.settings_auth_ldap_modal_err_base_dn();
 			hasErrors = true;
 		}
 
@@ -207,10 +208,10 @@
 				onSaved();
 			} else {
 				const data = await response.json();
-				formError = data.error || `Failed to ${isEditing ? 'update' : 'create'} LDAP configuration`;
+				formError = data.error || (isEditing ? m.settings_auth_ldap_modal_err_update() : m.settings_auth_ldap_modal_err_create());
 			}
 		} catch {
-			formError = `Failed to ${isEditing ? 'update' : 'create'} LDAP configuration`;
+			formError = (isEditing ? m.settings_auth_ldap_modal_err_update() : m.settings_auth_ldap_modal_err_create());
 		} finally {
 			formSaving = false;
 		}
@@ -228,10 +229,10 @@
 			<Dialog.Title class="flex items-center gap-2">
 				{#if isEditing}
 					<Pencil class="w-5 h-5" />
-					Edit LDAP configuration
+					{m.settings_auth_ldap_modal_title_edit()}
 				{:else}
 					<Network class="w-5 h-5" />
-					Add LDAP configuration
+					{m.settings_auth_ldap_modal_title_add()}
 				{/if}
 			</Dialog.Title>
 		</Dialog.Header>
@@ -245,20 +246,20 @@
 
 			<Tabs.Root bind:value={formModalTab}>
 				<Tabs.List class="grid w-full grid-cols-2 mb-4">
-					<Tabs.Trigger value="connection">Connection</Tabs.Trigger>
-					<Tabs.Trigger value="groups">Group settings</Tabs.Trigger>
+					<Tabs.Trigger value="connection">{m.settings_env_col_connection()}</Tabs.Trigger>
+					<Tabs.Trigger value="groups">{m.settings_auth_ldap_modal_tab_groups()}</Tabs.Trigger>
 				</Tabs.List>
 
 				<Tabs.Content value="connection" class="space-y-4">
 					<!-- Basic Settings -->
 					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground">Basic settings</h4>
+						<h4 class="text-sm font-medium text-muted-foreground">{m.container_settings_basic_settings()}</h4>
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
-								<Label>Name <span class="text-destructive">*</span></Label>
+								<Label>{m.common_name()} <span class="text-destructive">*</span></Label>
 								<Input
 									bind:value={formName}
-									placeholder="Corporate LDAP"
+									placeholder={m.settings_auth_ldap_modal_ph_corp()}
 									class={formErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
 									oninput={() => formErrors.name = undefined}
 								/>
@@ -267,7 +268,7 @@
 								{/if}
 							</div>
 							<div class="space-y-2">
-								<Label>Server URL <span class="text-destructive">*</span></Label>
+								<Label>{m.settings_auth_ldap_modal_label_server_url()} <span class="text-destructive">*</span></Label>
 								<Input
 									bind:value={formServerUrl}
 									placeholder="ldap://ldap.example.com:389"
@@ -285,29 +286,29 @@
 								onCheckedChange={(checked) => formEnabled = checked === true}
 							/>
 							<Label class="text-sm font-normal cursor-pointer" onclick={() => formEnabled = !formEnabled}>
-								Enable this LDAP configuration
+								{m.settings_auth_ldap_modal_enable_cfg()}
 							</Label>
 						</div>
 					</div>
 
 					<!-- Bind Credentials -->
 					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground">Bind credentials (optional)</h4>
-						<p class="text-xs text-muted-foreground">Service account used to search for users. Leave empty for anonymous bind.</p>
+						<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_ldap_modal_h4_bind()}</h4>
+						<p class="text-xs text-muted-foreground">{m.settings_auth_ldap_modal_desc_bind()}</p>
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
-								<Label>Bind DN</Label>
+								<Label>{m.settings_auth_ldap_modal_label_bind_dn()}</Label>
 								<Input
 									bind:value={formBindDn}
 									placeholder="cn=admin,dc=example,dc=com"
 								/>
 							</div>
 							<div class="space-y-2">
-								<Label>Bind password</Label>
+								<Label>{m.settings_auth_ldap_modal_label_bind_pw()}</Label>
 								<Input
 									type="password"
 									bind:value={formBindPassword}
-									placeholder={isEditing ? 'Leave blank to keep existing' : 'Enter password'}
+									placeholder={isEditing ? m.settings_notif_modal_smtp_pw_keep() : m.settings_auth_user_modal_enter_password()}
 								/>
 							</div>
 						</div>
@@ -315,9 +316,9 @@
 
 					<!-- Search Settings -->
 					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground">User search settings</h4>
+						<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_ldap_modal_h4_search()}</h4>
 						<div class="space-y-2">
-							<Label>Base DN <span class="text-destructive">*</span></Label>
+							<Label>{m.settings_auth_ldap_modal_label_base_dn()} <span class="text-destructive">*</span></Label>
 							<Input
 								bind:value={formBaseDn}
 								placeholder="dc=example,dc=com"
@@ -327,17 +328,17 @@
 							{#if formErrors.baseDn}
 								<p class="text-xs text-destructive">{formErrors.baseDn}</p>
 							{:else}
-								<p class="text-xs text-muted-foreground">The base DN to search for users.</p>
+								<p class="text-xs text-muted-foreground">{m.settings_auth_ldap_modal_desc_base_dn()}</p>
 							{/if}
 						</div>
 						<div class="space-y-2">
-							<Label>User filter</Label>
+							<Label>{m.settings_auth_ldap_modal_label_user_filter()}</Label>
 							<Input
 								bind:value={formUserFilter}
 								placeholder={`(uid={{username}})`}
 							/>
 							<p class="text-xs text-muted-foreground">
-								LDAP filter to find users. Use <code class="text-xs bg-muted px-1 rounded">{`{{username}}`}</code> as placeholder.<br />
+								{m.settings_auth_ldap_modal_desc_filter({ code: '{{username}}' })}<br />
 								<span class="text-muted-foreground/70">OpenLDAP: <code class="text-xs bg-muted px-1 rounded">(uid={`{{username}}`})</code> &bull; AD: <code class="text-xs bg-muted px-1 rounded">(sAMAccountName={`{{username}}`})</code></span>
 							</p>
 						</div>
@@ -345,24 +346,24 @@
 
 					<!-- Attribute Mapping -->
 					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground">Attribute mapping</h4>
+						<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_ldap_modal_h4_attrmap()}</h4>
 						<div class="grid grid-cols-3 gap-4">
 							<div class="space-y-2">
-								<Label>Username attribute</Label>
+								<Label>{m.settings_auth_ldap_modal_label_username_attr()}</Label>
 								<Input
 									bind:value={formUsernameAttr}
 									placeholder="uid"
 								/>
 							</div>
 							<div class="space-y-2">
-								<Label>Email attribute</Label>
+								<Label>{m.settings_auth_ldap_modal_label_email_attr()}</Label>
 								<Input
 									bind:value={formEmailAttr}
 									placeholder="mail"
 								/>
 							</div>
 							<div class="space-y-2">
-								<Label>Display name attribute</Label>
+								<Label>{m.settings_auth_ldap_modal_label_displayname_attr()}</Label>
 								<Input
 									bind:value={formDisplayNameAttr}
 									placeholder="cn"
@@ -373,19 +374,19 @@
 
 					<!-- TLS Settings -->
 					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground">TLS settings</h4>
+						<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_ldap_modal_h4_tls()}</h4>
 						<div class="flex items-center gap-2">
 							<Checkbox
 								checked={formTlsEnabled}
 								onCheckedChange={(checked) => formTlsEnabled = checked === true}
 							/>
 							<Label class="text-sm font-normal cursor-pointer" onclick={() => formTlsEnabled = !formTlsEnabled}>
-								Enable TLS (LDAPS or StartTLS)
+								{m.settings_auth_ldap_modal_enable_tls()}
 							</Label>
 						</div>
 						{#if formTlsEnabled}
 							<div class="space-y-2">
-								<Label>CA certificate (optional)</Label>
+								<Label>{m.settings_auth_ldap_modal_label_ca_cert()}</Label>
 								<textarea
 									bind:value={formTlsCa}
 									class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
@@ -399,34 +400,34 @@
 				<Tabs.Content value="groups" class="space-y-4">
 					<!-- Group Settings -->
 					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground">Group settings</h4>
-						<p class="text-xs text-muted-foreground">Configure group-based access control. These settings are optional.</p>
+						<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_ldap_modal_tab_groups()}</h4>
+						<p class="text-xs text-muted-foreground">{m.settings_auth_ldap_modal_desc_groups_cfg()}</p>
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
-								<Label>Group base DN</Label>
+								<Label>{m.settings_auth_ldap_modal_label_group_base_dn()}</Label>
 								<Input
 									bind:value={formGroupBaseDn}
 									placeholder="ou=groups,dc=example,dc=com"
 								/>
-								<p class="text-xs text-muted-foreground">The base DN to search for groups.</p>
+								<p class="text-xs text-muted-foreground">{m.settings_auth_ldap_modal_desc_group_base_dn()}</p>
 							</div>
 							<div class="space-y-2">
-								<Label>Admin group</Label>
+								<Label>{m.settings_auth_ldap_modal_label_admin_group()}</Label>
 								<Input
 									bind:value={formAdminGroup}
 									placeholder="cn=admins,ou=groups,dc=example,dc=com"
 								/>
-								<p class="text-xs text-muted-foreground">Members of this group will be admins.</p>
+								<p class="text-xs text-muted-foreground">{m.settings_auth_ldap_modal_desc_admin_group()}</p>
 							</div>
 						</div>
 						<div class="space-y-2">
-							<Label>Member filter</Label>
+							<Label>{m.settings_auth_ldap_modal_label_member_filter()}</Label>
 							<Input
 								bind:value={formGroupFilter}
 								placeholder={'(&(objectClass=groupOfNames)(member={{user_dn}}))'}
 							/>
 							<p class="text-xs text-muted-foreground">
-								Filter to find groups the user belongs to. Use <code class="text-xs bg-muted px-1 rounded">{'{{user_dn}}'}</code> as placeholder.
+								{m.settings_auth_ldap_modal_desc_member_filter({ code: '{{user_dn}}' })}
 							</p>
 						</div>
 					</div>
@@ -435,10 +436,10 @@
 					{#if isEnterprise}
 						<div class="space-y-4">
 							<div class="flex items-center gap-2">
-								<h4 class="text-sm font-medium text-muted-foreground">Group to role mappings</h4>
+								<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_ldap_modal_h4_role_mappings()}</h4>
 								<Star class="w-3.5 h-3.5 text-amber-500" />
 							</div>
-							<p class="text-xs text-muted-foreground">Map LDAP groups to Dockhand roles. Users in these groups will be assigned the corresponding role.</p>
+							<p class="text-xs text-muted-foreground">{m.settings_auth_ldap_modal_desc_role_mappings()}</p>
 
 							{#if formRoleMappings.length > 0}
 								<div class="space-y-2">
@@ -458,9 +459,9 @@
 												<Select.Trigger class="w-40">
 													{#if mapping.roleId}
 														{@const role = roles.find(r => r.id === mapping.roleId)}
-														{role?.name || 'Select role'}
+														{role?.name || m.settings_auth_ldap_modal_select_role()}
 													{:else}
-														Select role
+														{m.settings_auth_ldap_modal_select_role()}
 													{/if}
 												</Select.Trigger>
 												<Select.Content>
@@ -484,7 +485,7 @@
 
 							<Button variant="outline" size="sm" onclick={addRoleMapping}>
 								<Plus class="w-4 h-4" />
-								Add mapping
+								{m.settings_auth_ldap_modal_btn_add_mapping()}
 							</Button>
 						</div>
 					{/if}
@@ -492,7 +493,7 @@
 			</Tabs.Root>
 		</div>
 		<Dialog.Footer class="flex-shrink-0 border-t pt-4">
-			<Button variant="outline" onclick={handleClose}>Cancel</Button>
+			<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving}>
 				{#if formSaving}
 					<RefreshCw class="w-4 h-4 mr-1 animate-spin" />
@@ -501,7 +502,7 @@
 				{:else}
 					<Plus class="w-4 h-4" />
 				{/if}
-				{isEditing ? 'Save' : 'Add configuration'}
+				{isEditing ? m.common_save() : m.settings_auth_ldap_modal_btn_add_cfg()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

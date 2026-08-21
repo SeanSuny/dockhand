@@ -9,6 +9,7 @@
 	import { LogIn, Pencil, Plus, Check, RefreshCw, Crown, Key, Shield, Trash2, TriangleAlert } from 'lucide-svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { focusFirstInput } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages';
 
 	export interface OidcConfig {
 		id: number;
@@ -125,23 +126,23 @@
 		let hasErrors = false;
 
 		if (!formName.trim()) {
-			formErrors.name = 'Name is required';
+			formErrors.name = m.settings_env_modal_err_name_required();
 			hasErrors = true;
 		}
 		if (!formIssuerUrl.trim()) {
-			formErrors.issuerUrl = 'Issuer URL is required';
+			formErrors.issuerUrl = m.settings_auth_oidc_modal_err_issuer_url();
 			hasErrors = true;
 		}
 		if (!formClientId.trim()) {
-			formErrors.clientId = 'Client ID is required';
+			formErrors.clientId = m.settings_auth_oidc_modal_err_client_id();
 			hasErrors = true;
 		}
 		if (!isEditing && !formClientSecret.trim()) {
-			formErrors.clientSecret = 'Client secret is required';
+			formErrors.clientSecret = m.settings_auth_oidc_modal_err_client_secret();
 			hasErrors = true;
 		}
 		if (!formRedirectUri.trim()) {
-			formErrors.redirectUri = 'Redirect URI is required';
+			formErrors.redirectUri = m.settings_auth_oidc_modal_err_redirect_uri();
 			hasErrors = true;
 		}
 
@@ -179,10 +180,10 @@
 				onSaved();
 			} else {
 				const data = await response.json();
-				formError = data.error || `Failed to ${isEditing ? 'update' : 'create'} OIDC configuration`;
+				formError = data.error || (isEditing ? m.settings_auth_oidc_modal_err_update() : m.settings_auth_oidc_modal_err_create());
 			}
 		} catch {
-			formError = `Failed to ${isEditing ? 'update' : 'create'} OIDC configuration`;
+			formError = isEditing ? m.settings_auth_oidc_modal_err_update() : m.settings_auth_oidc_modal_err_create();
 		} finally {
 			formSaving = false;
 		}
@@ -213,20 +214,20 @@
 			<Dialog.Title class="flex items-center gap-2">
 				{#if isEditing}
 					<Pencil class="w-5 h-5" />
-					Edit OIDC provider
+					{m.settings_auth_oidc_modal_title_edit()}
 				{:else}
 					<LogIn class="w-5 h-5" />
-					Add OIDC provider
+					{m.settings_auth_oidc_modal_title_add()}
 				{/if}
 			</Dialog.Title>
 		</Dialog.Header>
 
 		<Tabs.Root bind:value={formActiveTab} class="flex-1 flex flex-col overflow-hidden">
 			<Tabs.List class="flex-shrink-0 grid w-full grid-cols-2">
-				<Tabs.Trigger value="general">General</Tabs.Trigger>
+				<Tabs.Trigger value="general">{m.settings_tab_general()}</Tabs.Trigger>
 				<Tabs.Trigger value="role-mapping" class="flex items-center gap-1.5">
 					<Crown class="w-3.5 h-3.5 text-amber-500" />
-					Role mapping
+					{m.settings_auth_oidc_modal_tab_role_mapping()}
 				</Tabs.Trigger>
 			</Tabs.List>
 
@@ -240,10 +241,10 @@
 
 				<!-- Basic Settings -->
 				<div class="space-y-4">
-					<h4 class="text-sm font-medium text-muted-foreground">Basic settings</h4>
+					<h4 class="text-sm font-medium text-muted-foreground">{m.container_settings_basic_settings()}</h4>
 					<div class="grid grid-cols-2 gap-4">
 						<div class="space-y-2">
-							<Label>Name <span class="text-destructive">*</span></Label>
+							<Label>{m.common_name()} <span class="text-destructive">*</span></Label>
 							<Input
 								bind:value={formName}
 								placeholder="Okta, Auth0, Azure AD..."
@@ -255,7 +256,7 @@
 							{/if}
 						</div>
 						<div class="space-y-2">
-							<Label>Issuer URL <span class="text-destructive">*</span></Label>
+							<Label>{m.settings_auth_oidc_modal_label_issuer_url()} <span class="text-destructive">*</span></Label>
 							<Input
 								bind:value={formIssuerUrl}
 								placeholder="https://example.okta.com"
@@ -273,18 +274,18 @@
 							onCheckedChange={(checked) => formEnabled = checked === true}
 						/>
 						<Label class="text-sm font-normal cursor-pointer" onclick={() => formEnabled = !formEnabled}>
-							Enable this OIDC provider
+							{m.settings_auth_oidc_modal_enable_cfg()}
 						</Label>
 					</div>
 				</div>
 
 				<!-- Client Credentials -->
 				<div class="space-y-4">
-					<h4 class="text-sm font-medium text-muted-foreground">Client credentials</h4>
-					<p class="text-xs text-muted-foreground">Get these from your identity provider's application settings.</p>
+					<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_oidc_modal_h4_client_creds()}</h4>
+					<p class="text-xs text-muted-foreground">{m.settings_auth_oidc_modal_desc_client_creds()}</p>
 					<div class="grid grid-cols-2 gap-4">
 						<div class="space-y-2">
-							<Label>Client ID <span class="text-destructive">*</span></Label>
+							<Label>{m.settings_auth_oidc_modal_label_client_id()} <span class="text-destructive">*</span></Label>
 							<Input
 								bind:value={formClientId}
 								placeholder="your-client-id"
@@ -296,11 +297,11 @@
 							{/if}
 						</div>
 						<div class="space-y-2">
-							<Label>Client secret {#if !isEditing}<span class="text-destructive">*</span>{/if}</Label>
+							<Label>{m.settings_auth_oidc_modal_label_client_secret()} {#if !isEditing}<span class="text-destructive">*</span>{/if}</Label>
 							<Input
 								type="password"
 								bind:value={formClientSecret}
-								placeholder={isEditing ? 'Leave blank to keep existing' : 'your-client-secret'}
+								placeholder={isEditing ? m.settings_auth_oidc_modal_keep_existing() : 'your-client-secret'}
 								class={formErrors.clientSecret ? 'border-destructive focus-visible:ring-destructive' : ''}
 								oninput={() => formErrors.clientSecret = undefined}
 							/>
@@ -313,9 +314,9 @@
 
 				<!-- Redirect & Scopes -->
 				<div class="space-y-4">
-					<h4 class="text-sm font-medium text-muted-foreground">Redirect settings</h4>
+					<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_oidc_modal_h4_redirect()}</h4>
 					<div class="space-y-2">
-						<Label>Redirect URI <span class="text-destructive">*</span></Label>
+						<Label>{m.settings_auth_oidc_modal_label_redirect_uri()} <span class="text-destructive">*</span></Label>
 						<Input
 							bind:value={formRedirectUri}
 							placeholder="https://dockhand.example.com/api/auth/oidc/callback"
@@ -325,11 +326,11 @@
 						{#if formErrors.redirectUri}
 							<p class="text-xs text-destructive">{formErrors.redirectUri}</p>
 						{:else}
-							<p class="text-xs text-muted-foreground">Add this URI to your identity provider's allowed callback URLs.</p>
+							<p class="text-xs text-muted-foreground">{m.settings_auth_oidc_modal_desc_redirect_uri()}</p>
 						{/if}
 					</div>
 					<div class="space-y-2">
-						<Label>Scopes</Label>
+						<Label>{m.settings_auth_oidc_modal_label_scopes()}</Label>
 						<Input
 							bind:value={formScopes}
 							placeholder="openid profile email"
@@ -339,25 +340,25 @@
 
 				<!-- Claim Mapping -->
 				<div class="space-y-4">
-					<h4 class="text-sm font-medium text-muted-foreground">Claim mapping</h4>
-					<p class="text-xs text-muted-foreground">Map OIDC claims to user attributes.</p>
+					<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_oidc_modal_h4_claim_mapping()}</h4>
+					<p class="text-xs text-muted-foreground">{m.settings_auth_oidc_modal_desc_claim_mapping()}</p>
 					<div class="grid grid-cols-3 gap-4">
 						<div class="space-y-2">
-							<Label>Username claim</Label>
+							<Label>{m.settings_auth_oidc_modal_label_username_claim()}</Label>
 							<Input
 								bind:value={formUsernameClaim}
 								placeholder="preferred_username"
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label>Email claim</Label>
+							<Label>{m.settings_auth_oidc_modal_label_email_claim()}</Label>
 							<Input
 								bind:value={formEmailClaim}
 								placeholder="email"
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label>Display name claim</Label>
+							<Label>{m.settings_auth_oidc_modal_label_displayname_claim()}</Label>
 							<Input
 								bind:value={formDisplayNameClaim}
 								placeholder="name"
@@ -374,15 +375,15 @@
 						<div class="text-center">
 							<h3 class="text-lg font-medium mb-2 flex items-center justify-center gap-2">
 								<Crown class="w-5 h-5 text-amber-500" />
-								Enterprise feature
+								{m.settings_auth_roles_ent_title()}
 							</h3>
 							<p class="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-								Role mapping allows you to automatically assign Dockhand roles based on your identity provider's groups or claims. This feature requires an enterprise license.
+								{m.settings_auth_oidc_modal_desc_ent_license()}
 							</p>
 							{#if onNavigateToLicense}
 								<Button onclick={() => { open = false; onNavigateToLicense?.(); }}>
 									<Key class="w-4 h-4" />
-									Activate license
+									{m.settings_auth_roles_activate_license()}
 								</Button>
 							{/if}
 						</div>
@@ -390,24 +391,24 @@
 				{:else}
 					<!-- Admin Mapping (Simple) -->
 					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground">Groups/roles claim</h4>
-						<p class="text-xs text-muted-foreground">Grant admin access based on claim values from your identity provider.</p>
+						<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_oidc_modal_h4_groups_roles()}</h4>
+						<p class="text-xs text-muted-foreground">{m.settings_auth_oidc_modal_desc_admin_mapping()}</p>
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
-								<Label>Claim name</Label>
+								<Label>{m.settings_auth_oidc_modal_label_claim_name()}</Label>
 								<Input
 									bind:value={formAdminClaim}
-									placeholder="groups, roles, etc."
+									placeholder={m.settings_auth_oidc_modal_ph_admin_claim()}
 								/>
-								<p class="text-xs text-muted-foreground">Name of the claim containing roles/groups</p>
+								<p class="text-xs text-muted-foreground">{m.settings_auth_oidc_modal_desc_roles_groups_claim()}</p>
 							</div>
 							<div class="space-y-2">
-								<Label>Admin value(s)</Label>
+								<Label>{m.settings_auth_oidc_modal_label_admin_values()}</Label>
 								<Input
 									bind:value={formAdminValue}
 									placeholder="admin, Administrators"
 								/>
-								<p class="text-xs text-muted-foreground">Comma-separated values that grant Admin role</p>
+								<p class="text-xs text-muted-foreground">{m.settings_auth_oidc_modal_desc_grant_admin()}</p>
 							</div>
 						</div>
 					</div>
@@ -416,8 +417,8 @@
 					<div class="space-y-4">
 						<div class="flex items-center justify-between">
 							<div>
-								<h4 class="text-sm font-medium text-muted-foreground">Claim to role mappings</h4>
-								<p class="text-xs text-muted-foreground mt-0.5">Map claim values from your identity provider to Dockhand roles.</p>
+								<h4 class="text-sm font-medium text-muted-foreground">{m.settings_auth_oidc_modal_h4_claim_role_mappings()}</h4>
+								<p class="text-xs text-muted-foreground mt-0.5">{m.settings_auth_oidc_modal_desc_map_claims()}</p>
 							</div>
 							<Button
 								size="sm"
@@ -425,13 +426,13 @@
 								onclick={addRoleMapping}
 							>
 								<Plus class="w-4 h-4" />
-								Add mapping
+								{m.settings_auth_ldap_modal_btn_add_mapping()}
 							</Button>
 						</div>
 
 						{#if formRoleMappings.length === 0}
 							<div class="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-lg">
-								No role mappings configured. Click "Add mapping" to create one.
+								{m.settings_auth_oidc_modal_empty_no_mappings()}
 							</div>
 						{:else}
 							<div class="space-y-2">
@@ -439,15 +440,15 @@
 									<div class="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
 										<div class="flex-1 grid grid-cols-2 gap-3">
 											<div class="space-y-1">
-												<Label class="text-xs">Claim value</Label>
+												<Label class="text-xs">{m.settings_auth_oidc_modal_label_claim_value()}</Label>
 												<Input
 													bind:value={mapping.claim_value}
-													placeholder="e.g., developers, admins"
+													placeholder={m.settings_auth_oidc_modal_ph_claim_value()}
 													class="h-8"
 												/>
 											</div>
 											<div class="space-y-1">
-												<Label class="text-xs">Dockhand role</Label>
+												<Label class="text-xs">{m.settings_auth_oidc_modal_label_dockhand_role()}</Label>
 												<Select.Root
 													type="single"
 													value={mapping.role_id ? String(mapping.role_id) : undefined}
@@ -459,9 +460,9 @@
 												>
 													<Select.Trigger class="h-8">
 														{#if mapping.role_id}
-															{roles.find(r => r.id === mapping.role_id)?.name || 'Select role...'}
+															{roles.find(r => r.id === mapping.role_id)?.name || m.settings_auth_oidc_modal_select_role()}
 														{:else}
-															Select role...
+															{m.settings_auth_oidc_modal_select_role()}
 														{/if}
 													</Select.Trigger>
 													<Select.Content>
@@ -495,7 +496,7 @@
 		</Tabs.Root>
 
 		<Dialog.Footer class="flex-shrink-0 border-t pt-4">
-			<Button variant="outline" onclick={handleClose}>Cancel</Button>
+			<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving}>
 				{#if formSaving}
 					<RefreshCw class="w-4 h-4 mr-1 animate-spin" />
@@ -504,7 +505,7 @@
 				{:else}
 					<Plus class="w-4 h-4" />
 				{/if}
-				{isEditing ? 'Save' : 'Add provider'}
+				{isEditing ? m.common_save() : m.settings_auth_sso_add_provider()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

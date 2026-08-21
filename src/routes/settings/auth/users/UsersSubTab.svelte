@@ -32,6 +32,7 @@
 	import { canAccess } from '$lib/stores/auth';
 	import { licenseStore } from '$lib/stores/license';
 	import UserModal from './UserModal.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	const MAX_VISIBLE_ROLES = 5;
 
@@ -96,7 +97,7 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch users:', error);
-			toast.error('Failed to fetch users');
+			toast.error(m.settings_auth_users_fetch_failed());
 		} finally {
 			usersLoading = false;
 		}
@@ -129,9 +130,9 @@
 				const data = await response.json();
 				await fetchUsers();
 				if (data.authDisabled) {
-					toast.success('User deleted. Authentication has been disabled.');
+					toast.success(m.settings_auth_user_deleted_auth_disabled());
 				} else {
-					toast.success('User deleted');
+					toast.success(m.settings_auth_user_deleted());
 				}
 				showLastAdminWarning = false;
 				lastAdminDeleteUserId = null;
@@ -143,15 +144,15 @@
 					lastAdminDeleteUserId = userId;
 					showLastAdminWarning = true;
 				} else {
-					toast.error(data.error || 'Failed to delete user');
+					toast.error(data.error || m.settings_auth_users_delete_failed());
 				}
 			} else {
 				const data = await response.json();
-				toast.error(data.error || 'Failed to delete user');
+				toast.error(data.error || m.settings_auth_users_delete_failed());
 			}
 		} catch (error) {
 			console.error('Failed to delete user:', error);
-			toast.error('Failed to delete user');
+			toast.error(m.settings_auth_users_delete_failed());
 		} finally {
 			confirmDeleteUserId = null;
 		}
@@ -180,7 +181,7 @@
 	// Get provider display info
 	function getProviderInfo(user: LocalUser): { icon: typeof KeyRound; label: string; class: string; sortKey: string } {
 		if (!user.isSso) {
-			return { icon: KeyRound, label: 'Local', class: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30', sortKey: 'local' };
+			return { icon: KeyRound, label: m.volumes_create_driver_local(), class: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30', sortKey: 'local' };
 		}
 		const providerParts = user.authProvider?.split(':') || [];
 		const providerType = providerParts[0]?.toLowerCase() || 'sso';
@@ -255,14 +256,14 @@
 				<div>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
 						<Users class="w-4 h-4" />
-						Users
+						{m.settings_auth_tab_users()}
 					</Card.Title>
-					<p class="text-xs text-muted-foreground mt-1">Manage user accounts for local authentication, SSO, and LDAP.</p>
+					<p class="text-xs text-muted-foreground mt-1">{m.settings_auth_users_manage_desc()}</p>
 				</div>
 				{#if $canAccess('users', 'create')}
 					<Button size="sm" onclick={() => openUserModal(null)}>
 						<UserPlus class="w-4 h-4" />
-						Add user
+						{m.settings_auth_users_add()}
 					</Button>
 				{/if}
 			</div>
@@ -275,8 +276,8 @@
 			{:else if localUsers.length === 0}
 				<EmptyState
 					icon={Users}
-					title="No users configured"
-					description="Create the first user to enable login"
+					title={m.settings_auth_users_none_configured()}
+					description={m.settings_auth_users_first_user_hint()}
 				/>
 			{:else}
 				<!-- Filter bar -->
@@ -285,13 +286,13 @@
 						<Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
 						<Input
 							type="text"
-							placeholder="Search users..."
+							placeholder={m.settings_auth_users_search_ph()}
 							bind:value={searchQuery}
 							class="pl-8 h-8 text-sm"
 						/>
 					</div>
 					<div class="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
-						<span>{filteredAndSortedUsers.length} of {localUsers.length} users</span>
+						<span>{m.settings_auth_users_count({ shown: filteredAndSortedUsers.length, total: localUsers.length })}</span>
 					</div>
 				</div>
 				<!-- Table -->
@@ -305,7 +306,7 @@
 										class="flex items-center gap-1 hover:text-foreground transition-colors"
 										onclick={() => toggleSort('username')}
 									>
-										User
+										{m.common_user()}
 										{#if sortField === 'username'}
 											{#if sortDirection === 'asc'}<ArrowUp class="w-3 h-3" />{:else}<ArrowDown class="w-3 h-3" />{/if}
 										{:else}
@@ -319,7 +320,7 @@
 										class="flex items-center gap-1 hover:text-foreground transition-colors"
 										onclick={() => toggleSort('email')}
 									>
-										Email
+										{m.settings_auth_users_email()}
 										{#if sortField === 'email'}
 											{#if sortDirection === 'asc'}<ArrowUp class="w-3 h-3" />{:else}<ArrowDown class="w-3 h-3" />{/if}
 										{:else}
@@ -329,7 +330,7 @@
 								</th>
 								<th class="text-left py-1.5 px-3 font-medium w-[8%]">MFA</th>
 								{#if $licenseStore.isEnterprise}
-									<th class="text-left py-1.5 px-3 font-medium w-[25%]">Roles</th>
+									<th class="text-left py-1.5 px-3 font-medium w-[25%]">{m.settings_auth_tab_roles()}</th>
 								{/if}
 								<th class="text-left py-1.5 px-3 font-medium w-[15%]">
 									<button
@@ -337,7 +338,7 @@
 										class="flex items-center gap-1 hover:text-foreground transition-colors"
 										onclick={() => toggleSort('provider')}
 									>
-										Provider
+										{m.settings_auth_users_provider()}
 										{#if sortField === 'provider'}
 											{#if sortDirection === 'asc'}<ArrowUp class="w-3 h-3" />{:else}<ArrowDown class="w-3 h-3" />{/if}
 										{:else}
@@ -364,7 +365,7 @@
 											<div class="flex items-center gap-1.5">
 												<span class="font-medium">{user.username}</span>
 												{#if !user.isActive}
-													<Badge variant="destructive" class="text-2xs px-1 py-0 h-4">Disabled</Badge>
+													<Badge variant="destructive" class="text-2xs px-1 py-0 h-4">{m.container_inspect_disabled()}</Badge>
 												{/if}
 											</div>
 										</div>
@@ -378,7 +379,7 @@
 										{#if user.mfaEnabled}
 											<Badge variant="outline" class="text-2xs px-1.5 py-0 h-4 gap-1 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30">
 												<Shield class="w-2.5 h-2.5" />
-												Enabled
+												{m.container_inspect_enabled()}
 											</Badge>
 										{:else}
 											<span class="text-muted-foreground">—</span>
@@ -397,7 +398,7 @@
 														</Badge>
 													{/each}
 													{#if hiddenRolesCount > 0}
-														<span class="text-2xs text-muted-foreground">+{hiddenRolesCount} more</span>
+														<span class="text-2xs text-muted-foreground">{m.settings_auth_users_roles_more({ n: hiddenRolesCount })}</span>
 													{/if}
 												</div>
 											{:else}
@@ -428,8 +429,8 @@
 											{#if $canAccess('users', 'delete')}
 												<ConfirmPopover
 													open={confirmDeleteUserId === user.id}
-													action="Delete"
-													itemType="user"
+													action={m.common_delete()}
+													itemType={m.settings_auth_users_item_type()}
 													itemName={user.username}
 													onConfirm={() => deleteLocalUser(user.id)}
 													onOpenChange={(open) => { if (!open) confirmDeleteUserId = null; else confirmDeleteUserId = user.id; }}
@@ -446,7 +447,7 @@
 								<tr>
 									<td colspan={$licenseStore.isEnterprise ? 6 : 5} class="py-8 text-center text-muted-foreground">
 										<Search class="w-8 h-8 mx-auto mb-2 opacity-50" />
-										<p>No users found matching "{searchQuery}"</p>
+										<p>{m.settings_auth_users_not_found({ q: searchQuery })}</p>
 									</td>
 								</tr>
 							{/each}
@@ -473,17 +474,17 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2 text-destructive">
 				<AlertTriangle class="w-5 h-5" />
-				Delete last admin?
+				{m.settings_auth_users_last_admin_title()}
 			</Dialog.Title>
 			<Dialog.Description class="text-left">
-				This is the only admin account. Deleting it will <strong>disable authentication</strong> and allow anyone to access Dockhand without logging in.
+				{m.settings_auth_users_last_admin_a()}<strong>{m.settings_auth_users_last_admin_b()}</strong>{m.settings_auth_users_last_admin_c()}
 			</Dialog.Description>
 		</Dialog.Header>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={cancelLastAdminDelete}>Cancel</Button>
+			<Button variant="outline" onclick={cancelLastAdminDelete}>{m.common_cancel()}</Button>
 			<Button variant="destructive" onclick={confirmLastAdminDelete}>
 				<Trash2 class="w-4 h-4" />
-				Delete and disable auth
+				{m.settings_auth_users_delete_disable_btn()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

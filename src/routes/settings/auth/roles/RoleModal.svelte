@@ -9,6 +9,7 @@
 	import EnvironmentIcon from '$lib/components/EnvironmentIcon.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { focusFirstInput } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages';
 
 	export interface Role {
 		id: number;
@@ -85,106 +86,143 @@
 	});
 
 
+	function categoryLabel(category: string): string {
+		switch (category) {
+			case 'activity':
+				return m.sidebar_activity();
+			case 'containers':
+				return m.common_containers();
+			case 'images':
+				return m.sidebar_images();
+			case 'volumes':
+				return m.sidebar_volumes();
+			case 'networks':
+				return m.sidebar_networks();
+			case 'stacks':
+				return m.sidebar_stacks();
+			case 'environments':
+				return m.settings_tab_environments();
+			case 'registries':
+				return m.settings_tab_registries();
+			case 'notifications':
+				return m.settings_tab_notifications();
+			case 'configsets':
+				return m.settings_auth_roles_cat_configsets();
+			case 'settings':
+				return m.sidebar_settings();
+			case 'users':
+				return m.settings_auth_tab_users();
+			case 'git':
+				return m.settings_tab_git();
+			case 'license':
+				return m.settings_tab_license();
+			case 'audit_logs':
+				return m.settings_auth_roles_cat_audit_logs();
+			default:
+				return m.sidebar_schedules();
+		}
+	}
+
 	// Permission definitions - separated into system and environment categories
 	const systemPermissions = {
 		users: [
-			{ key: 'view', label: 'View users' },
-			{ key: 'create', label: 'Create users' },
-			{ key: 'edit', label: 'Edit users' },
-			{ key: 'delete', label: 'Delete users' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_users_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_users_create() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_users_edit() },
+			{ key: 'delete', label: m.settings_auth_role_modal_perm_users_delete() }
 		],
 		settings: [
-			{ key: 'view', label: 'View settings' },
-			{ key: 'edit', label: 'Edit settings' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_settings_view() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_settings_edit() }
 		],
 		environments: [
-			{ key: 'view', label: 'View environments' },
-			{ key: 'create', label: 'Create environments' },
-			{ key: 'edit', label: 'Edit environments' },
-			{ key: 'delete', label: 'Delete environments' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_envs_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_envs_create() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_envs_edit() },
+			{ key: 'delete', label: m.settings_auth_role_modal_perm_envs_delete() }
 		],
 		registries: [
-			{ key: 'view', label: 'View registries' },
-			{ key: 'create', label: 'Create registries' },
-			{ key: 'edit', label: 'Edit registries' },
-			{ key: 'delete', label: 'Delete registries' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_registries_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_registries_create() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_registries_edit() },
+			{ key: 'delete', label: m.settings_auth_role_modal_perm_registries_delete() }
 		],
 		notifications: [
-			{ key: 'view', label: 'View notifications' },
-			{ key: 'create', label: 'Create notifications' },
-			{ key: 'edit', label: 'Edit notifications' },
-			{ key: 'delete', label: 'Delete notifications' },
-			{ key: 'test', label: 'Test notifications' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_notif_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_notif_create() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_notif_edit() },
+			{ key: 'delete', label: m.settings_auth_role_modal_perm_notif_delete() },
+			{ key: 'test', label: m.settings_auth_role_modal_perm_notif_test() }
 		],
 		configsets: [
-			{ key: 'view', label: 'View config sets' },
-			{ key: 'create', label: 'Create config sets' },
-			{ key: 'edit', label: 'Edit config sets' },
-			{ key: 'delete', label: 'Delete config sets' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_configsets_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_configsets_create() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_configsets_edit() },
+			{ key: 'delete', label: m.settings_auth_role_modal_perm_configsets_delete() }
 		],
 		git: [
-			{ key: 'view', label: 'View credentials & repos' },
-			{ key: 'create', label: 'Create credentials & repos' },
-			{ key: 'edit', label: 'Edit credentials & repos' },
-			{ key: 'delete', label: 'Delete credentials & repos' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_git_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_git_create() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_git_edit() },
+			{ key: 'delete', label: m.settings_auth_role_modal_perm_git_delete() }
 		],
 		license: [
-			{ key: 'manage', label: 'Manage license' }
+			{ key: 'manage', label: m.settings_auth_role_modal_perm_license_manage() }
 		],
 		audit_logs: [
-			{ key: 'view', label: 'View audit logs' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_audit_view() }
 		],
 		schedules: [
-			{ key: 'view', label: 'View schedules' },
-			{ key: 'edit', label: 'Edit schedules' },
-			{ key: 'run', label: 'Run schedules' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_schedules_view() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_schedules_edit() },
+			{ key: 'run', label: m.settings_auth_role_modal_perm_schedules_run() }
 		]
 	};
 
 	const environmentPermissions = {
 		activity: [
-			{ key: 'view', label: 'View activity' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_activity_view() }
 		],
 		containers: [
-			{ key: 'view', label: 'View containers' },
-			{ key: 'create', label: 'Create containers' },
-			{ key: 'start', label: 'Start containers' },
-			{ key: 'stop', label: 'Stop containers' },
-			{ key: 'restart', label: 'Restart containers' },
-			{ key: 'remove', label: 'Remove containers' },
-			{ key: 'exec', label: 'Execute terminal' },
-			{ key: 'logs', label: 'View logs' },
-			{ key: 'inspect', label: 'Inspect containers' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_containers_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_containers_create() },
+			{ key: 'start', label: m.settings_auth_role_modal_perm_containers_start() },
+			{ key: 'stop', label: m.settings_auth_role_modal_perm_containers_stop() },
+			{ key: 'restart', label: m.settings_auth_role_modal_perm_containers_restart() },
+			{ key: 'remove', label: m.settings_auth_role_modal_perm_containers_remove() },
+			{ key: 'exec', label: m.settings_auth_role_modal_perm_containers_exec() },
+			{ key: 'logs', label: m.stacks_action_view_logs() },
+			{ key: 'inspect', label: m.settings_auth_role_modal_perm_containers_inspect() }
 		],
 		images: [
-			{ key: 'view', label: 'View images' },
-			{ key: 'pull', label: 'Pull images' },
-			{ key: 'push', label: 'Push images' },
-			{ key: 'remove', label: 'Remove images' },
-			{ key: 'build', label: 'Build images' },
-			{ key: 'inspect', label: 'Inspect images' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_images_view() },
+			{ key: 'pull', label: m.stacks_redeploy_pull_images() },
+			{ key: 'push', label: m.settings_auth_role_modal_perm_images_push() },
+			{ key: 'remove', label: m.settings_auth_role_modal_perm_images_remove() },
+			{ key: 'build', label: m.stacks_redeploy_build_images() },
+			{ key: 'inspect', label: m.settings_auth_role_modal_perm_images_inspect() }
 		],
 		volumes: [
-			{ key: 'view', label: 'View volumes' },
-			{ key: 'create', label: 'Create volumes' },
-			{ key: 'remove', label: 'Remove volumes' },
-			{ key: 'inspect', label: 'Inspect volumes' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_volumes_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_volumes_create() },
+			{ key: 'remove', label: m.settings_auth_role_modal_perm_volumes_remove() },
+			{ key: 'inspect', label: m.settings_auth_role_modal_perm_volumes_inspect() }
 		],
 		networks: [
-			{ key: 'view', label: 'View networks' },
-			{ key: 'create', label: 'Create networks' },
-			{ key: 'remove', label: 'Remove networks' },
-			{ key: 'inspect', label: 'Inspect networks' },
-			{ key: 'connect', label: 'Connect containers' },
-			{ key: 'disconnect', label: 'Disconnect containers' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_networks_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_networks_create() },
+			{ key: 'remove', label: m.settings_auth_role_modal_perm_networks_remove() },
+			{ key: 'inspect', label: m.settings_auth_role_modal_perm_networks_inspect() },
+			{ key: 'connect', label: m.settings_auth_role_modal_perm_networks_connect() },
+			{ key: 'disconnect', label: m.settings_auth_role_modal_perm_networks_disconnect() }
 		],
 		stacks: [
-			{ key: 'view', label: 'View stacks' },
-			{ key: 'create', label: 'Create stacks' },
-			{ key: 'start', label: 'Start stacks' },
-			{ key: 'stop', label: 'Stop stacks' },
-			{ key: 'remove', label: 'Remove stacks' },
-			{ key: 'edit', label: 'Edit stacks' }
+			{ key: 'view', label: m.settings_auth_role_modal_perm_stacks_view() },
+			{ key: 'create', label: m.settings_auth_role_modal_perm_stacks_create() },
+			{ key: 'start', label: m.settings_auth_role_modal_perm_stacks_start() },
+			{ key: 'stop', label: m.settings_auth_role_modal_perm_stacks_stop() },
+			{ key: 'remove', label: m.settings_auth_role_modal_perm_stacks_remove() },
+			{ key: 'edit', label: m.settings_auth_role_modal_perm_stacks_edit() }
 		]
 	};
 
@@ -369,7 +407,7 @@
 	async function save() {
 		formErrors = {};
 		if (!formName.trim()) {
-			formErrors.name = 'Role name is required';
+			formErrors.name = m.settings_auth_role_modal_err_name_required();
 			return;
 		}
 
@@ -400,13 +438,13 @@
 			} else {
 				const data = await response.json();
 				if (data.error?.includes('already exists')) {
-					formErrors.name = 'Role name already exists';
+					formErrors.name = m.settings_auth_role_modal_err_name_exists();
 				} else {
-					formError = data.error || `Failed to ${isEditing ? 'update' : 'create'} role`;
+					formError = data.error || (isEditing ? m.settings_auth_role_modal_err_update_failed() : m.settings_auth_role_modal_err_create_failed());
 				}
 			}
 		} catch {
-			formError = `Failed to ${isEditing ? 'update' : 'create'} role`;
+			formError = (isEditing ? m.settings_auth_role_modal_err_update_failed() : m.settings_auth_role_modal_err_create_failed());
 		} finally {
 			formSaving = false;
 		}
@@ -424,22 +462,22 @@
 			<Dialog.Title class="flex items-center gap-2">
 				{#if isEditing}
 					<Pencil class="w-5 h-5" />
-					Edit role
+					{m.settings_auth_roles_btn_edit()}
 				{:else if isCopying}
 					<Copy class="w-5 h-5" />
-					Copy role
+					{m.settings_auth_role_modal_title_copy()}
 				{:else}
 					<Shield class="w-5 h-5" />
-					Create role
+					{m.settings_auth_role_modal_title_create()}
 				{/if}
 			</Dialog.Title>
 			<Dialog.Description>
 				{#if isEditing}
-					Update role permissions
+					{m.settings_auth_role_modal_desc_update()}
 				{:else if isCopying}
-					Create a new role based on "{copyFrom?.name}"
+					{m.settings_auth_role_modal_desc_copy({ name: copyFrom?.name ?? '' })}
 				{:else}
-					Define a new role with specific permissions
+					{m.settings_auth_role_modal_desc_create()}
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
@@ -451,10 +489,10 @@
 		{/if}
 		<div class="flex-shrink-0 grid grid-cols-2 gap-4 py-4">
 			<div class="space-y-2">
-				<Label>Role name</Label>
+				<Label>{m.settings_auth_role_modal_label_name()}</Label>
 				<Input
 					bind:value={formName}
-					placeholder="Developer"
+					placeholder={m.settings_auth_role_modal_ph_dev()}
 					class={formErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
 					oninput={() => formErrors.name = undefined}
 				/>
@@ -463,10 +501,10 @@
 				{/if}
 			</div>
 			<div class="space-y-2">
-				<Label>Description (optional)</Label>
+				<Label>{m.settings_auth_role_modal_label_desc()}</Label>
 				<Input
 					bind:value={formDescription}
-					placeholder="Access to development resources"
+					placeholder={m.settings_auth_role_modal_ph_desc()}
 				/>
 			</div>
 		</div>
@@ -478,8 +516,8 @@
 				<div class="px-4 py-3 border-b bg-muted/30">
 					<div class="flex items-center gap-2">
 						<Building2 class="w-4 h-4" />
-						<span class="font-medium text-sm">System permissions</span>
-						<span class="text-xs text-muted-foreground">(always global)</span>
+						<span class="font-medium text-sm">{m.settings_auth_role_modal_sec_sys()}</span>
+						<span class="text-xs text-muted-foreground">{m.settings_auth_role_modal_sec_sys_global()}</span>
 					</div>
 				</div>
 				<div class="p-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -489,7 +527,7 @@
 							<!-- Category pill on border -->
 							<div class="absolute -top-2.5 left-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded border {categoryColorsSolid[category] || 'bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700'}">
 								<IconComponent class="w-3.5 h-3.5" />
-								<span class="text-xs font-medium capitalize">{category}</span>
+								<span class="text-xs font-medium capitalize">{categoryLabel(category)}</span>
 							</div>
 							<!-- Select all / Clear links -->
 							<div class="absolute -top-2 right-3 flex gap-2 bg-background px-1">
@@ -498,7 +536,7 @@
 									class="text-xs text-primary hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, true, permissions)}
 								>
-									All
+									{m.common_all()}
 								</button>
 								<span class="text-muted-foreground">|</span>
 								<button
@@ -506,7 +544,7 @@
 									class="text-xs text-muted-foreground hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, false, permissions)}
 								>
-									Clear
+									{m.containers_clear_selection()}
 								</button>
 							</div>
 							<div class="flex flex-col gap-1.5">
@@ -535,11 +573,11 @@
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<Globe class="w-4 h-4" />
-							<span class="font-medium text-sm">Environment permissions</span>
+							<span class="font-medium text-sm">{m.settings_auth_role_modal_sec_env()}</span>
 						</div>
 						{#if environments.length > 0}
 							<div class="flex items-center gap-2">
-								<span class="text-xs text-muted-foreground">All environments (incl. new)</span>
+								<span class="text-xs text-muted-foreground">{m.settings_auth_role_modal_toggle_all_envs()}</span>
 								<TogglePill bind:checked={formAllEnvironments} />
 							</div>
 						{/if}
@@ -560,13 +598,13 @@
 								{/each}
 							</div>
 							{#if formEnvironmentIds.length === 0}
-								<p class="text-xs text-amber-600 mt-2">Select at least one environment for these permissions to be effective.</p>
+								<p class="text-xs text-amber-600 mt-2">{m.settings_auth_role_modal_warn_select_env()}</p>
 							{/if}
 						{:else}
-							<p class="text-xs text-muted-foreground mt-1">Permissions apply to all environments, including future ones.</p>
+							<p class="text-xs text-muted-foreground mt-1">{m.settings_auth_role_modal_info_all_future()}</p>
 						{/if}
 					{:else}
-						<p class="text-xs text-muted-foreground mt-1">Permissions apply to all environments.</p>
+						<p class="text-xs text-muted-foreground mt-1">{m.settings_auth_role_modal_info_all()}</p>
 					{/if}
 				</div>
 				<div class="p-3 grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -576,7 +614,7 @@
 							<!-- Category pill on border -->
 							<div class="absolute -top-2.5 left-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded border {categoryColorsSolid[category] || 'bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700'}">
 								<IconComponent class="w-3.5 h-3.5" />
-								<span class="text-xs font-medium capitalize">{category}</span>
+								<span class="text-xs font-medium capitalize">{categoryLabel(category)}</span>
 							</div>
 							<!-- Select all / Clear links -->
 							<div class="absolute -top-2 right-3 flex gap-2 bg-background px-1">
@@ -585,7 +623,7 @@
 									class="text-xs text-primary hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, true, permissions)}
 								>
-									All
+									{m.common_all()}
 								</button>
 								<span class="text-muted-foreground">|</span>
 								<button
@@ -593,7 +631,7 @@
 									class="text-xs text-muted-foreground hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, false, permissions)}
 								>
-									Clear
+									{m.containers_clear_selection()}
 								</button>
 							</div>
 							<div class="flex flex-col gap-1.5">
@@ -618,7 +656,7 @@
 		</div>
 
 		<Dialog.Footer class="flex-shrink-0 pt-4">
-			<Button variant="outline" onclick={handleClose}>Cancel</Button>
+			<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving}>
 				{#if formSaving}
 					<RefreshCw class="w-4 h-4 mr-1 animate-spin" />
@@ -627,7 +665,7 @@
 				{:else}
 					<Plus class="w-4 h-4" />
 				{/if}
-				{isEditing ? 'Save' : 'Create role'}
+				{isEditing ? m.common_save() : m.settings_auth_role_modal_title_create()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

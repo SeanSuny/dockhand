@@ -7,6 +7,7 @@
 	import { ToggleGroup } from '$lib/components/ui/toggle-pill';
 	import { Plus, Check, RefreshCw, Trash2 } from 'lucide-svelte';
 	import { focusFirstInput } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages';
 
 	// Protocol options for ports
 	const protocolOptions = [
@@ -145,7 +146,7 @@
 		formErrors = {};
 
 		if (!formName.trim()) {
-			formErrors.name = 'Name is required';
+			formErrors.name = m.settings_env_modal_err_name_required();
 		}
 
 		// Validate all ports
@@ -186,13 +187,13 @@
 			} else {
 				const data = await response.json();
 				if (data.error?.includes('already exists')) {
-					formErrors.name = 'Config set name already exists';
+					formErrors.name = m.settings_cfgset_modal_err_name_exists();
 				} else {
-					formError = data.error || `Failed to ${isEditing ? 'update' : 'create'} config set`;
+					formError = data.error || (isEditing ? m.settings_cfgset_modal_err_update_failed() : m.settings_cfgset_modal_err_create_failed());
 				}
 			}
 		} catch {
-			formError = `Failed to ${isEditing ? 'update' : 'create'} config set`;
+			formError = isEditing ? m.settings_cfgset_modal_err_update_failed() : m.settings_cfgset_modal_err_create_failed();
 		} finally {
 			formSaving = false;
 		}
@@ -207,7 +208,7 @@
 <Dialog.Root bind:open onOpenChange={(o) => { if (o) { formError = ''; formErrors = {}; focusFirstInput(); } }}>
 	<Dialog.Content class="max-w-3xl max-h-[90vh] overflow-y-auto">
 		<Dialog.Header>
-			<Dialog.Title>{isEditing ? 'Edit' : 'Add'} config set</Dialog.Title>
+			<Dialog.Title>{isEditing ? m.settings_cfgset_modal_title_edit() : m.settings_cfgset_title_add()}</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4">
 			{#if formError}
@@ -216,7 +217,7 @@
 
 			<div class="grid grid-cols-2 gap-4">
 				<div class="space-y-2">
-					<Label for="cfg-name">Name *</Label>
+					<Label for="cfg-name">{m.settings_cfgset_modal_name_label()}</Label>
 					<Input
 						id="cfg-name"
 						bind:value={formName}
@@ -229,36 +230,36 @@
 					{/if}
 				</div>
 				<div class="space-y-2">
-					<Label for="cfg-description">Description</Label>
-					<Input id="cfg-description" bind:value={formDescription} placeholder="Common settings for web services" />
+					<Label for="cfg-description">{m.settings_cfgset_modal_description()}</Label>
+					<Input id="cfg-description" bind:value={formDescription} placeholder={m.settings_cfgset_modal_description_ph()} />
 				</div>
 			</div>
 
 			<div class="grid grid-cols-2 gap-4">
 				<div class="space-y-2">
-					<Label for="cfg-network">Network mode</Label>
+					<Label for="cfg-network">{m.container_inspect_network_mode()}</Label>
 					<Select.Root type="single" value={formNetworkMode} onValueChange={(v) => formNetworkMode = v}>
 						<Select.Trigger class="w-full">
-							<span>{formNetworkMode === 'bridge' ? 'Bridge' : formNetworkMode === 'host' ? 'Host' : 'None'}</span>
+							<span>{formNetworkMode === 'bridge' ? m.container_settings_bridge() : formNetworkMode === 'host' ? m.networks_create_driver_host() : m.networks_create_driver_none()}</span>
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="bridge" label="Bridge" />
-							<Select.Item value="host" label="Host" />
-							<Select.Item value="none" label="None" />
+							<Select.Item value="bridge" label={m.container_settings_bridge()} />
+							<Select.Item value="host" label={m.networks_create_driver_host()} />
+							<Select.Item value="none" label={m.networks_create_driver_none()} />
 						</Select.Content>
 					</Select.Root>
 				</div>
 				<div class="space-y-2">
-					<Label for="cfg-restart">Restart policy</Label>
+					<Label for="cfg-restart">{m.container_settings_restart_policy()}</Label>
 					<Select.Root type="single" value={formRestartPolicy} onValueChange={(v) => formRestartPolicy = v}>
 						<Select.Trigger class="w-full">
-							<span>{formRestartPolicy === 'no' ? 'No' : formRestartPolicy === 'always' ? 'Always' : formRestartPolicy === 'on-failure' ? 'On failure' : 'Unless stopped'}</span>
+							<span>{formRestartPolicy === 'no' ? m.networks_inspect_internal_no() : formRestartPolicy === 'always' ? m.stacks_graph_select_restart_always() : formRestartPolicy === 'on-failure' ? m.stacks_graph_select_restart_on_failure() : m.stacks_graph_select_restart_unless_stopped()}</span>
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="no" label="No" />
-							<Select.Item value="always" label="Always" />
-							<Select.Item value="on-failure" label="On failure" />
-							<Select.Item value="unless-stopped" label="Unless stopped" />
+							<Select.Item value="no" label={m.networks_inspect_internal_no()} />
+							<Select.Item value="always" label={m.stacks_graph_select_restart_always()} />
+							<Select.Item value="on-failure" label={m.stacks_graph_select_restart_on_failure()} />
+							<Select.Item value="unless-stopped" label={m.stacks_graph_select_restart_unless_stopped()} />
 						</Select.Content>
 					</Select.Root>
 				</div>
@@ -267,9 +268,9 @@
 			<!-- Environment Variables -->
 			<div class="space-y-2 border-t pt-4">
 				<div class="flex justify-between items-center">
-					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Environment variables</Label>
+					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.container_settings_environment_variables()}</Label>
 					<Button type="button" size="sm" variant="ghost" onclick={addEnvVar} class="h-7 text-xs">
-						<Plus class="w-3.5 h-3.5" />Add
+						<Plus class="w-3.5 h-3.5" />{m.common_add()}
 					</Button>
 				</div>
 				{#each formEnvVars as envVar, i}
@@ -286,9 +287,9 @@
 			<!-- Labels -->
 			<div class="space-y-2 border-t pt-4">
 				<div class="flex justify-between items-center">
-					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Labels</Label>
+					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.common_labels()}</Label>
 					<Button type="button" size="sm" variant="ghost" onclick={addLabel} class="h-7 text-xs">
-						<Plus class="w-3.5 h-3.5" />Add
+						<Plus class="w-3.5 h-3.5" />{m.common_add()}
 					</Button>
 				</div>
 				{#each formLabels as label, i}
@@ -305,9 +306,9 @@
 			<!-- Ports -->
 			<div class="space-y-2 border-t pt-4">
 				<div class="flex justify-between items-center">
-					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Port mappings</Label>
+					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.stacks_graph_label_port_mappings()}</Label>
 					<Button type="button" size="sm" variant="ghost" onclick={addPort} class="h-7 text-xs">
-						<Plus class="w-3.5 h-3.5" />Add
+						<Plus class="w-3.5 h-3.5" />{m.common_add()}
 					</Button>
 				</div>
 				{#each formPorts as port, i}
@@ -315,23 +316,23 @@
 						<div>
 							<Input
 								bind:value={port.hostPort}
-								placeholder="Host port"
+								placeholder={m.settings_cfgset_modal_ph_host_port()}
 								class="h-8 {hasPortError(i, 'host') ? 'border-destructive focus-visible:ring-destructive' : ''}"
 								oninput={() => validatePort(i, 'host')}
 							/>
 							{#if hasPortError(i, 'host')}
-								<p class="text-xs text-destructive mt-0.5">Invalid port (1-65535)</p>
+								<p class="text-xs text-destructive mt-0.5">{m.settings_cfgset_modal_err_invalid_port()}</p>
 							{/if}
 						</div>
 						<div>
 							<Input
 								bind:value={port.containerPort}
-								placeholder="Container port"
+								placeholder={m.settings_cfgset_modal_ph_container_port()}
 								class="h-8 {hasPortError(i, 'container') ? 'border-destructive focus-visible:ring-destructive' : ''}"
 								oninput={() => validatePort(i, 'container')}
 							/>
 							{#if hasPortError(i, 'container')}
-								<p class="text-xs text-destructive mt-0.5">Invalid port (1-65535)</p>
+								<p class="text-xs text-destructive mt-0.5">{m.settings_cfgset_modal_err_invalid_port()}</p>
 							{/if}
 						</div>
 						<ToggleGroup
@@ -349,15 +350,15 @@
 			<!-- Volumes -->
 			<div class="space-y-2 border-t pt-4">
 				<div class="flex justify-between items-center">
-					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Volume mappings</Label>
+					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.container_settings_volume_mappings()}</Label>
 					<Button type="button" size="sm" variant="ghost" onclick={addVolume} class="h-7 text-xs">
-						<Plus class="w-3.5 h-3.5" />Add
+						<Plus class="w-3.5 h-3.5" />{m.common_add()}
 					</Button>
 				</div>
 				{#each formVolumes as vol, i}
 					<div class="grid grid-cols-[1fr_1fr_5rem_auto] gap-2 items-center">
-						<Input bind:value={vol.hostPath} placeholder="Host path" class="h-8" />
-						<Input bind:value={vol.containerPath} placeholder="Container path" class="h-8" />
+						<Input bind:value={vol.hostPath} placeholder={m.container_settings_host_path()} class="h-8" />
+						<Input bind:value={vol.containerPath} placeholder={m.container_settings_container_path()} class="h-8" />
 						<ToggleGroup
 							value={vol.mode}
 							options={volumeModeOptions}
@@ -371,7 +372,7 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={handleClose}>Cancel</Button>
+			<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving}>
 				{#if formSaving}
 					<RefreshCw class="w-4 h-4 mr-1 animate-spin" />
@@ -380,7 +381,7 @@
 				{:else}
 					<Plus class="w-4 h-4" />
 				{/if}
-				{isEditing ? 'Save' : 'Add'}
+				{isEditing ? m.common_save() : m.common_add()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -7,6 +7,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Loader2, GitBranch, KeyRound, Lock, Key, Globe, Play, CheckCircle2 } from 'lucide-svelte';
 	import { focusFirstInput } from '$lib/utils';
+	import * as m from '$lib/paraglide/messages';
 
 	interface GitCredential {
 		id: number;
@@ -57,9 +58,9 @@
 
 	function getAuthLabel(type: string) {
 		switch (type) {
-			case 'ssh': return 'SSH Key';
-			case 'password': return 'Password';
-			default: return 'None';
+			case 'ssh': return m.stacks_git_modal_auth_ssh();
+			case 'password': return m.stacks_git_modal_auth_password();
+			default: return m.stacks_git_modal_auth_none();
 		}
 	}
 
@@ -97,7 +98,7 @@
 
 	async function testRepository() {
 		if (!formUrl.trim()) {
-			formErrors.url = 'Repository URL is required to test';
+			formErrors.url = m.settings_git_repo_modal_error_url_required_test();
 			return;
 		}
 
@@ -119,13 +120,13 @@
 			testResult = data;
 
 			if (data.success) {
-				toast.success(`Connection successful! Branch: ${data.branch}, Commit: ${data.lastCommit}`);
+				toast.success(m.settings_git_repo_modal_toast_connected({ branch: data.branch, commit: data.lastCommit }));
 			} else {
-				toast.error(data.error || 'Connection test failed');
+				toast.error(data.error || m.settings_registry_test_failed());
 			}
 		} catch (error) {
-			testResult = { success: false, error: 'Failed to test connection' };
-			toast.error('Failed to test connection');
+			testResult = { success: false, error: m.settings_registry_modal_test_failed() };
+			toast.error(m.settings_registry_modal_test_failed());
 		} finally {
 			testing = false;
 		}
@@ -135,11 +136,11 @@
 		formErrors = {};
 
 		if (!formName.trim()) {
-			formErrors.name = 'Name is required';
+			formErrors.name = m.settings_env_modal_err_name_required();
 		}
 
 		if (!formUrl.trim()) {
-			formErrors.url = 'Repository URL is required';
+			formErrors.url = m.stacks_git_modal_error_repo_url_required();
 		}
 
 		if (formErrors.name || formErrors.url) {
@@ -172,21 +173,21 @@
 
 			if (!response.ok) {
 				if (data.error?.includes('already exists')) {
-					formErrors.name = 'Repository name already exists';
+					formErrors.name = m.settings_git_repo_modal_error_name_exists();
 				} else {
-					formError = data.error || 'Failed to save repository';
+					formError = data.error || m.settings_git_repo_modal_error_save_failed();
 				}
-				toast.error(formError || 'Failed to save repository');
+				toast.error(formError || m.settings_git_repo_modal_error_save_failed());
 				return;
 			}
 
 			const wasEditing = repository !== null;
 			onSaved();
 			onClose();
-			toast.success(wasEditing ? 'Repository updated' : 'Repository added');
+			toast.success(wasEditing ? m.settings_git_repo_modal_toast_updated() : m.settings_git_repo_modal_toast_added());
 		} catch (error) {
-			formError = 'Failed to save repository';
-			toast.error('Failed to save repository');
+			formError = m.settings_git_repo_modal_error_save_failed();
+			toast.error(m.settings_git_repo_modal_error_save_failed());
 		} finally {
 			formSaving = false;
 		}
@@ -199,36 +200,36 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<GitBranch class="w-5 h-5" />
-				{isEditing ? 'Edit' : 'Add'} Git repository
+				{isEditing ? m.settings_git_repo_modal_title_edit() : m.settings_git_repo_modal_title_add()}
 			</Dialog.Title>
 			<Dialog.Description>
-				{isEditing ? 'Update repository settings' : 'Add a Git repository that can be used to deploy stacks'}
+				{isEditing ? m.settings_git_repo_modal_desc_edit() : m.settings_git_repo_modal_desc_add()}
 			</Dialog.Description>
 		</Dialog.Header>
 
 		<form onsubmit={(e) => { e.preventDefault(); saveRepository(); }} class="space-y-4">
 			<div class="space-y-2">
-				<Label for="repo-name">Name</Label>
+				<Label for="repo-name">{m.common_name()}</Label>
 				<Input
 					id="repo-name"
 					bind:value={formName}
-					placeholder="e.g., my-app-repo"
+					placeholder={m.settings_git_repo_modal_placeholder_name()}
 					class={formErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
 					oninput={() => formErrors.name = undefined}
 				/>
 				{#if formErrors.name}
 					<p class="text-xs text-destructive">{formErrors.name}</p>
 				{:else if !isEditing}
-					<p class="text-xs text-muted-foreground">A friendly name to identify this repository</p>
+					<p class="text-xs text-muted-foreground">{m.settings_git_repo_modal_helper_name()}</p>
 				{/if}
 			</div>
 
 			<div class="space-y-2">
-				<Label for="repo-url">Repository URL</Label>
+				<Label for="repo-url">{m.stacks_git_modal_label_repo_url()}</Label>
 				<Input
 					id="repo-url"
 					bind:value={formUrl}
-					placeholder="https://github.com/user/repo.git or git@github.com:user/repo.git"
+					placeholder={m.settings_git_repo_modal_placeholder_url()}
 					class={formErrors.url ? 'border-destructive focus-visible:ring-destructive' : ''}
 					oninput={() => { formErrors.url = undefined; testResult = null; }}
 				/>
@@ -238,12 +239,12 @@
 			</div>
 
 			<div class="space-y-2">
-				<Label for="repo-branch">Branch</Label>
+				<Label for="repo-branch">{m.stacks_git_modal_label_branch()}</Label>
 				<Input id="repo-branch" bind:value={formBranch} placeholder="main" oninput={() => testResult = null} />
 			</div>
 
 			<div class="space-y-2">
-				<Label for="repo-credential">Credential (optional)</Label>
+				<Label for="repo-credential">{m.settings_git_repo_modal_label_credential_opt()}</Label>
 				<Select.Root
 					type="single"
 					value={formCredentialId?.toString() ?? 'none'}
@@ -260,7 +261,7 @@
 						{:else}
 							<span class="flex items-center gap-2">
 								<Globe class="w-4 h-4 text-muted-foreground" />
-								None (public repository)
+								{m.settings_git_repo_modal_option_none_public()}
 							</span>
 						{/if}
 					</Select.Trigger>
@@ -268,7 +269,7 @@
 						<Select.Item value="none">
 							<span class="flex items-center gap-2">
 								<Globe class="w-4 h-4 text-muted-foreground" />
-								None (public repository)
+								{m.settings_git_repo_modal_option_none_public()}
 							</span>
 						</Select.Item>
 						{#each credentials as cred}
@@ -289,7 +290,7 @@
 				</Select.Root>
 				{#if credentials.length === 0 && !isEditing}
 					<p class="text-xs text-muted-foreground">
-						<a href="/settings?tab=git&subtab=credentials" class="text-primary hover:underline">Add credentials</a> for private repositories
+						<a href="/settings?tab=git&subtab=credentials" class="text-primary hover:underline">{m.settings_git_repo_modal_hint_add_credentials()}</a> {m.settings_git_repo_modal_hint_for_private()}
 					</p>
 				{/if}
 			</div>
@@ -299,7 +300,7 @@
 			{/if}
 
 			<Dialog.Footer>
-				<Button variant="outline" type="button" onclick={onClose}>Cancel</Button>
+				<Button variant="outline" type="button" onclick={onClose}>{m.common_cancel()}</Button>
 				<Button
 					type="button"
 					variant="outline"
@@ -314,14 +315,14 @@
 					{:else}
 						<Play class="w-4 h-4 mr-1.5" />
 					{/if}
-					Test
+					{m.settings_registry_modal_test()}
 				</Button>
 				<Button type="submit" disabled={formSaving}>
 					{#if formSaving}
 						<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-						Saving...
+						{m.stacks_modal_button_saving()}
 					{:else}
-						{isEditing ? 'Save changes' : 'Add repository'}
+						{isEditing ? m.stacks_git_modal_button_save_changes() : m.settings_git_repo_button_add()}
 					{/if}
 				</Button>
 			</Dialog.Footer>

@@ -153,7 +153,7 @@
 					</Badge>
 				{/if}
 				<span class="text-xs text-muted-foreground ml-2">
-					{activeResult.scanner === 'grype' ? 'Grype' : 'Trivy'} • {m.images_scan_total_count({ count: activeResult.vulnerabilities.length })}
+					{activeResult.scanner === 'grype' ? 'Grype' : 'Trivy'} • {m.settings_env_total({ count: activeResult.vulnerabilities.length })}
 					{#if activeResult.scanDuration}• {formatDuration(activeResult.scanDuration)}{/if}
 				</span>
 			</div>

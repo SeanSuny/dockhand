@@ -74,7 +74,7 @@
 			<div class="flex items-start gap-2">
 				<div class="w-4 shrink-0"></div>
 				<div class="flex-1 space-y-2">
-					<Label>{m.schedules_col_schedule()}</Label>
+					<Label>{m.settings_env_updates_schedule()}</Label>
 					<CronEditor value={updateCheckCron} onchange={(cron) => updateCheckCron = cron} />
 				</div>
 			</div>
@@ -149,7 +149,7 @@
 			<div class="flex items-start gap-2">
 				<div class="w-4 shrink-0"></div>
 				<div class="flex-1 space-y-2">
-					<Label>{m.schedules_col_schedule()}</Label>
+					<Label>{m.settings_env_updates_schedule()}</Label>
 					<CronEditor value={imagePruneCron} onchange={(cron) => imagePruneCron = cron} />
 				</div>
 			</div>
@@ -201,7 +201,7 @@
 
 <!-- Timezone selector -->
 <div class="space-y-2">
-	<Label>{m.settings_env_col_timezone()}</Label>
+	<Label>{m.settings_env_updates_timezone()}</Label>
 	<TimezoneSelector
 		bind:value={timezone}
 		id="edit-env-timezone"

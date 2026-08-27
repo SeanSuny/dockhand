@@ -1127,7 +1127,7 @@
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => applyAutoLayout(1, 2)} class="flex items-center gap-2 cursor-pointer">
 						<RectangleVertical class="w-4 h-4" />
-						<span>{m.dashboard_conn_standard()}</span>
+						<span>{m.dashboard_layout_standard()}</span>
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => applyAutoLayout(1, 4)} class="flex items-center gap-2 cursor-pointer">
 						<Rows3 class="w-4 h-4" />
@@ -1161,7 +1161,7 @@
 	{#if !environmentsLoaded && tiles.length === 0}
 		<div class="flex items-center justify-center gap-2 text-muted-foreground py-8">
 			<Loader2 class="w-5 h-5 animate-spin text-primary" />
-			<span class="text-sm">{m.settings_env_loading()}</span>
+			<span class="text-sm">{m.dashboard_loading_envs()}</span>
 		</div>
 	{:else if tiles.length === 0 && environmentsLoaded && $environments.length === 0}
 		<!-- No environments - only shown after we've confirmed there are none -->

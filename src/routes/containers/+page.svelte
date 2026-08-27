@@ -1554,7 +1554,7 @@
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
 				disabled={bulkActionInProgress}
-			>{m.stacks_clear_selection()}</button>
+			>{m.containers_clear_selection()}</button>
 			{#if selectedStopped.length > 0 && $canAccess('containers', 'start')}
 				<ConfirmPopover
 					open={confirmBulkStart}
@@ -1599,7 +1599,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-yellow-600 hover:border-yellow-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-							<Pause class="w-3 h-3" />{m.containers_action_pause()}</span>
+							<Pause class="w-3 h-3" />{m.containers_batch_pause_action()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1616,7 +1616,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-blue-600 hover:border-blue-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-							<Play class="w-3 h-3" />{m.containers_action_unpause()}</span>
+							<Play class="w-3 h-3" />{m.containers_batch_unpause_action()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1766,7 +1766,7 @@
 													</a>
 												</div>
 											{:else}
-												<p class="text-sm whitespace-nowrap">{m.stacks_system_dockhand_tooltip()}</p>
+												<p class="text-sm whitespace-nowrap">{m.containers_tooltip_dockhand_mgmt()}</p>
 											{/if}
 										{:else}
 											{#if hasUpdate}
@@ -1786,7 +1786,7 @@
 														<ExternalLink class="w-3 h-3" />{m.containers_tooltip_hawser_github()}</a>
 												</div>
 											{:else}
-												<p class="text-sm whitespace-nowrap">{m.stacks_system_hawser_tooltip()}</p>
+												<p class="text-sm whitespace-nowrap">{m.containers_tooltip_hawser_agent()}</p>
 											{/if}
 										{/if}
 									</Tooltip.Content>

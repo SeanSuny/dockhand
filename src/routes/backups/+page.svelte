@@ -708,7 +708,7 @@
 				<Select.Content>
 					<Select.Item value="all">{m.backups_all_types()}</Select.Item>
 					<Select.Item value="container"><Box class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{m.common_containers()}</Select.Item>
-					<Select.Item value="stack"><Layers class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{m.stacks_title()}</Select.Item>
+					<Select.Item value="stack"><Layers class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{m.sidebar_stacks()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
 			<Select.Root type="single" value={filterEnvId} onValueChange={(v) => { filterEnvId = v === 'all' ? '' : v; }}>
@@ -987,7 +987,7 @@
 							<table>
 								<thead class="sticky top-0 bg-background z-10">
 									<tr class="text-xs text-muted-foreground border-b">
-										<th class="text-left py-1.5 w-24" style="padding-left:8px">{m.common_id()}</th>
+										<th class="text-left py-1.5 w-24" style="padding-left:8px">{m.backups_id()}</th>
 										<th class="text-left py-1.5 w-40" style="padding-left:8px">{m.status_created()}</th>
 										<th class="text-left py-1.5 w-64" style="padding-left:8px">{m.backups_stats()}</th>
 										<th class="text-left py-1.5 w-32" style="padding-left:8px">{m.backup_history_repo()}</th>

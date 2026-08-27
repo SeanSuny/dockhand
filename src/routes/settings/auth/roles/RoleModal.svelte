@@ -533,7 +533,7 @@
 									type="button"
 									class="text-xs text-muted-foreground hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, false, permissions)}
-								>{m.stacks_clear_selection()}</button>
+								>{m.containers_clear_selection()}</button>
 							</div>
 							<div class="flex flex-col gap-1.5">
 								{#each permissions as permission}
@@ -616,7 +616,7 @@
 									type="button"
 									class="text-xs text-muted-foreground hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, false, permissions)}
-								>{m.stacks_clear_selection()}</button>
+								>{m.containers_clear_selection()}</button>
 							</div>
 							<div class="flex flex-col gap-1.5">
 								{#each permissions as permission}

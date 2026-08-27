@@ -33,7 +33,7 @@ import * as m from '$lib/paraglide/messages';
 		{ value: 'activity', label: () => m.sidebar_activity(), Icon: Activity, needsEnv: false, permission: 'activity' },
 		{ value: 'backups', label: () => m.sidebar_backups(), Icon: Archive, needsEnv: false, permission: 'backups', gate: 'backups' },
 		{ value: 'schedules', label: () => m.sidebar_schedules(), Icon: Timer, needsEnv: false, permission: 'schedules' },
-		{ value: 'audit', label: () => m.sidebar_audit_log(), Icon: ClipboardList, needsEnv: false, permission: 'audit_logs', enterpriseOnly: true }
+		{ value: 'audit', label: () => m.navigation_audit_log(), Icon: ClipboardList, needsEnv: false, permission: 'audit_logs', enterpriseOnly: true }
 	] as const;
 
 	// Visibility mirrors app-sidebar's canSeeMenuItem: hide the Backups beta unless the gate is

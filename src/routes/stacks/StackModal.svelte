@@ -2074,7 +2074,7 @@
 																<Tooltip.Trigger>
 																	<XCircle class="w-3 h-3 text-red-500" />
 																</Tooltip.Trigger>
-																<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+																<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 															</Tooltip.Root>
 															Failed
 														{:else if composeContentCopied === 'ok'}

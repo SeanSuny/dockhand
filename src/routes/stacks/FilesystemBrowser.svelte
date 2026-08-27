@@ -392,16 +392,16 @@
 						<div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
 							<AlertCircle class="w-8 h-8 text-red-500" />
 						</div>
-						<p class="text-red-600 dark:text-red-400 font-medium">{m.container_files_unable_browse()}</p>
+						<p class="text-red-600 dark:text-red-400 font-medium">{m.stacks_filesystem_unable_browse()}</p>
 						<p class="text-sm text-muted-foreground mt-1">{error}</p>
 						<Button variant="outline" size="sm" class="mt-4" onclick={() => currentPath && loadDirectory(currentPath)}>
-							{m.container_files_retry()}
+							{m.stacks_filesystem_retry()}
 						</Button>
 					</div>
 				{:else if filteredEntries.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-muted-foreground">
 						<FolderOpen class="w-12 h-12 mb-3 opacity-50" />
-						<p>{selectMode === 'directory' ? m.stacks_filesystem_no_subdirectories() : m.container_files_empty()}</p>
+						<p>{selectMode === 'directory' ? m.stacks_filesystem_no_subdirectories() : m.stacks_filesystem_directory_empty()}</p>
 					</div>
 				{:else}
 					<div class="divide-y">
@@ -428,7 +428,7 @@
 									{entry.name}
 								</span>
 								{#if highlighted && isAdoptMode}
-									<Badge variant="secondary" class="text-xs">{m.snapshots_browser_compose_file()}</Badge>
+									<Badge variant="secondary" class="text-xs">{m.stacks_filesystem_compose_file()}</Badge>
 								{:else if entry.type !== 'directory' && !isAdoptMode}
 									<span class="text-xs text-muted-foreground">{formatSize(entry.size)}</span>
 								{/if}
@@ -475,18 +475,18 @@
 				{#if selectMode === 'directory'}
 					<Button onclick={handleConfirm}>
 						<FolderPlus class="w-4 h-4" />
-						{m.containers_user_select()}
+						{m.stacks_filesystem_select()}
 					</Button>
 				{:else if selectMode === 'file_or_directory'}
 					<Button onclick={handleConfirm}>
-						{m.containers_user_select()}
+						{m.stacks_filesystem_select()}
 					</Button>
 				{:else}
 					<Button
 						disabled={!selectedPath}
 						onclick={handleConfirm}
 					>
-						{m.containers_user_select()}
+						{m.stacks_filesystem_select()}
 					</Button>
 				{/if}
 			</Dialog.Footer>

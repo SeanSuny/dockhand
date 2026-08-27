@@ -258,14 +258,14 @@
 
 {#if $environments.length === 0 || !$currentEnvironment}
 	<div class="flex flex-col flex-1 min-h-0 h-full">
-		<PageHeader icon={TerminalIcon} title={m.sidebar_shell()} class="h-9 mb-3" />
+		<PageHeader icon={TerminalIcon} title={m.containers_shell_label()} class="h-9 mb-3" />
 		<NoEnvironment />
 	</div>
 {:else}
 <div class="flex flex-col flex-1 min-h-0 h-full gap-3">
 	<!-- Header with container selector -->
 	<div class="flex items-center gap-4 flex-wrap">
-		<PageHeader icon={TerminalIcon} title={m.sidebar_shell()} />
+		<PageHeader icon={TerminalIcon} title={m.containers_shell_label()} />
 		<div class="relative flex-1 max-w-md min-w-[200px]">
 			<!-- Search input - always visible, shows selected container or placeholder -->
 			<div class="relative">
@@ -318,7 +318,7 @@
 
 		<!-- Shell selector - always visible -->
 		<div class="flex items-center gap-2">
-			<Label class="text-sm text-muted-foreground">{m.sidebar_shell()}:</Label>
+			<Label class="text-sm text-muted-foreground">{m.container_terminal_shell_label()}:</Label>
 			{#if detectingShells}
 				<div class="h-9 w-36 flex items-center justify-center border rounded-md bg-muted/50">
 					<Loader2 class="w-4 h-4 animate-spin text-muted-foreground" />
@@ -332,7 +332,7 @@
 							 (selectedShell === '/bin/bash' ? m.shell_label_bash() :
 							  selectedShell === '/bin/sh' ? m.shell_label_sh() :
 							  selectedShell === '/bin/zsh' ? m.shell_label_zsh() :
-							  selectedShell === '/bin/ash' ? m.shell_label_ash() : m.containers_user_select())}
+							  selectedShell === '/bin/ash' ? m.shell_label_ash() : m.containers_shell_select())}
 						</span>
 					</Select.Trigger>
 					<Select.Content>

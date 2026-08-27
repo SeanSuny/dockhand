@@ -129,7 +129,7 @@
 						<Checkbox bind:checked={removeVolumes} class="mt-0.5" />
 						<Database class="w-4 h-4 shrink-0 translate-y-0.5 text-blue-500" />
 						<div class="min-w-0">
-							<div class="text-sm">{m.stacks_delete_volumes()} <span class="text-muted-foreground">{m.stacks_delete_data_warning()}</span></div>
+							<div class="text-sm">{m.stacks_delete_named_volumes()} <span class="text-muted-foreground">{m.stacks_delete_data_warning()}</span></div>
 							<div class="flex flex-wrap gap-1 mt-0.5">
 								{#each preview.namedVolumes as v}
 									<code class="rounded bg-muted px-1.5 py-0.5 text-xs">{v}</code>

@@ -196,9 +196,9 @@
 								<div class="flex items-center gap-2">
 									<span class="font-medium text-sm">{config.name}</span>
 									{#if config.enabled}
-										<Badge variant="default" class="text-xs">{m.notifications_enabled()}</Badge>
+										<Badge variant="default" class="text-xs">{m.container_inspect_enabled()}</Badge>
 									{:else}
-										<Badge variant="outline" class="text-xs">{m.notifications_disabled()}</Badge>
+										<Badge variant="outline" class="text-xs">{m.container_inspect_disabled()}</Badge>
 									{/if}
 								</div>
 								<span class="text-xs text-muted-foreground truncate block">{config.issuerUrl}</span>
@@ -207,7 +207,7 @@
 								<Button
 									variant="ghost"
 									size="sm"
-									title={m.settings_env_tip_test()}
+									title={m.settings_env_modal_test_conn()}
 									onclick={() => testOidcConnection(config.id)}
 									disabled={oidcTesting === config.id}
 								>

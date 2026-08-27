@@ -748,10 +748,10 @@
 			<div class="grid grid-cols-2 gap-6">
 				<div class="space-y-1">
 					<div class="flex items-center justify-between">
-						<Label for="dest-cacert">{m.settings_env_modal_tls_ca()}</Label>
+						<Label for="dest-cacert">{m.backups_dest_ca_certificate()}</Label>
 						<div class="flex gap-1">
 							{#if isEditing && hadCacert && !formCacert}
-								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadCacert = false; }}>{m.stacks_clear_selection()}</Button>
+								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadCacert = false; }}>{m.containers_clear_selection()}</Button>
 							{/if}
 							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" onclick={() => caFileInput?.click()}>
 								<Upload class="mr-1 h-3 w-3" />Upload
@@ -763,7 +763,7 @@
 						id="dest-cacert"
 						rows={4}
 						bind:value={formCacert}
-						placeholder={isEditing && hadCacert ? '(a {m.settings_env_modal_tls_ca()} is stored - leave blank to keep it)' : '-----BEGIN CERTIFICATE-----'}
+						placeholder={isEditing && hadCacert ? '(a {m.backups_dest_ca_certificate()} is stored - leave blank to keep it)' : '-----BEGIN CERTIFICATE-----'}
 						class="field-sizing-fixed max-h-40 resize-y overflow-auto font-mono text-xs"
 					/>
 					<p class="text-xs text-muted-foreground">{m.backups_dest_tls_cacert_desc()}</p>
@@ -773,7 +773,7 @@
 						<Label for="dest-client-cert">{m.backups_dest_client_certificate()}</Label>
 						<div class="flex gap-1">
 							{#if isEditing && hadTlsClientCert && !formTlsClientCert}
-								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadTlsClientCert = false; }}>{m.stacks_clear_selection()}</Button>
+								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadTlsClientCert = false; }}>{m.containers_clear_selection()}</Button>
 							{/if}
 							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" onclick={() => clientCertFileInput?.click()}>
 								<Upload class="mr-1 h-3 w-3" />Upload

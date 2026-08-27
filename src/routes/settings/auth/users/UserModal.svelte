@@ -202,7 +202,7 @@
 		}
 
 		if (formPassword !== formPasswordRepeat) {
-			formErrors.passwordRepeat = m.profile_change_password_error_mismatch();
+			formErrors.passwordRepeat = m.settings_auth_user_modal_err_passwords_mismatch();
 			hasErrors = true;
 		}
 
@@ -257,7 +257,7 @@
 		}
 
 		if (formPassword.trim() && formPassword !== formPasswordRepeat) {
-			formErrors.passwordRepeat = m.profile_change_password_error_mismatch();
+			formErrors.passwordRepeat = m.settings_auth_user_modal_err_passwords_mismatch();
 			hasErrors = true;
 		}
 
@@ -387,7 +387,7 @@
 					</div>
 				</div>
 				<div class="space-y-2">
-					<Label>{m.profile_display_name()}</Label>
+					<Label>{m.settings_auth_user_modal_display_name()}</Label>
 					<Input
 						bind:value={formDisplayName}
 						placeholder={isEditing ? 'Administrator' : 'John Doe'}
@@ -407,14 +407,14 @@
 					<div class="grid grid-cols-2 gap-4">
 						<div class="space-y-2">
 							{#if isEditing}
-								<Label>{m.backups_rotate_new_password()} <span class="text-muted-foreground text-xs">{m.settings_auth_user_modal_keep_current()}</span></Label>
+								<Label>{m.settings_auth_user_modal_new_password()} <span class="text-muted-foreground text-xs">{m.settings_auth_user_modal_keep_current()}</span></Label>
 							{:else}
 								<Label>{m.login_password()} <span class="text-destructive">*</span></Label>
 							{/if}
 							<Input
 								type="password"
 								bind:value={formPassword}
-								placeholder={isEditing ? m.profile_change_password_new_placeholder() : m.settings_auth_user_modal_enter_password()}
+								placeholder={isEditing ? m.settings_auth_user_modal_enter_new_password() : m.settings_auth_user_modal_enter_password()}
 								autocomplete="new-password"
 								class={formErrors.password ? 'border-destructive focus-visible:ring-destructive' : ''}
 								oninput={() => formErrors.password = undefined}
@@ -433,7 +433,7 @@
 							<Input
 								type="password"
 								bind:value={formPasswordRepeat}
-								placeholder={isEditing ? m.profile_change_password_repeat_label() : m.settings_auth_user_modal_repeat_password()}
+								placeholder={isEditing ? m.settings_auth_user_modal_repeat_new_password() : m.settings_auth_user_modal_repeat_password()}
 								autocomplete="new-password"
 								class={formErrors.passwordRepeat ? 'border-destructive focus-visible:ring-destructive' : ''}
 								oninput={() => formErrors.passwordRepeat = undefined}
@@ -540,7 +540,7 @@
 												<span class="text-2xs opacity-70 flex items-center gap-1">
 													{#if isGlobal}
 														<Globe class="w-2.5 h-2.5" />
-														{m.backups_all_envs()}
+														{m.activity_filter_environment_all()}
 													{:else}
 														{m.settings_auth_user_modal_env_count({ count: envCount, plural: envCount !== 1 ? 's' : '' })}
 													{/if}

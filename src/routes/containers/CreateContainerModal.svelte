@@ -640,7 +640,7 @@
 				class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-2 {activeTab === 'container' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
 				onclick={() => activeTab = 'container'}
 			>
-				<Settings2 class="w-4 h-4" />{m.stacks_graph_label_container()}</button>
+				<Settings2 class="w-4 h-4" />{m.container_create_tab_container()}</button>
 		</div>
 		{/if}
 

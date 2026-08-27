@@ -406,7 +406,7 @@
 					</span>
 				</div>
 				<div class="space-y-2">
-					<Label for="new-label-name">{m.file_browser_new_name()}</Label>
+					<Label for="new-label-name">{m.container_files_label_new_name()}</Label>
 					<Input
 						id="new-label-name"
 						bind:value={newLabelName}
@@ -443,7 +443,7 @@
 				{#if renaming}
 					<Loader2 class="w-4 h-4 mr-2 animate-spin" />
 				{/if}
-				{m.container_files_rename()}
+				{m.container_files_rename_btn()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
@@ -489,7 +489,7 @@
 					<Label>{m.settings_tab_environments()}</Label>
 					<div class="flex gap-2">
 						<button type="button" class="text-2xs text-primary hover:underline" onclick={selectAllEnvs}>{m.images_select_all()}</button>
-						<button type="button" class="text-2xs text-muted-foreground hover:underline" onclick={deselectAllEnvs}>{m.stacks_clear_selection()}</button>
+						<button type="button" class="text-2xs text-muted-foreground hover:underline" onclick={deselectAllEnvs}>{m.containers_clear_selection()}</button>
 					</div>
 				</div>
 				<div class="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1">

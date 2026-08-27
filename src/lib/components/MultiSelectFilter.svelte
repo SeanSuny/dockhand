@@ -79,7 +79,7 @@
 				class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 				onclick={clearAndClose}
 			>
-				{m.stacks_clear_selection()}
+				{m.containers_clear_selection()}
 			</button>
 		{/if}
 		{#each options as option}

@@ -41,7 +41,7 @@
 		</span>
 	{/if}
 	{#if !online && compact}
-		<span title={m.logs_offline()}>
+		<span title={m.dashboard_offline()}>
 			<WifiOff class="w-3.5 h-3.5 text-red-500 shrink-0" />
 		</span>
 	{/if}

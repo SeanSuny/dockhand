@@ -557,7 +557,7 @@
 			<Card.Root class="flex flex-col">
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
-						<Shield class="w-5 h-5" />{m.container_settings_security()}</Card.Title>
+						<Shield class="w-5 h-5" />{m.settings_env_modal_tab_security()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<!-- Password - only show for local auth users -->
@@ -600,9 +600,9 @@
 										<p class="font-medium">{m.settings_auth_user_modal_mfa_title()}</p>
 										{#if profile.mfaEnabled}
 											<Badge variant="default" class="bg-green-500 gap-1 rounded-sm">
-												<ShieldCheck class="w-3 h-3" />{m.notifications_enabled()}</Badge>
+												<ShieldCheck class="w-3 h-3" />{m.toast_setting_enabled()}</Badge>
 										{:else}
-											<Badge variant="secondary" class="rounded-sm">{m.notifications_disabled()}</Badge>
+											<Badge variant="secondary" class="rounded-sm">{m.toast_setting_disabled()}</Badge>
 										{/if}
 									</div>
 									<p class="text-sm text-muted-foreground">

@@ -128,7 +128,7 @@
 		{ href: '/containers', Icon: Box, label: m.common_containers(), permission: 'containers' },
 		{ href: '/logs', Icon: ScrollText, label: m.sidebar_logs(), permission: 'containers' },
 		{ href: '/terminal', Icon: Terminal, label: m.sidebar_shell(), permission: 'containers' },
-		{ href: '/stacks', Icon: Layers, label: m.stacks_title(), permission: 'stacks' },
+		{ href: '/stacks', Icon: Layers, label: m.sidebar_stacks(), permission: 'stacks' },
 		{ href: '/images', Icon: Images, label: m.sidebar_images(), permission: 'images' },
 		{ href: '/volumes', Icon: HardDrive, label: m.sidebar_volumes(), permission: 'volumes' },
 		{ href: '/networks', Icon: Network, label: m.sidebar_networks(), permission: 'networks' },

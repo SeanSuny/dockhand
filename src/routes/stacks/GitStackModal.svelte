@@ -36,8 +36,8 @@
 	function getAuthLabel(authType: string) {
 		switch (authType) {
 			case 'ssh': return m.stacks_git_modal_auth_ssh();
-			case 'password': return m.login_password();
-			default: return m.network_mode_none();
+			case 'password': return m.stacks_git_modal_auth_password();
+			default: return m.stacks_git_modal_auth_none();
 		}
 	}
 
@@ -558,7 +558,7 @@
 
 		const trimmedStackName = formStackName.trim();
 		if (!trimmedStackName) {
-			errors.stackName = m.stacks_modal_error_stack_name_required();
+			errors.stackName = m.stacks_git_modal_error_stack_name_required();
 			hasErrors = true;
 		} else if (!STACK_NAME_REGEX.test(trimmedStackName)) {
 			errors.stackName = m.stacks_git_modal_error_stack_name_invalid();
@@ -752,7 +752,7 @@
 					</div>
 					<div>
 						<Dialog.Title class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-							{gitStack ? m.stacks_action_edit_git() : m.stacks_git_modal_title_deploy()}
+							{gitStack ? m.stacks_git_modal_title_edit() : m.stacks_git_modal_title_deploy()}
 						</Dialog.Title>
 						<Dialog.Description class="text-xs text-zinc-500 dark:text-zinc-400">
 							{gitStack ? m.stacks_git_modal_description_edit() : m.stacks_git_modal_description_deploy()}
@@ -899,7 +899,7 @@
 					{:else}
 						<div class="space-y-3 p-3 border rounded-md bg-muted/30">
 							<div class="space-y-2">
-								<Label for="new-repo-name">{m.images_repository_name()}</Label>
+								<Label for="new-repo-name">{m.stacks_git_modal_label_repo_name()}</Label>
 								<Input
 									id="new-repo-name"
 									bind:value={formNewRepoName}
@@ -1000,7 +1000,7 @@
 
 			<!-- Stack configuration -->
 			<div class="space-y-2">
-				<Label for="stack-name">{m.stacks_modal_stack_name()}</Label>
+				<Label for="stack-name">{m.stacks_git_modal_label_stack_name()}</Label>
 				<Input
 					id="stack-name"
 					bind:value={formStackName}
@@ -1152,7 +1152,7 @@
 											<Tooltip.Trigger>
 												<XCircle class="w-4 h-4 text-red-500" />
 											</Tooltip.Trigger>
-											<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+											<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 										</Tooltip.Root>
 									{:else if copiedWebhookUrl === 'ok'}
 										<Check class="w-4 h-4 text-green-500" />
@@ -1185,7 +1185,7 @@
 											<Tooltip.Trigger>
 												<XCircle class="w-4 h-4 text-red-500" />
 											</Tooltip.Trigger>
-											<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+											<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 										</Tooltip.Root>
 									{:else if copiedWebhookSecret === 'ok'}
 										<Check class="w-4 h-4 text-green-500" />
@@ -1356,7 +1356,7 @@
 					<Button variant="outline" onclick={() => saveGitStack(true)} disabled={formSaving}>
 						{#if formSaving}
 							<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-							{m.stacks_redeploy_deploying()}
+							{m.stacks_git_deploy_badge_deploying()}
 						{:else}
 							<Rocket class="w-4 h-4" />
 							{m.stacks_git_modal_button_save_and_deploy()}
@@ -1374,7 +1374,7 @@
 					<Button onclick={() => saveGitStack(formDeployNow)} disabled={formSaving}>
 						{#if formSaving}
 							<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-							{formDeployNow ? m.stacks_redeploy_deploying() : m.container_create_creating()}
+							{formDeployNow ? m.stacks_git_deploy_badge_deploying() : m.stacks_modal_button_creating()}
 						{:else}
 							{formDeployNow ? m.common_deploy() : m.common_create()}
 						{/if}
@@ -1392,7 +1392,7 @@
 			<Dialog.Title class="flex items-center gap-2">
 				<TriangleAlert class="w-5 h-5 text-amber-500" />{m.stacks_git_modal_exists_title()}</Dialog.Title>
 			<Dialog.Description>
-				{m.stacks_modal_dialog_exists_desc({ name: formStackName })}
+				{m.stacks_git_modal_exists_description({ name: formStackName })}
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="flex justify-end mt-4">

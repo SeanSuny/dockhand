@@ -350,7 +350,7 @@
 				disabled={scanStatus === 'scanning'}
 			>
 				{#if scanStatus === 'scanning'}
-					{m.stacks_filesystem_scanning()}
+					{m.container_settings_scanning()}
 				{:else}
 					{m.common_close()}
 				{/if}

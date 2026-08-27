@@ -149,7 +149,7 @@
 			<!-- Actions -->
 			<div class="flex items-center gap-2 px-3 pb-2">
 				<button onclick={apply} class="px-2 py-1 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90" disabled={!sinceDate && !untilDate}>{m.container_files_apply()}</button>
-				<button onclick={clear} class="px-2 py-1 rounded text-xs bg-muted text-muted-foreground hover:bg-muted/80">{m.stacks_clear_selection()}</button>
+				<button onclick={clear} class="px-2 py-1 rounded text-xs bg-muted text-muted-foreground hover:bg-muted/80">{m.containers_clear_selection()}</button>
 			</div>
 		</div>
 	</Popover.Content>

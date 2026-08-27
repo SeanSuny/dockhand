@@ -18,7 +18,7 @@
 	const entityTypeLabels: Record<string, () => string> = {
 		containers: () => m.common_containers_lowercase(),
 		images: () => m.common_entity_images(),
-		volumes: () => m.common_volumes(),
+		volumes: () => m.common_entity_volumes(),
 		networks: () => m.common_entity_networks(),
 		stacks: () => m.common_entity_stacks()
 	};

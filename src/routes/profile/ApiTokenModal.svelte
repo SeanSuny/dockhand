@@ -160,14 +160,14 @@ import * as m from '$lib/paraglide/messages';
 				</div>
 
 				<div class="flex justify-end">
-					<Button onclick={handleClose}>{m.images_push_done()}</Button>
+					<Button onclick={handleClose}>{m.profile_api_token_done()}</Button>
 				</div>
 			</div>
 		{:else}
 			<!-- Token creation form -->
 			<div class="space-y-4">
 				<div class="space-y-2">
-					<Label for="token-name">{m.common_name()}</Label>
+					<Label for="token-name">{m.profile_api_token_name_label()}</Label>
 					<Input
 						id="token-name"
 						bind:value={name}
@@ -178,7 +178,7 @@ import * as m from '$lib/paraglide/messages';
 
 				{#if isLocalUser}
 					<div class="space-y-2">
-						<Label for="token-password">{m.login_password()}</Label>
+						<Label for="token-password">{m.profile_api_token_password_label()}</Label>
 						<Input
 							id="token-password"
 							type="password"
@@ -225,9 +225,9 @@ import * as m from '$lib/paraglide/messages';
 				{/if}
 
 				<div class="flex justify-end gap-2">
-					<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
+					<Button variant="outline" onclick={handleClose}>{m.profile_api_token_cancel()}</Button>
 					<Button onclick={createToken} disabled={creating || !name.trim() || (isLocalUser && !password)}>
-						{creating ? m.container_create_creating() : m.profile_api_token_generate()}
+						{creating ? m.profile_api_token_generating() : m.profile_api_token_generate()}
 					</Button>
 				</div>
 			</div>

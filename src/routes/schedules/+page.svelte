@@ -990,7 +990,7 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterTypes = []}
-						>{m.stacks_clear_selection()}</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					<Select.Item value="container_update">
 						<CircleArrowUp class="w-4 h-4 mr-2 inline text-green-500 drop-shadow-[0_0_3px_rgba(34,197,94,0.4)]" />
@@ -1050,7 +1050,7 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterEnvironments = []}
-						>{m.stacks_clear_selection()}</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					{#each environments as env}
 						<Select.Item value={String(env.id)}>
@@ -1092,7 +1092,7 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterStatuses = []}
-						>{m.stacks_clear_selection()}</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					<Select.Item value="success">
 						<Check class="w-4 h-4 mr-2 inline text-green-500" />{m.schedules_status_success()}</Select.Item>

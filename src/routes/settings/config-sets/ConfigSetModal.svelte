@@ -237,26 +237,26 @@
 
 			<div class="grid grid-cols-2 gap-4">
 				<div class="space-y-2">
-					<Label for="cfg-network">{m.settings_general_network_mode()}</Label>
+					<Label for="cfg-network">{m.container_inspect_network_mode()}</Label>
 					<Select.Root type="single" value={formNetworkMode} onValueChange={(v) => formNetworkMode = v}>
 						<Select.Trigger class="w-full">
-							<span>{formNetworkMode === 'bridge' ? m.container_settings_bridge() : formNetworkMode === 'host' ? m.container_settings_host() : m.container_settings_none()}</span>
+							<span>{formNetworkMode === 'bridge' ? m.container_settings_bridge() : formNetworkMode === 'host' ? m.networks_create_driver_host() : m.networks_create_driver_none()}</span>
 						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="bridge" label={m.container_settings_bridge()} />
-							<Select.Item value="host" label={m.container_settings_host()} />
-							<Select.Item value="none" label={m.container_settings_none()} />
+							<Select.Item value="host" label={m.networks_create_driver_host()} />
+							<Select.Item value="none" label={m.networks_create_driver_none()} />
 						</Select.Content>
 					</Select.Root>
 				</div>
 				<div class="space-y-2">
-					<Label for="cfg-restart">{m.snapshots_browser_restart_policy()}</Label>
+					<Label for="cfg-restart">{m.container_settings_restart_policy()}</Label>
 					<Select.Root type="single" value={formRestartPolicy} onValueChange={(v) => formRestartPolicy = v}>
 						<Select.Trigger class="w-full">
-							<span>{formRestartPolicy === 'no' ? m.container_inspect_no() : formRestartPolicy === 'always' ? m.stacks_graph_select_restart_always() : formRestartPolicy === 'on-failure' ? m.stacks_graph_select_restart_on_failure() : m.stacks_graph_select_restart_unless_stopped()}</span>
+							<span>{formRestartPolicy === 'no' ? m.networks_inspect_internal_no() : formRestartPolicy === 'always' ? m.stacks_graph_select_restart_always() : formRestartPolicy === 'on-failure' ? m.stacks_graph_select_restart_on_failure() : m.stacks_graph_select_restart_unless_stopped()}</span>
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="no" label={m.container_inspect_no()} />
+							<Select.Item value="no" label={m.networks_inspect_internal_no()} />
 							<Select.Item value="always" label={m.stacks_graph_select_restart_always()} />
 							<Select.Item value="on-failure" label={m.stacks_graph_select_restart_on_failure()} />
 							<Select.Item value="unless-stopped" label={m.stacks_graph_select_restart_unless_stopped()} />
@@ -268,7 +268,7 @@
 			<!-- Environment Variables -->
 			<div class="space-y-2 border-t pt-4">
 				<div class="flex justify-between items-center">
-					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.stack_env_vars_title()}</Label>
+					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.container_settings_environment_variables()}</Label>
 					<Button type="button" size="sm" variant="ghost" onclick={addEnvVar} class="h-7 text-xs">
 						<Plus class="w-3.5 h-3.5" />{m.common_add()}
 					</Button>
@@ -306,7 +306,7 @@
 			<!-- Ports -->
 			<div class="space-y-2 border-t pt-4">
 				<div class="flex justify-between items-center">
-					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.container_inspect_port_mappings()}</Label>
+					<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.stacks_graph_label_port_mappings()}</Label>
 					<Button type="button" size="sm" variant="ghost" onclick={addPort} class="h-7 text-xs">
 						<Plus class="w-3.5 h-3.5" />{m.common_add()}
 					</Button>

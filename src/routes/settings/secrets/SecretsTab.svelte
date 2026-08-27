@@ -90,7 +90,7 @@
 				);
 			}
 		} catch {
-			toast.error(m.settings_registry_test_failed());
+			toast.error(m.secrets_toast_test_failed_generic());
 		} finally {
 			testingId = null;
 		}
@@ -190,7 +190,7 @@
 										action={m.common_delete()}
 										itemType={m.secrets_item_type()}
 										itemName={provider.name}
-										title={m.common_remove()}
+										title={m.secrets_confirm_remove()}
 										position="left"
 										onConfirm={() =>
 											deleteProvider(provider.id)}

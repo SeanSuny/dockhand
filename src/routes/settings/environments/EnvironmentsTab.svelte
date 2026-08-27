@@ -422,7 +422,7 @@
 						<Table.Head class="w-[200px]">{m.common_name()}</Table.Head>
 						<Table.Head>{m.settings_env_col_connection()}</Table.Head>
 						<Table.Head class="w-[120px]">{m.common_labels()}</Table.Head>
-						<Table.Head class="w-[140px]">{m.settings_env_col_timezone()}</Table.Head>
+						<Table.Head class="w-[140px]">{m.settings_env_updates_timezone()}</Table.Head>
 						<Table.Head class="w-[100px]">{m.settings_env_col_features()}</Table.Head>
 						<Table.Head class="w-[120px]">{m.common_status()}</Table.Head>
 						<Table.Head class="w-[100px]">Docker</Table.Head>
@@ -553,7 +553,7 @@
 											{:else}
 												<Wifi class="w-3.5 h-3.5" />
 											{/if}
-											<span>{m.container_terminal_connected()}</span>
+											<span>{m.settings_env_status_connected()}</span>
 										</div>
 									{:else}
 										<div class="flex items-center gap-1.5 text-red-600 dark:text-red-400 text-sm" title={testResult.error}>
@@ -568,7 +568,7 @@
 								{:else if isTesting}
 									<div class="flex items-center gap-1.5 text-muted-foreground text-sm">
 										<RefreshCw class="w-3.5 h-3.5 animate-spin" />
-										<span>{m.settings_env_modal_testing()}</span>
+										<span>{m.settings_env_status_testing()}</span>
 									</div>
 								{:else}
 									<span class="text-muted-foreground text-xs">Not tested</span>

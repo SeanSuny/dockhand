@@ -365,7 +365,7 @@
 											<div class="flex items-center gap-1.5">
 												<span class="font-medium">{user.username}</span>
 												{#if !user.isActive}
-													<Badge variant="destructive" class="text-2xs px-1 py-0 h-4">{m.notifications_disabled()}</Badge>
+													<Badge variant="destructive" class="text-2xs px-1 py-0 h-4">{m.container_inspect_disabled()}</Badge>
 												{/if}
 											</div>
 										</div>
@@ -379,7 +379,7 @@
 										{#if user.mfaEnabled}
 											<Badge variant="outline" class="text-2xs px-1.5 py-0 h-4 gap-1 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30">
 												<Shield class="w-2.5 h-2.5" />
-												{m.notifications_enabled()}
+												{m.container_inspect_enabled()}
 											</Badge>
 										{:else}
 											<span class="text-muted-foreground">—</span>

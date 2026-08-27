@@ -91,7 +91,7 @@
 				</Alert.Root>
 			{/if}
 			<div class="space-y-2">
-				<Label>{m.backups_rotate_current_password()}</Label>
+				<Label>{m.profile_change_password_current_label()}</Label>
 				<Input
 					type="password"
 					bind:value={currentPassword}
@@ -100,7 +100,7 @@
 				/>
 			</div>
 			<div class="space-y-2">
-				<Label>{m.backups_rotate_new_password()}</Label>
+				<Label>{m.profile_change_password_new_label()}</Label>
 				<Input
 					type="password"
 					bind:value={newPassword}
@@ -114,7 +114,7 @@
 				<Input
 					type="password"
 					bind:value={newPasswordRepeat}
-					placeholder={m.profile_change_password_repeat_label()}
+					placeholder={m.profile_change_password_repeat_placeholder()}
 					autocomplete="new-password"
 				/>
 			</div>

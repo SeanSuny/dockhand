@@ -501,7 +501,7 @@ const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 							onclick={() => filterMode = 'updated'}
 						>
 							<CheckCircle2 class="w-3 h-3 mr-1" />
-							{m.schedules_summary_updated()} ({summary.success})
+							{m.container_batch_filter_updated()} ({summary.success})
 						</Button>
 						<Button
 							variant={filterMode === 'failed' ? 'destructive' : 'outline'}
@@ -679,7 +679,7 @@ const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 			{#if status === 'updating'}
 				<Button variant="outline" disabled>
 					<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-					{m.container_edit_updating()}
+					{m.container_batch_updating()}
 				</Button>
 			{:else}
 				<Button variant="outline" onclick={handleClose}>

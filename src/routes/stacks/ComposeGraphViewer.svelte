@@ -2275,7 +2275,7 @@
 			<button
 				onclick={toggleGraphTheme}
 				class="h-6 w-6 flex items-center justify-center rounded text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-				title={graphTheme === 'light' ? m.container_files_switch_dark() : m.container_files_switch_light()}
+				title={graphTheme === 'light' ? m.stacks_graph_tooltip_switch_dark() : m.stacks_graph_tooltip_switch_light()}
 			>
 				{#if graphTheme === 'light'}
 					<Moon class="w-3.5 h-3.5" />
@@ -2316,7 +2316,7 @@
 				<div class="flex items-center gap-2 text-xs bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm rounded px-2 py-1 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50 whitespace-nowrap">
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-blue-500 flex-shrink-0"></div>
-						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_type_service()}</span>
+						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_legend_service()}</span>
 					</div>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-violet-500 flex-shrink-0"></div>
@@ -2324,15 +2324,15 @@
 					</div>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-emerald-500 flex-shrink-0"></div>
-						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_type_volume()}</span>
+						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_legend_volume()}</span>
 					</div>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-amber-500 flex-shrink-0"></div>
-						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_type_config()}</span>
+						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_legend_config()}</span>
 					</div>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-red-500 flex-shrink-0"></div>
-						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_type_secret()}</span>
+						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_legend_secret()}</span>
 					</div>
 				</div>
 			</div>
@@ -2391,7 +2391,7 @@
 									size="sm"
 									class="h-6 w-6 p-0 text-zinc-500 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-700"
 									onclick={() => { selectedNode = null; selectedEdge = null; }}
-									title={m.common_close()}
+									title={m.stacks_graph_tooltip_close()}
 								>
 									<X class="w-3.5 h-3.5" />
 								</Button>
@@ -2425,7 +2425,7 @@
 									size="sm"
 									class="h-6 w-6 p-0 text-zinc-500 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-700"
 									onclick={() => { selectedNode = null; selectedEdge = null; }}
-									title={m.common_close()}
+									title={m.stacks_graph_tooltip_close()}
 								>
 									<X class="w-3.5 h-3.5" />
 								</Button>
@@ -2441,7 +2441,7 @@
 								<!-- Image -->
 								<div class="space-y-1.5">
 									<div class="flex items-center justify-between">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.containers_col_image()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_image()}</span>
 									</div>
 									<Input
 										bind:value={editServiceImage}
@@ -2464,13 +2464,13 @@
 
 								<!-- Restart policy -->
 								<div class="space-y-1.5">
-									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.snapshots_browser_restart_policy()}</span>
+									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_restart_policy()}</span>
 									<Select.Root type="single" bind:value={editServiceRestart} onValueChange={() => { serviceEditDirty = true; }}>
 										<Select.Trigger class="h-8 text-xs">
-											<span>{editServiceRestart === 'no' ? m.container_settings_restart_no() : editServiceRestart === 'always' ? m.stacks_graph_select_restart_always() : editServiceRestart === 'on-failure' ? m.stacks_graph_select_restart_on_failure() : m.stacks_graph_select_restart_unless_stopped()}</span>
+											<span>{editServiceRestart === 'no' ? m.stacks_graph_select_restart_no() : editServiceRestart === 'always' ? m.stacks_graph_select_restart_always() : editServiceRestart === 'on-failure' ? m.stacks_graph_select_restart_on_failure() : m.stacks_graph_select_restart_unless_stopped()}</span>
 										</Select.Trigger>
 										<Select.Content>
-											<Select.Item value="no" label={m.container_settings_restart_no()} />
+											<Select.Item value="no" label={m.stacks_graph_select_restart_no()} />
 											<Select.Item value="always" label={m.stacks_graph_select_restart_always()} />
 											<Select.Item value="on-failure" label={m.stacks_graph_select_restart_on_failure()} />
 											<Select.Item value="unless-stopped" label={m.stacks_graph_select_restart_unless_stopped()} />
@@ -2481,7 +2481,7 @@
 								<!-- Port mappings -->
 								<div class="space-y-1.5">
 									<div class="flex items-center justify-between">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.container_inspect_port_mappings()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_port_mappings()}</span>
 										<button onclick={addServicePort} class="text-xs text-blue-500 hover:text-blue-600">
 											<Plus class="w-3.5 h-3.5" />
 										</button>
@@ -2490,7 +2490,7 @@
 										{#each editServicePorts as port, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.network_mode_host()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_host()}</span>
 													<Input bind:value={port.host} oninput={markServiceDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
@@ -2512,7 +2512,7 @@
 								<!-- Volumes -->
 								<div class="space-y-1.5">
 									<div class="flex items-center justify-between">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.sidebar_volumes()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_volumes()}</span>
 										<button onclick={addServiceVolume} class="text-xs text-blue-500 hover:text-blue-600">
 											<Plus class="w-3.5 h-3.5" />
 										</button>
@@ -2521,7 +2521,7 @@
 										{#each editServiceVolumes as vol, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.network_mode_host()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_host()}</span>
 													<Input bind:value={vol.host} oninput={markServiceDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
@@ -2543,7 +2543,7 @@
 								<!-- Environment variables -->
 								<div class="space-y-1.5">
 									<div class="flex items-center justify-between">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.container_inspect_tab_env()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_environment()}</span>
 										<button onclick={addServiceEnvVar} class="text-xs text-blue-500 hover:text-blue-600">
 											<Plus class="w-3.5 h-3.5" />
 										</button>
@@ -2552,11 +2552,11 @@
 										{#each editServiceEnvVars as env, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_key()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_key()}</span>
 													<Input bind:value={env.key} oninput={markServiceDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_value()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_value()}</span>
 													<Input bind:value={env.value} oninput={markServiceDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<button
@@ -2583,11 +2583,11 @@
 										{#each editServiceLabels as label, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_key()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_key()}</span>
 													<Input bind:value={label.key} oninput={markServiceDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_value()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_value()}</span>
 													<Input bind:value={label.value} oninput={markServiceDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<button
@@ -2709,7 +2709,7 @@
 											<Input bind:value={editNetworkSubnet} oninput={markNetworkDirty} placeholder="172.20.0.0/16" class="h-9 pt-3 text-xs" />
 										</div>
 										<div class="relative">
-											<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_inspect_gateway()}</span>
+											<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_gateway()}</span>
 											<Input bind:value={editNetworkGateway} oninput={markNetworkDirty} placeholder="172.20.0.1" class="h-9 pt-3 text-xs" />
 										</div>
 									</div>
@@ -2743,11 +2743,11 @@
 										{#each editNetworkLabels as label, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_key()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_key()}</span>
 													<Input bind:value={label.key} oninput={markNetworkDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_value()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_value()}</span>
 													<Input bind:value={label.value} oninput={markNetworkDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<button onclick={() => removeNetworkLabel(index)} disabled={editNetworkLabels.length === 1} class="p-1 text-zinc-400 hover:text-red-500 disabled:opacity-30">
@@ -2770,11 +2770,11 @@
 										{#each editNetworkOptions as opt, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_key()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_key()}</span>
 													<Input bind:value={opt.key} oninput={markNetworkDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_value()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_value()}</span>
 													<Input bind:value={opt.value} oninput={markNetworkDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<button onclick={() => removeNetworkOption(index)} disabled={editNetworkOptions.length === 1} class="p-1 text-zinc-400 hover:text-red-500 disabled:opacity-30">
@@ -2812,11 +2812,11 @@
 										{#each editVolumeLabels as label, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_key()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_key()}</span>
 													<Input bind:value={label.key} oninput={markVolumeDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_value()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_value()}</span>
 													<Input bind:value={label.value} oninput={markVolumeDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<button onclick={() => removeVolumeLabel(index)} disabled={editVolumeLabels.length === 1} class="p-1 text-zinc-400 hover:text-red-500 disabled:opacity-30">
@@ -2839,11 +2839,11 @@
 										{#each editVolumeOptions as opt, index}
 											<div class="flex gap-1 items-center">
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_key()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_key()}</span>
 													<Input bind:value={opt.key} oninput={markVolumeDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<div class="flex-1 relative">
-													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.container_settings_value()}</span>
+													<span class="absolute -top-2 left-2 text-[9px] text-zinc-400 bg-white dark:bg-zinc-800 px-1 z-10">{m.stacks_graph_label_value()}</span>
 													<Input bind:value={opt.value} oninput={markVolumeDirty} class="h-9 pt-3 text-xs" />
 												</div>
 												<button onclick={() => removeVolumeOption(index)} disabled={editVolumeOptions.length === 1} class="p-1 text-zinc-400 hover:text-red-500 disabled:opacity-30">
@@ -2983,7 +2983,7 @@
 
 			{#if addElementType === 'service'}
 				<div class="space-y-2">
-					<Label for="service-image">{m.containers_col_image()}</Label>
+					<Label for="service-image">{m.stacks_graph_label_image()}</Label>
 					<Input
 						id="service-image"
 						bind:value={newServiceImage}

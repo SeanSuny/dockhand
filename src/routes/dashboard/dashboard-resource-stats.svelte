@@ -41,7 +41,7 @@
 	</div>
 	<div class="flex items-center justify-between">
 		<span class="flex items-center gap-1 text-muted-foreground">
-			<Layers class="w-3 h-3" /> {m.stacks_title()}
+			<Layers class="w-3 h-3" /> {m.sidebar_stacks()}
 		</span>
 		{#if showStacksSkeleton}
 			<div class="skeleton w-12 h-3.5 rounded"></div>

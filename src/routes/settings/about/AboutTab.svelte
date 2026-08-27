@@ -609,7 +609,7 @@
 						<!-- Host Info -->
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-								<Cpu class="w-3.5 h-3.5" />{m.network_mode_host()}</div>
+								<Cpu class="w-3.5 h-3.5" />{m.settings_env_modal_host()}</div>
 							<div class="text-sm pl-5">
 								<div class="flex items-center gap-2">
 									<span class="text-muted-foreground">{m.common_name()}</span>
@@ -765,7 +765,7 @@
 									<Layers class="w-4 h-4 text-cyan-500" />
 								</div>
 								<div class="text-lg font-bold">{systemInfo.stats.stacks}</div>
-								<div class="text-2xs text-muted-foreground font-medium">{m.stacks_title()}</div>
+								<div class="text-2xs text-muted-foreground font-medium">{m.sidebar_stacks()}</div>
 							</div>
 							<div class="stat-box stat-box-purple">
 								<div class="stat-icon-wrapper bg-purple-500/10">

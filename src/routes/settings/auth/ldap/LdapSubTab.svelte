@@ -243,9 +243,9 @@
 										<div class="flex items-center gap-2">
 											<span class="font-medium">{config.name}</span>
 											{#if config.enabled}
-												<Badge variant="default" class="text-xs">{m.notifications_enabled()}</Badge>
+												<Badge variant="default" class="text-xs">{m.container_inspect_enabled()}</Badge>
 											{:else}
-												<Badge variant="secondary" class="text-xs">{m.notifications_disabled()}</Badge>
+												<Badge variant="secondary" class="text-xs">{m.container_inspect_disabled()}</Badge>
 											{/if}
 										</div>
 										<p class="text-xs text-muted-foreground">{config.serverUrl}</p>

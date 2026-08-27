@@ -589,7 +589,7 @@
 					<div class="flex items-center gap-2">
 						<Icon class="w-3.5 h-3.5 text-primary/70 flex-shrink-0" />
 						<span class="text-sm font-medium truncate">{dest?.name || 'Unknown'}</span>
-						{#if !cfg.enabled}<Badge variant="secondary" class="text-xs">{m.logs_paused()}</Badge>{/if}
+						{#if !cfg.enabled}<Badge variant="secondary" class="text-xs">{m.status_paused()}</Badge>{/if}
 					</div>
 					<div class="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
 						<span>{cfg.schedule ? formatCron(cfg.schedule) : 'Manual'} · {volumeSummary(cfg)}{cfgRetentionSummary(cfg) ? ` · ${cfgRetentionSummary(cfg)}` : ''}</span>
@@ -658,7 +658,7 @@
 				<!-- Toggles -->
 				<div class="flex items-center gap-3 max-w-md">
 					<TogglePill bind:checked={editEnabled} />
-					<Label class="text-xs">{m.notifications_enabled()}</Label>
+					<Label class="text-xs">{m.toast_setting_enabled()}</Label>
 				</div>
 				<div class="flex items-center gap-3 max-w-md">
 					<TogglePill bind:checked={editStopBefore} />

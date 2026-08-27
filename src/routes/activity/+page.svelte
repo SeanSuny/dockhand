@@ -716,7 +716,7 @@
 					<Select.Content>
 						<Select.Item value="">
 							<Server class="w-4 h-4 mr-2 text-muted-foreground" />
-							{m.backups_all_envs()}
+							{m.activity_filter_environment_all()}
 						</Select.Item>
 						{#each environments as env}
 							<Select.Item value={String(env.id)}>
@@ -785,11 +785,11 @@
 			{#if $canAccess('activity', 'delete')}
 				<ConfirmPopover
 					bind:open={showClearConfirm}
-					action={m.stacks_clear_selection()}
+					action={m.containers_clear_selection()}
 					itemType={m.activity_clear_item_type()}
 					title={m.activity_clear_title()}
 					onConfirm={clearActivity}
-					confirmText={m.stacks_clear_selection()}
+					confirmText={m.containers_clear_selection()}
 					variant="destructive"
 					disabled={clearingActivity}
 					onOpenChange={(open) => showClearConfirm = open}

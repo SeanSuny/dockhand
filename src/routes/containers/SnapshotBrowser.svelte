@@ -260,7 +260,7 @@
 									{(containerInspect.Name || metadata.targetName || '').replace(/^\//, '')}
 								</h4>
 								<dl class="grid grid-cols-[130px_1fr] gap-y-1.5 text-sm">
-									<dt class="text-muted-foreground">{m.containers_col_image()}</dt>
+									<dt class="text-muted-foreground">{m.container_inspect_image()}</dt>
 									<dd class="font-mono break-all">{containerInspect.Config.Image || '—'}</dd>
 									{#if containerInspect.Id}
 										<dt class="text-muted-foreground">{m.activity_detail_container_id()}</dt>
@@ -299,7 +299,7 @@
 										<dd>{containerInspect.HostConfig.RestartPolicy.Name}{containerInspect.HostConfig.RestartPolicy.MaximumRetryCount ? ` (max ${containerInspect.HostConfig.RestartPolicy.MaximumRetryCount})` : ''}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.NetworkMode}
-										<dt class="text-muted-foreground">{m.settings_general_network_mode()}</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_network_mode()}</dt>
 										<dd class="break-all">{containerInspect.HostConfig.NetworkMode}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.Privileged}
@@ -333,7 +333,7 @@
 								<!-- Security flags -->
 								{#if containerInspect.HostConfig?.Privileged || containerInspect.HostConfig?.ReadonlyRootfs || containerInspect.HostConfig?.CapAdd?.length || containerInspect.HostConfig?.CapDrop?.length}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><ShieldAlert class="w-3.5 h-3.5" />{m.container_settings_security()}</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><ShieldAlert class="w-3.5 h-3.5" />{m.settings_env_modal_tab_security()}</span>
 										<div class="flex flex-wrap gap-1">
 											{#if containerInspect.HostConfig.Privileged}<Badge variant="outline" class="text-xs text-amber-600 border-amber-600/40">{m.snapshots_browser_privileged()}</Badge>{/if}
 											{#if containerInspect.HostConfig.ReadonlyRootfs}<Badge variant="outline" class="text-xs">{m.snapshots_browser_readonly_rootfs()}</Badge>{/if}

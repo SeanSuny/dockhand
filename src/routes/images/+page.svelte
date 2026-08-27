@@ -1077,7 +1077,7 @@
 			{/if}
 			{#if $canAccess('images', 'pull')}
 			<Button size="sm" variant="default" onclick={() => showPullModal = true}>
-				<Download class="w-3.5 h-3.5 mr-1.5" />{m.container_create_tab_pull()}</Button>
+				<Download class="w-3.5 h-3.5 mr-1.5" />{m.settings_env_modal_scanner_pull()}</Button>
 			{/if}
 			{#if $canAccess('images', 'load')}
 			<Button size="sm" variant="outline" onclick={() => loadFileInput?.click()} disabled={loadingImage}>
@@ -1187,7 +1187,7 @@
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
-			>{m.stacks_clear_selection()}</button>
+			>{m.containers_clear_selection()}</button>
 			{#if $canAccess('images', 'remove')}
 			<button
 				type="button"

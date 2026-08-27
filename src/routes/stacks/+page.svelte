@@ -1536,7 +1536,7 @@
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
-			>{m.stacks_clear_selection()}</button>
+			>{m.containers_clear_selection()}</button>
 			{#if selectedStopped.length > 0 && $canAccess('stacks', 'start')}
 				<ConfirmPopover
 					open={confirmBulkStart}
@@ -1855,7 +1855,7 @@
 										<span class="text-xs font-medium">{getContainerStateCounts(stack).paused}</span>
 									</span>
 								</Tooltip.Trigger>
-								<Tooltip.Content>{m.logs_paused()}</Tooltip.Content>
+								<Tooltip.Content>{m.status_paused()}</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).restarting}

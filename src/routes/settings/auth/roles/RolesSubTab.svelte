@@ -152,7 +152,7 @@
 			case 'networks':
 				return m.sidebar_networks();
 			case 'stacks':
-				return m.stacks_title();
+				return m.sidebar_stacks();
 			case 'environments':
 				return m.settings_tab_environments();
 			case 'registries':
@@ -204,7 +204,7 @@
 			case 'build':
 				return m.settings_auth_roles_perm_build();
 			case 'edit':
-				return m.stacks_action_edit();
+				return m.containers_action_edit();
 			case 'manage':
 				return m.settings_auth_roles_perm_manage();
 			case 'send':

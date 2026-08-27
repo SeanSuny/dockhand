@@ -1622,7 +1622,7 @@
 				<Tabs.Trigger value="activity" class="flex items-center justify-center gap-1.5">
 					<Activity class="w-3.5 h-3.5" />{m.sidebar_activity()}</Tabs.Trigger>
 				<Tabs.Trigger value="security" class="flex items-center justify-center gap-1.5">
-					<ShieldCheck class="w-3.5 h-3.5" />{m.container_settings_security()}</Tabs.Trigger>
+					<ShieldCheck class="w-3.5 h-3.5" />{m.settings_env_modal_tab_security()}</Tabs.Trigger>
 				<!-- BETA GATE: Backups tab hidden unless FEAT_BACKUPS_ENABLED (see features.ts) -->
 				{#if $page.data.backupsEnabled}
 					<Tabs.Trigger value="backup" class="flex items-center justify-center gap-1.5">
@@ -2005,7 +2005,7 @@
 						{#if formConnectionType === 'direct'}
 							<div class="grid grid-cols-2 gap-4">
 								<div class="space-y-2">
-									<Label for="edit-env-host">{m.network_mode_host()}</Label>
+									<Label for="edit-env-host">{m.settings_env_modal_host()}</Label>
 									<Input
 										id="edit-env-host"
 										bind:value={formHost}
@@ -2238,7 +2238,7 @@
 														<Tooltip.Trigger>
 															<XCircle class="w-4 h-4 text-red-500" />
 														</Tooltip.Trigger>
-														<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+														<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 													</Tooltip.Root>
 												{:else if copySuccess === 'ok'}
 													<Check class="w-4 h-4 text-green-500" />
@@ -2278,7 +2278,7 @@
 														<Tooltip.Trigger>
 															<XCircle class="w-3 h-3 text-red-500" />
 														</Tooltip.Trigger>
-														<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+														<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 													</Tooltip.Root>
 												{:else if copyCmdSuccess === 'ok'}
 													<Check class="w-3 h-3 text-green-600" />
@@ -2301,7 +2301,7 @@
 										<Label>Connection status</Label>
 										{#if environment.hawserAgentId}
 											<Badge variant="outline" class="bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700">
-												<Wifi class="w-3 h-3 mr-1" />{m.container_terminal_connected()}</Badge>
+												<Wifi class="w-3 h-3 mr-1" />{m.settings_env_status_connected()}</Badge>
 										{:else}
 											<Badge variant="outline" class="bg-slate-50 text-slate-500 border-slate-300 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-700">
 												<WifiOff class="w-3 h-3 mr-1" />{m.settings_env_modal_waiting_agent()}</Badge>
@@ -2388,7 +2388,7 @@
 																<Tooltip.Trigger>
 																	<XCircle class="w-4 h-4 text-red-500" />
 																</Tooltip.Trigger>
-																<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+																<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 															</Tooltip.Root>
 														{:else if copySuccess === 'ok'}
 															<Check class="w-4 h-4 text-green-500" />
@@ -2411,7 +2411,7 @@
 																	<Tooltip.Trigger>
 																		<XCircle class="w-3 h-3 text-red-500" />
 																	</Tooltip.Trigger>
-																	<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+																	<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 																</Tooltip.Root>
 															{:else if copyCmdSuccess === 'ok'}
 																<Check class="w-3 h-3 text-green-600" />
@@ -2451,7 +2451,7 @@
 																<Tooltip.Trigger>
 																	<XCircle class="w-4 h-4 text-red-500" />
 																</Tooltip.Trigger>
-																<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+																<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 															</Tooltip.Root>
 														{:else if copySuccess === 'ok'}
 															<Check class="w-4 h-4 text-green-500" />
@@ -2474,7 +2474,7 @@
 																	<Tooltip.Trigger>
 																		<XCircle class="w-3 h-3 text-red-500" />
 																	</Tooltip.Trigger>
-																	<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+																	<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 																</Tooltip.Root>
 															{:else if copyCmdSuccess === 'ok'}
 																<Check class="w-3 h-3 text-green-600" />
@@ -2643,7 +2643,7 @@
 												{#if !scannerAvailability.grype}
 													<ImagePullProgressPopover imageName={scannerGrypeImage} envId={environment?.id} onComplete={() => reloadScannerAvailability(environment?.id)}>
 														<button class="inline-flex items-center text-2xs px-1.5 py-0 h-4 rounded-full border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-															<Download class="w-2.5 h-2.5 mr-0.5" />{m.container_create_tab_pull()}</button>
+															<Download class="w-2.5 h-2.5 mr-0.5" />{m.settings_env_modal_scanner_pull()}</button>
 													</ImagePullProgressPopover>
 												{:else}
 													<button
@@ -2716,7 +2716,7 @@
 												{#if !scannerAvailability.trivy}
 													<ImagePullProgressPopover imageName={scannerTrivyImage} envId={environment?.id} onComplete={() => reloadScannerAvailability(environment?.id)}>
 														<button class="inline-flex items-center text-2xs px-1.5 py-0 h-4 rounded-full border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-															<Download class="w-2.5 h-2.5 mr-0.5" />{m.container_create_tab_pull()}</button>
+															<Download class="w-2.5 h-2.5 mr-0.5" />{m.settings_env_modal_scanner_pull()}</button>
 													</ImagePullProgressPopover>
 												{:else}
 													<button

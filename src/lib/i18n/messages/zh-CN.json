@@ -2853,5 +2853,22 @@
 	"backups_dest_limit_download_title": "限制下载速度为 10 MB/s",
 	"backups_dest_verbose_title": "详细输出",
 	"backups_dest_compression_title": "最大压缩",
-	"backups_dest_exclude_xattr_title": "跳过在跨发行版恢复时 helper 无法移除的 SELinux xattr（例如 Ubuntu -> Fedora）"
+	"backups_dest_exclude_xattr_title": "跳过在跨发行版恢复时 helper 无法移除的 SELinux xattr（例如 Ubuntu -> Fedora）",
+	"common_on_lower": "开启",
+	"common_container": "容器",
+	"common_stack": "堆栈",
+	"common_volume": "卷",
+	"common_volumes": "卷",
+	"backups_create_all_volumes": "全部卷",
+	"backups_create_backup_repository": "备份仓库",
+	"backups_create_consistency_hint": "确保数据一致（备份后会重启）",
+	"backups_create_no_sources": "未找到容器或堆栈",
+	"backups_create_save_schedule": "保存为重复计划",
+	"backups_create_select_env": "选择环境以查看可用源",
+	"backups_create_stop_during_backup": "备份期间停止 {type}",
+	"backups_create_stop_label": "备份期间停止",
+	"backups_create_volumes_count_one": "{n} 卷",
+	"backups_create_volumes_count_many": "{n} 卷",
+	"backups_create_no_volumes": "未在此 {type} 上检测到卷",
+	"backups_create_search_placeholder": "搜索容器和堆栈..."
 }

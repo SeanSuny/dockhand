@@ -49,14 +49,14 @@
 	let allVolumes = $state(true);
 	let selectedVolumes = $state<string[]>([]);
 
-	// Stack files on the host (probe listing) — stack targets only.
+	// Stack files {m.common_on_lower()} the host (probe listing) — stack targets only.
 	type StackListing =
 		| { kind: 'listed'; hostPath: string; entries: { name: string; type: 'dir' | 'file'; size: number; capturedAs?: 'bind' | 'volume' }[] }
 		| { kind: 'helper-failed'; reason: string }
 		| { kind: 'unknown'; reason: string }
 		| null;
 	let stackListing = $state<StackListing>(null);
-	// The probe helper couldn't run on the target - a backup can't run either, so block Save.
+	// The probe helper couldn't run {m.common_on_lower()} the target - a backup can't run either, so block Save.
 	const stackHelperFailed = $derived(stackListing?.kind === 'helper-failed');
 	let loadingStackListing = $state(false);
 	let excludedStackFiles = $state<string[]>([]);
@@ -171,7 +171,7 @@
 
 	// Save the config, then (when run=true) hand it off to the parent's shared
 	// BackupLogModal — same log UI as Run-now everywhere else. run=false saves the
-	// recurring schedule without running now (it fires on cron).
+	// recurring schedule without running now (it fires {m.common_on_lower()} cron).
 	async function saveAndMaybeRun(run: boolean) {
 		if (!selectedItem || !selectedDestId) return;
 		saving = true;
@@ -233,7 +233,7 @@
 				<Dialog.Description class="flex items-center gap-2 text-sm flex-wrap">
 					{#if selectedItem.type === 'container'}<Box class="w-4 h-4 text-blue-500" />{:else}<Layers class="w-4 h-4 text-purple-500" />{/if}
 					{selectedItem.name}
-					<span class="text-muted-foreground">on</span>
+					<span class="text-muted-foreground">{m.common_on_lower()}</span>
 					<EnvironmentIcon icon={selectedItem.envIcon || 'globe'} envId={selectedItem.envId} class="w-4 h-4 text-muted-foreground" />
 					<span class="text-muted-foreground">{selectedItem.envName}</span>
 					{#if selectedDest}
@@ -302,7 +302,7 @@
 				{#if selectedEnvId}
 					<div class="relative flex-1">
 						<Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-						<Input bind:value={searchQuery} placeholder="Search containers and stacks..." class="pl-8 h-8 text-xs" />
+						<Input bind:value={searchQuery} placeholder={m.backups_create_search_placeholder()} class="pl-8 h-8 text-xs" />
 					</div>
 				{/if}
 			</div>
@@ -326,15 +326,15 @@
 									<span class="font-medium truncate">{item.name}</span>
 									<Badge variant="outline" class="text-xs ml-auto shrink-0">{item.type}</Badge>
 									{#if item.volumes.length > 0}
-										<span class="text-xs text-muted-foreground shrink-0">{item.volumes.length} vol</span>
+										<span class="text-xs text-muted-foreground shrink-0">{item.volumes.length === 1 ? m.backups_create_volumes_count_one({ n: item.volumes.length }) : m.backups_create_volumes_count_many({ n: item.volumes.length })}</span>
 									{/if}
 								</button>
 							{/each}
 						</div>
 					{:else if selectedEnvId}
-						<p class="text-xs text-muted-foreground py-4 text-center">No containers or stacks found</p>
+						<p class="text-xs text-muted-foreground py-4 text-center">{m.backups_create_no_sources()}</p>
 					{:else}
-						<p class="text-xs text-muted-foreground py-4 text-center">Select an environment to see available sources</p>
+						<p class="text-xs text-muted-foreground py-4 text-center">{m.backups_create_select_env()}</p>
 					{/if}
 				</div>
 
@@ -342,7 +342,7 @@
 				<!-- Step 2: Configure -->
 				<div class="space-y-4">
 					<div class="space-y-1">
-						<Label class="text-xs">Backup repository</Label>
+						<Label class="text-xs">{m.backups_create_backup_repository()}</Label>
 						<DestinationPicker
 							destinations={destinations}
 							bind:value={selectedDestId}
@@ -353,8 +353,8 @@
 					<div class="flex items-center gap-3">
 						<TogglePill bind:checked={stopBeforeBackup} />
 						<div>
-							<Label class="text-xs">Stop {selectedItem?.type || 'container'} during backup</Label>
-							<p class="text-xs text-muted-foreground">Ensures data consistency (will restart after)</p>
+							<Label class="text-xs">{m.backups_create_stop_during_backup({ type: selectedItem?.type || m.common_container() })}</Label>
+							<p class="text-xs text-muted-foreground">{m.backups_create_consistency_hint()}</p>
 						</div>
 					</div>
 
@@ -376,7 +376,7 @@
 							volumes={selectedItem.volumes}
 							bind:allVolumes
 							bind:selectedVolumes
-							emptyLabel="No volumes detected on this {selectedItem.type}"
+							emptyLabel={m.backups_create_no_volumes({ type: selectedItem.type })}
 							showBindWarning={true}
 						/>
 					{/if}
@@ -392,19 +392,19 @@
 				<div class="flex flex-col gap-4 h-full">
 					<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground pb-2 border-b">
 						{#if allVolumes}
-							<span>All volumes</span>
+							<span>{m.backups_create_all_volumes()}</span>
 						{:else}
-							<span>{selectedVolumes.length} volume{selectedVolumes.length !== 1 ? 's' : ''}</span>
+							<span>{selectedVolumes.length === 1 ? m.backups_create_volumes_count_one({ n: selectedVolumes.length }) : m.backups_create_volumes_count_many({ n: selectedVolumes.length })}</span>
 						{/if}
 						{#if stopBeforeBackup}
 							<span class="text-muted-foreground">·</span>
-							<span>stop during backup</span>
+							<span>{m.backups_create_stop_label()}</span>
 						{/if}
 					</div>
 
 					<div class="flex items-center gap-2">
 						<Checkbox checked={saveSchedule} onCheckedChange={() => { saveSchedule = !saveSchedule; }} />
-						<span class="text-xs">Save as recurring schedule</span>
+						<span class="text-xs">{m.backups_create_save_schedule()}</span>
 					</div>
 
 					{#if saveSchedule}
@@ -413,7 +413,7 @@
 						</div>
 					{:else}
 						<p class="pl-6 text-[11px] text-muted-foreground">
-							Runs once now. The backup stays on the list so you can re-run or remove it later — it just won't run on a schedule.
+							Runs once now. The backup stays {m.common_on_lower()} the list so you can re-run or remove it later — it just won't run {m.common_on_lower()} a schedule.
 						</p>
 					{/if}
 

@@ -2853,5 +2853,22 @@
 	"backups_dest_limit_download_title": "Limit download speed to 10 MB/s",
 	"backups_dest_verbose_title": "Verbose output",
 	"backups_dest_compression_title": "Maximum compression",
-	"backups_dest_exclude_xattr_title": "Skip the SELinux xattr the helper can't remove on a cross-distro restore (e.g. Ubuntu -> Fedora)"
+	"backups_dest_exclude_xattr_title": "Skip the SELinux xattr the helper can't remove on a cross-distro restore (e.g. Ubuntu -> Fedora)",
+	"common_on_lower": "on",
+	"common_container": "container",
+	"common_stack": "stack",
+	"common_volume": "volume",
+	"common_volumes": "volumes",
+	"backups_create_all_volumes": "All volumes",
+	"backups_create_backup_repository": "Backup repository",
+	"backups_create_consistency_hint": "Ensures data consistency (will restart after)",
+	"backups_create_no_sources": "No containers or stacks found",
+	"backups_create_save_schedule": "Save as recurring schedule",
+	"backups_create_select_env": "Select an environment to see available sources",
+	"backups_create_stop_during_backup": "Stop {type} during backup",
+	"backups_create_stop_label": "stop during backup",
+	"backups_create_volumes_count_one": "{n} volume",
+	"backups_create_volumes_count_many": "{n} volumes",
+	"backups_create_no_volumes": "No volumes detected on this {type}",
+	"backups_create_search_placeholder": "Search containers and stacks..."
 }

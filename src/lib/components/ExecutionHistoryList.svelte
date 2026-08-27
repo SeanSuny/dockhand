@@ -66,7 +66,7 @@
 		}
 	}
 	function triggerLabel(trigger: string) {
-		return trigger === 'cron' ? 'Scheduled' : trigger === 'webhook' ? 'Webhook' : 'Manual';
+		return trigger === 'cron' ? m.backup_history_scheduled() : trigger === 'webhook' ? m.backup_history_webhook() : m.backup_history_manual();
 	}
 </script>
 
@@ -134,12 +134,12 @@
 						<td class="py-1.5 pr-2 text-right">
 							<div class="flex items-center justify-end gap-0.5">
 								{#if onViewLog}
-									<button type="button" class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" onclick={() => onViewLog?.(exec.id)} title="View log">
+									<button type="button" class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" onclick={() => onViewLog?.(exec.id)} title={m.backup_history_view_log()}>
 										<FileText class="h-3 w-3" />
 									</button>
 								{/if}
 								{#if isFail && exec.errorMessage}
-									<button type="button" class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" onclick={() => toggle(exec.id)} title={isOpen ? 'Hide error' : 'Show error'}>
+									<button type="button" class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" onclick={() => toggle(exec.id)} title={isOpen ? m.backup_history_hide_error() : m.backup_history_show_error()}>
 										<ChevronDown class="h-3.5 w-3.5 transition-transform {isOpen ? '' : '-rotate-90'}" />
 									</button>
 								{/if}
@@ -151,7 +151,7 @@
 							<td colspan={showRepo ? 7 : 6} class="px-2 py-2">
 								<div class="rounded-md border border-l-[3px] border-destructive/40 border-l-destructive bg-destructive/5 p-2.5">
 									<div class="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
-										<X class="h-3 w-3" /> Backup failed
+										<X class="h-3 w-3" /> {m.backup_history_failed()}
 									</div>
 									<pre class="whitespace-pre-wrap break-all font-mono text-[11px] text-destructive/90">{exec.errorMessage}</pre>
 								</div>

@@ -489,7 +489,7 @@
 									</p>
 								</div>
 								<div>
-									<Label class="text-muted-foreground text-xs">Last login</Label>
+									<Label class="text-muted-foreground text-xs">{m.profile_last_login()}</Label>
 									<p class="text-sm flex items-center gap-1">
 										<Clock class="w-3.5 h-3.5" />
 										{formatProfileDate(profile.lastLogin)}
@@ -519,7 +519,7 @@
 
 					<div class="space-y-4 flex-1">
 						<div class="space-y-2">
-							<Label>Display name</Label>
+							<Label>{m.profile_display_name()}</Label>
 							<Input
 								bind:value={formDisplayName}
 								placeholder="Enter display name"
@@ -680,7 +680,7 @@
 								<Table.Row>
 									<Table.Head>{m.common_name()}</Table.Head>
 									<Table.Head>{m.profile_prefix()}</Table.Head>
-									<Table.Head>Last used</Table.Head>
+									<Table.Head>{m.profile_last_used()}</Table.Head>
 									<Table.Head>{m.settings_license_expires()}</Table.Head>
 									<Table.Head class="w-[80px]"></Table.Head>
 								</Table.Row>

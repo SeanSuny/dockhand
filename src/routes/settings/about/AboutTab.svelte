@@ -131,7 +131,7 @@
 		"CLI fatigue is real. We treat it.",
 		"Automate, orchestrate, hydrate — we handle the first two.",
 		"Turning docker ps into pure bliss.",
-		"Your API deserves better than bash therapy.",
+		"Your {m.settings_about_api()} deserves better than bash therapy.",
 		"Where DevOps takes a deep breath.",
 		"Zero friction. Just containers.",
 		"Simplify. Deploy. Smile.",
@@ -550,7 +550,7 @@
 		<!-- System Stats Card (Right) -->
 		<Card.Root class="w-full h-full">
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium">System information</Card.Title>
+				<Card.Title class="text-sm font-medium">{m.settings_about_system_info()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				{#if loading}
@@ -575,7 +575,7 @@
 									<span class="text-muted-foreground">{m.container_batch_version()}</span>
 									<span>{systemInfo.docker.version}</span>
 									<span class="text-muted-foreground/50">|</span>
-									<span class="text-muted-foreground">API</span>
+									<span class="text-muted-foreground">{m.settings_about_api()}</span>
 									<span>{systemInfo.docker.apiVersion}</span>
 									<span class="text-muted-foreground/50">|</span>
 									<span class="text-muted-foreground">{m.settings_about_os_arch()}</span>
@@ -724,7 +724,7 @@
 									{/if}
 									{#if $licenseStore.isLicensed && $licenseStore.licensedTo}
 										<span class="text-muted-foreground/50">|</span>
-										<span class="text-muted-foreground">Licensed to</span>
+										<span class="text-muted-foreground">{m.settings_about_licensed_to()}</span>
 										<span>{$licenseStore.licensedTo}</span>
 									{/if}
 									<span class="text-muted-foreground/50">|</span>
@@ -803,7 +803,7 @@
 				<Tabs.List class="w-full grid grid-cols-2">
 					<Tabs.Trigger value="releases" class="flex items-center gap-2">
 						<FileText class="w-4 h-4" />
-						<span>Release notes</span>
+						<span>{m.settings_about_release_notes()}</span>
 						<Badge variant="secondary" class="text-2xs">{changelog.length}</Badge>
 					</Tabs.Trigger>
 					<Tabs.Trigger value="dependencies" class="flex items-center gap-2">

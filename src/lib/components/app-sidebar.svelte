@@ -455,10 +455,10 @@
 						type="button"
 						onclick={handleLogout}
 						class="flex items-center gap-2 w-full px-2 py-1.5 group-data-[state=collapsed]:px-1 group-data-[state=collapsed]:py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded-md transition-colors group-data-[state=collapsed]:justify-center"
-						title="Sign out"
+						title={m.sidebar_sign_out()}
 					>
 						<LogOut class="w-4 h-4 shrink-0 group-data-[state=collapsed]:w-3.5 group-data-[state=collapsed]:h-3.5" />
-						<span class="group-data-[state=collapsed]:hidden">Sign out</span>
+						<span class="group-data-[state=collapsed]:hidden">{m.sidebar_sign_out()}</span>
 					</button>
 				</Sidebar.MenuItem>
 			</Sidebar.Menu>

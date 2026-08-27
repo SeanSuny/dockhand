@@ -65,7 +65,7 @@
 	let nfsNolock = $state(true);
 	let nfsReadOnly = $state(false);
 
-	// {m.volumes_create_additional_options()} visibility
+	// additional options visibility
 	let showAdditionalOpts = $state(false);
 
 	let creating = $state(false);

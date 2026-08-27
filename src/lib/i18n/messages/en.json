@@ -2870,5 +2870,21 @@
 	"backups_create_volumes_count_one": "{n} volume",
 	"backups_create_volumes_count_many": "{n} volumes",
 	"backups_create_no_volumes": "No volumes detected on this {type}",
-	"backups_create_search_placeholder": "Search containers and stacks..."
+	"backups_create_search_placeholder": "Search containers and stacks...",
+	"backups_diff_title": "Snapshot comparison",
+	"backups_diff_loading_metadata": "Loading metadata...",
+	"backups_diff_comparing": "Comparing snapshots...",
+	"backups_diff_field": "Field",
+	"backups_diff_no_differences": "No differences found",
+	"backups_diff_metadata_unavailable": "Metadata not available for one or both snapshots.",
+	"backups_diff_identical": "The container configuration is identical (image, command, env, ports, mounts, networks, …).",
+	"backups_diff_metadata_hint": "If the Files tab shows metadata.json as modified, that's the capture timestamp / recorded container state inside it changing between backups — not a config change.",
+	"backups_diff_count_added": "{n} added",
+	"backups_diff_count_metadata": "{n} metadata",
+	"backups_diff_count_modified": "{n} modified",
+	"backups_diff_count_removed": "{n} removed",
+	"backups_diff_added_line": "+ {path}",
+	"backups_diff_removed_line": "- {path}",
+	"backups_diff_modified_line": "M {path}",
+	"backups_diff_unknown_line": "U {path}"
 }

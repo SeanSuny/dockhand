@@ -2870,5 +2870,21 @@
 	"backups_create_volumes_count_one": "{n} 卷",
 	"backups_create_volumes_count_many": "{n} 卷",
 	"backups_create_no_volumes": "未在此 {type} 上检测到卷",
-	"backups_create_search_placeholder": "搜索容器和堆栈..."
+	"backups_create_search_placeholder": "搜索容器和堆栈...",
+	"backups_diff_title": "快照对比",
+	"backups_diff_loading_metadata": "正在加载元数据...",
+	"backups_diff_comparing": "正在对比快照...",
+	"backups_diff_field": "字段",
+	"backups_diff_no_differences": "未发现差异",
+	"backups_diff_metadata_unavailable": "一个或两个快照的元数据不可用。",
+	"backups_diff_identical": "容器配置完全相同（镜像、命令、环境变量、端口、挂载、网络…）。",
+	"backups_diff_metadata_hint": "如果文件标签页显示 metadata.json 被修改，那是拍摄时间戳 / 其中记录的容器状态在不同备份间发生了变化 —— 不是配置变更。",
+	"backups_diff_count_added": "{n} 新增",
+	"backups_diff_count_metadata": "{n} 元数据",
+	"backups_diff_count_modified": "{n} 修改",
+	"backups_diff_count_removed": "{n} 删除",
+	"backups_diff_added_line": "+ {path}",
+	"backups_diff_removed_line": "- {path}",
+	"backups_diff_modified_line": "M {path}",
+	"backups_diff_unknown_line": "U {path}"
 }

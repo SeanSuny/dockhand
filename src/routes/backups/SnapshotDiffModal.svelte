@@ -117,7 +117,7 @@
 <Dialog.Root bind:open>
 	<Dialog.Content class="max-w-5xl max-h-[85vh] flex flex-col">
 		<Dialog.Header>
-			<Dialog.Title>Snapshot comparison</Dialog.Title>
+			<Dialog.Title>{m.backups_diff_title()}</Dialog.Title>
 			<Dialog.Description>
 				<span class="font-mono text-xs">{snapshotA.shortId}</span>
 				<span class="text-muted-foreground text-xs mx-1">({formatDateTime(snapshotA.time)})</span>
@@ -141,41 +141,41 @@
 			{#if loading}
 				<div class="flex items-center justify-center py-12">
 					<Loader2 class="w-5 h-5 animate-spin text-muted-foreground" />
-					<span class="ml-2 text-sm text-muted-foreground">Comparing snapshots...</span>
+					<span class="ml-2 text-sm text-muted-foreground">{m.backups_diff_comparing()}</span>
 				</div>
 			{:else if error}
 				<div class="text-sm text-destructive py-4">{error}</div>
 			{:else if diff}
 				<div class="flex gap-2 mb-3 flex-wrap">
 					{#if diff.added.length > 0}
-						<Badge variant="outline" class="text-green-600"><Plus class="w-3 h-3 mr-1" />{diff.added.length} added</Badge>
+						<Badge variant="outline" class="text-green-600"><Plus class="w-3 h-3 mr-1" />{m.backups_diff_count_added({ n: diff.added.length })}</Badge>
 					{/if}
 					{#if diff.removed.length > 0}
-						<Badge variant="outline" class="text-red-500"><Minus class="w-3 h-3 mr-1" />{diff.removed.length} removed</Badge>
+						<Badge variant="outline" class="text-red-500"><Minus class="w-3 h-3 mr-1" />{m.backups_diff_count_removed({ n: diff.removed.length })}</Badge>
 					{/if}
 					{#if diff.modified.length > 0}
-						<Badge variant="outline" class="text-amber-500"><FileEdit class="w-3 h-3 mr-1" />{diff.modified.length} modified</Badge>
+						<Badge variant="outline" class="text-amber-500"><FileEdit class="w-3 h-3 mr-1" />{m.backups_diff_count_modified({ n: diff.modified.length })}</Badge>
 					{/if}
 					{#if diff.metadataChanged.length > 0}
-						<Badge variant="outline" class="text-blue-500"><FileCheck class="w-3 h-3 mr-1" />{diff.metadataChanged.length} metadata</Badge>
+						<Badge variant="outline" class="text-blue-500"><FileCheck class="w-3 h-3 mr-1" />{m.backups_diff_count_metadata({ n: diff.metadataChanged.length })}</Badge>
 					{/if}
 					{#if totalChanges === 0}
-						<span class="text-sm text-muted-foreground">No differences found</span>
+						<span class="text-sm text-muted-foreground">{m.backups_diff_no_differences()}</span>
 					{/if}
 				</div>
 
 				<div class="border rounded-md bg-muted/30 p-2 font-mono text-xs space-y-0.5">
 					{#each diff.added as path}
-						<div class="text-green-600">+ {path}</div>
+						<div class="text-green-600">{m.backups_diff_added_line({ path })}</div>
 					{/each}
 					{#each diff.removed as path}
-						<div class="text-red-500">- {path}</div>
+						<div class="text-red-500">{m.backups_diff_removed_line({ path })}</div>
 					{/each}
 					{#each diff.modified as path}
-						<div class="text-amber-500">M {path}</div>
+						<div class="text-amber-500">{m.backups_diff_modified_line({ path })}</div>
 					{/each}
 					{#each diff.metadataChanged as path}
-						<div class="text-blue-500">U {path}</div>
+						<div class="text-blue-500">{m.backups_diff_unknown_line({ path })}</div>
 					{/each}
 				</div>
 			{/if}
@@ -183,18 +183,18 @@
 			{#if metaLoading}
 				<div class="flex items-center justify-center py-12">
 					<Loader2 class="w-5 h-5 animate-spin text-muted-foreground" />
-					<span class="ml-2 text-sm text-muted-foreground">Loading metadata...</span>
+					<span class="ml-2 text-sm text-muted-foreground">{m.backups_diff_loading_metadata()}</span>
 				</div>
 			{:else if !metaA || !metaB}
-				<p class="text-sm text-muted-foreground py-4">Metadata not available for one or both snapshots.</p>
+				<p class="text-sm text-muted-foreground py-4">{m.backups_diff_metadata_unavailable()}</p>
 			{:else if metaDiffs.length === 0}
-				<p class="py-4 text-sm text-muted-foreground">The container configuration is identical (image, command, env, ports, mounts, networks, …).</p>
-				<p class="flex items-start gap-1.5 text-xs text-muted-foreground"><Info class="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /><span>If the Files tab shows <span class="font-mono">metadata.json</span> as modified, that's the capture timestamp / recorded container state inside it changing between backups — not a config change.</span></p>
+				<p class="py-4 text-sm text-muted-foreground">{m.backups_diff_identical()}</p>
+				<p class="flex items-start gap-1.5 text-xs text-muted-foreground"><Info class="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /><span>{m.backups_diff_metadata_hint()}</span></p>
 			{:else}
 				<table class="w-full text-xs">
 					<thead class="sticky top-0 bg-background">
 						<tr class="border-b text-muted-foreground">
-							<th class="text-left py-1.5 px-2 w-32">Field</th>
+							<th class="text-left py-1.5 px-2 w-32">{m.backups_diff_field()}</th>
 							<th class="text-left py-1.5 px-2">{snapshotA.shortId}</th>
 							<th class="text-left py-1.5 px-2">{snapshotB.shortId}</th>
 						</tr>

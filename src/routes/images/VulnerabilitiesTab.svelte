@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { DataGrid } from '$lib/components/data-grid';
 	import { Badge } from '$lib/components/ui/badge';
 	import { appendEnvParam } from '$lib/stores/environment';

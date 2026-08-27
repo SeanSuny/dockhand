@@ -3072,5 +3072,10 @@
 	"backups_log_waiting_output": "等待输出…",
 	"secret_provider_label": "密钥提供方",
 	"secret_provider_unknown": "未知提供方",
-	"secret_provider_none_disabled": "无 — 已禁用"
+	"secret_provider_none_disabled": "无 — 已禁用",
+	"alerts_none": "未配置告警",
+	"alerts_coming_soon": "告警配置即将推出",
+	"templates_page_title": "模板 - Dockhand",
+	"volumes_filter_in_use": "使用中",
+	"volumes_filter_unused": "未使用"
 }

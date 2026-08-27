@@ -3072,5 +3072,10 @@
 	"backups_log_waiting_output": "Waiting for output…",
 	"secret_provider_label": "Secret provider",
 	"secret_provider_unknown": "Unknown provider",
-	"secret_provider_none_disabled": "None — disabled"
+	"secret_provider_none_disabled": "None — disabled",
+	"alerts_none": "No alerts configured",
+	"alerts_coming_soon": "Alert configuration coming soon",
+	"templates_page_title": "Templates - Dockhand",
+	"volumes_filter_in_use": "In use",
+	"volumes_filter_unused": "Unused"
 }

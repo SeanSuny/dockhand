@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Templates - Dockhand</title>
+	<title>{m.templates_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">

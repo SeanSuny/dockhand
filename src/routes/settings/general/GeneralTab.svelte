@@ -397,7 +397,7 @@ services:
 											<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="w-96 max-w-[90vw]">
-											<p>Surface a release-notes link next to the image name on rows with updates available. The link is resolved from the image's <code>{m.update_modal_image_source_label()}</code> label, from the <code>ghcr.io</code> registry path, or from an explicit <code>dockhand.changelog.url</code> label override.</p>
+											<p>{m.settings_general_changelog_tooltip({ label: m.update_modal_image_source_label(), registry: "ghcr.io", override: "dockhand.changelog.url" })}</p>
 										</Tooltip.Content>
 									</Tooltip.Root>
 									<TogglePill
@@ -413,13 +413,13 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Use selfh.st icons</Label>
+									<Label>{m.settings_general_selfh_icons()}</Label>
 									<Tooltip.Root>
 										<Tooltip.Trigger>
 											<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="w-96 max-w-[90vw]">
-											<p>Show app logos from <a href="https://selfh.st" target="_blank" rel="noopener" class="underline">selfh.st</a> as container icons, matched automatically from the image name. Logos are fetched once and cached locally, so your browser never contacts an external CDN. Off by default. Logos are CC BY 4.0; product names and trademarks are the property of their respective owners and are shown for identification only, without implying endorsement.</p>
+											<p>{m.settings_general_selfh_icons_tooltip()}</p>
 										</Tooltip.Content>
 									</Tooltip.Root>
 									<TogglePill
@@ -431,11 +431,11 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Auto app logos on containers, fetched from selfh.st and cached locally</p>
+								<p class="text-xs text-muted-foreground">{m.settings_general_selfh_icons_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Show "What's New"</Label>
+									<Label>{m.settings_general_show_whats_new()}</Label>
 									<TogglePill
 										checked={showWhatsNew}
 										onchange={(checked) => {
@@ -445,7 +445,7 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Show the "What's New" popup after upgrading to a new version</p>
+								<p class="text-xs text-muted-foreground">{m.settings_general_show_whats_new_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
@@ -485,13 +485,13 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Show git commit hash</Label>
+									<Label>{m.settings_general_show_git_commit_hash()}</Label>
 									<Tooltip.Root>
 										<Tooltip.Trigger>
 											<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="w-96 max-w-[90vw]">
-											<p>Shows the deployed short commit hash on the Git badge in the stacks list source column, with the full hash, repo URL and branch in a tooltip.</p>
+											<p>{m.settings_general_show_git_commit_hash_tooltip()}</p>
 										</Tooltip.Content>
 									</Tooltip.Root>
 									<TogglePill
@@ -503,17 +503,17 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Display the deployed commit hash on the Git source badge in the stacks list</p>
+								<p class="text-xs text-muted-foreground">{m.settings_general_show_git_commit_hash_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Honor Traefik/Pangolin/Caddy labels</Label>
+									<Label>{m.settings_general_honor_labels()}</Label>
 									<Tooltip.Root>
 										<Tooltip.Trigger>
 											<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="w-96 max-w-[90vw]">
-											<p>Parse <code>traefik.http.routers.&lt;name&gt;.rule</code>, <code>pangolin.public-resources.&lt;name&gt;.full-domain</code>, <code>pangolin.private-resources.&lt;name&gt;.full-domain</code>, and caddy-docker-proxy <code>caddy</code>/<code>caddy_&lt;n&gt;</code> site-address labels, and surface the resulting URLs as clickable pills next to ports. When off, only explicit <code>dockhand.url</code> labels are shown.</p>
+											<p>{m.settings_general_honor_labels_tooltip({ traefik: "traefik.http.routers.<name>.rule", pangolin_public: "pangolin.public-resources.<name>.full-domain", pangolin_private: "pangolin.private-resources.<name>.full-domain", caddy_proxy: "caddy/caddy_<n>", label: "dockhand.url" })}</p>
 										</Tooltip.Content>
 									</Tooltip.Root>
 									<TogglePill
@@ -529,14 +529,14 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Time format</Label>
+									<Label>{m.settings_general_time_format()}</Label>
 									<ToggleSwitch
 										value={timeFormat}
 										leftValue="24h"
 										rightValue="12h"
 										onchange={(newFormat) => {
 											appSettings.setTimeFormat(newFormat as '12h' | '24h');
-											toast.success(`Time format set to ${newFormat === '12h' ? '12-hour (AM/PM)' : '24-hour'}`);
+											toast.success(`{m.settings_general_time_format()} set to ${newFormat === '12h' ? '12-hour (AM/PM)' : '24-hour'}`);
 										}}
 										disabled={!$canAccess('settings', 'edit')}
 									/>
@@ -545,14 +545,14 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Date format</Label>
+									<Label>{m.settings_general_date_format()}</Label>
 									<Select.Root
 										type="single"
 										value={dateFormat}
 										onValueChange={(value) => {
 											if (value) {
 												appSettings.setDateFormat(value as DateFormat);
-												toast.success(`Date format set to ${value}`);
+												toast.success(`{m.settings_general_date_format()} set to ${value}`);
 											}
 										}}
 										disabled={!$canAccess('settings', 'edit')}
@@ -586,7 +586,7 @@ services:
 								<div class="text-xs text-muted-foreground flex items-start gap-1.5 mt-2 p-2 bg-muted/50 rounded-md">
 									<HelpCircle class="w-3.5 h-3.5 shrink-0 mt-0.5" />
 									<div>
-										<p>Personal theme preferences can be configured in your <a href="/profile" class="text-primary hover:underline">profile</a>.</p>
+										<p>{m.settings_general_theme_profile_desc()}</p>
 									</div>
 								</div>
 							{/if}
@@ -612,12 +612,12 @@ services:
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-2">
-						<Label>Default timezone</Label>
+						<Label>{m.settings_general_default_timezone()}</Label>
 						<TimezoneSelector
 							value={defaultTimezone}
 							onchange={(value) => {
 								appSettings.setDefaultTimezone(value);
-								toast.success(`Default timezone set to ${value}`);
+								toast.success(`{m.settings_general_default_timezone()} set to ${value}`);
 							}}
 							class="w-[320px]"
 						/>
@@ -678,14 +678,14 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Download format</Label>
+									<Label>{m.settings_general_download_format()}</Label>
 									<Select.Root
 										type="single"
 										value={downloadFormat}
 										onValueChange={(value) => {
 											if (value) {
 												appSettings.setDownloadFormat(value as DownloadFormat);
-												toast.success(`Download format set to ${downloadFormatLabel[value as DownloadFormat]}`);
+												toast.success(`{m.settings_general_download_format()} set to ${downloadFormatLabel[value as DownloadFormat]}`);
 											}
 										}}
 										disabled={!$canAccess('settings', 'edit')}
@@ -725,7 +725,7 @@ services:
 								<p class="text-xs text-muted-foreground">{m.settings_general_format_log_timestamps_desc()}</p>
 								<div class="flex items-start gap-1.5 mt-1">
 									<Info class="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-									<p class="text-xs text-muted-foreground">Docker logs use UTC timestamps by default. When enabled, timestamps like <code class="bg-muted px-1 rounded">2026-01-12T07:47:44Z</code> are converted to local time using your date/time settings.</p>
+									<p class="text-xs text-muted-foreground">{m.settings_general_docker_logs_desc({ example: "2026-01-12T07:47:44Z" })}</p>
 								</div>
 							</div>
 						</div>
@@ -777,7 +777,7 @@ services:
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-2">
-						<Label for="grype-image">Grype image</Label>
+						<Label for="grype-image">{m.settings_general_grype_image()}</Label>
 						<Input
 							id="grype-image"
 							value={defaultGrypeImage}
@@ -788,7 +788,7 @@ services:
 						<p class="text-xs text-muted-foreground">{m.settings_general_grype_image_desc()}</p>
 					</div>
 					<div class="space-y-2">
-						<Label for="trivy-image">Trivy image</Label>
+						<Label for="trivy-image">{m.settings_general_trivy_image()}</Label>
 						<Input
 							id="trivy-image"
 							value={defaultTrivyImage}
@@ -807,7 +807,7 @@ services:
 							disabled={!$canAccess('settings', 'edit')}
 							placeholder={"-o json -v {image}"}
 						/>
-						<p class="text-xs text-muted-foreground">Use <code class="bg-muted px-1 rounded">{'{image}'}</code> as placeholder for the image name</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_placeholder_image({ placeholder: '{image}' })}</p>
 					</div>
 					<div class="space-y-2">
 						<Label for="trivy-args">{m.settings_general_trivy_args()}</Label>
@@ -818,7 +818,7 @@ services:
 							disabled={!$canAccess('settings', 'edit')}
 							placeholder={"image --format json {image}"}
 						/>
-						<p class="text-xs text-muted-foreground">Use <code class="bg-muted px-1 rounded">{'{image}'}</code> as placeholder for the image name</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_placeholder_image({ placeholder: '{image}' })}</p>
 					</div>
 					<div class="pt-2">
 						<button
@@ -836,39 +836,39 @@ services:
 					</div>
 					{#if showAdvancedScannerSettings}
 						<div class="space-y-2">
-							<Label for="scanner-network-mode">Network mode</Label>
+							<Label for="scanner-network-mode">{m.settings_general_network_mode()}</Label>
 							<Select.Root
 								type="single"
 								value={defaultScannerNetworkMode}
 								onValueChange={handleScannerNetworkModeChange}
 							>
 								<Select.Trigger id="scanner-network-mode" class="w-full" disabled={!$canAccess('settings', 'edit')}>
-									<span>{defaultScannerNetworkMode || 'Default (auto-detect)'}</span>
+									<span>{defaultScannerNetworkMode || '{m.settings_general_default_auto()}'}</span>
 								</Select.Trigger>
 								<Select.Content>
-									<Select.Item value="">Default (auto-detect)</Select.Item>
+									<Select.Item value="">{m.settings_general_default_auto()}</Select.Item>
 									<Select.Item value="host">host</Select.Item>
 									<Select.Item value="bridge">bridge</Select.Item>
 									<Select.Item value="none">none</Select.Item>
 								</Select.Content>
 							</Select.Root>
-							<p class="text-xs text-muted-foreground">Override the Docker network mode for vulnerability scanner containers. Use <code class="bg-muted px-1 rounded">host</code> on hosts where the default bridge can't reach the internet (e.g. iptables disabled, SELinux restricted).</p>
+							<p class="text-xs text-muted-foreground">{m.settings_general_network_mode_desc({ mode: "host" })}</p>
 						</div>
 						<div class="space-y-2">
-							<Label for="scanner-dns">DNS servers</Label>
+							<Label for="scanner-dns">{m.settings_general_scanner_dns()}</Label>
 							<Input
 								id="scanner-dns"
 								value={defaultScannerDns.join(', ')}
 								onblur={handleScannerDnsBlur}
 								disabled={!$canAccess('settings', 'edit')}
 							/>
-							<p class="text-xs text-muted-foreground">Comma-separated DNS IPs for scanner containers. Empty = inherit from the Docker daemon.</p>
+							<p class="text-xs text-muted-foreground">{m.settings_general_scanner_dns_desc()}</p>
 						</div>
 					{/if}
 					<div class="pt-2 border-t">
 						<div class="flex items-center justify-between">
 							<div>
-								<p class="text-sm font-medium">Scanner cache</p>
+								<p class="text-sm font-medium">{m.settings_general_scanner_cache()}</p>
 								<p class="text-xs text-muted-foreground">{m.settings_general_scanner_cache_desc()}</p>
 							</div>
 							<Button
@@ -928,8 +928,8 @@ services:
 									</Tooltip.Trigger>
 									<Tooltip.Content class="w-80">
 										<p class="text-xs">
-											<strong>Stream:</strong> Continuous event stream from Docker, instant notifications, higher CPU usage<br />
-											<strong>Poll:</strong> Periodic checks for new events, slight notification delay, lower CPU usage
+											<strong>{m.settings_general_stream_mode()}</strong> {m.settings_general_stream_mode_desc()}<br />
+											<strong>{m.settings_general_poll_mode()}</strong> Periodic checks for new events, slight notification delay, lower CPU usage
 										</p>
 									</Tooltip.Content>
 								</Tooltip.Root>
@@ -1083,7 +1083,7 @@ services:
 					<div class="space-y-1 pt-2 border-t">
 						<div class="flex items-center gap-3">
 							<Label>{m.settings_general_volume_helper_cleanup()}</Label>
-							<Badge variant="secondary" class="text-xs">Always enabled</Badge>
+							<Badge variant="secondary" class="text-xs">{m.settings_general_always_enabled()}</Badge>
 						</div>
 						<p class="text-xs text-muted-foreground">
 							Automatically removes temporary containers used for browsing volume contents.

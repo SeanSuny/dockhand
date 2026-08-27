@@ -3159,5 +3159,14 @@
 	"profile_mfa_backup_file_title": "Dockhand MFA 备用码",
 	"profile_mfa_backup_file_intro": "如果无法访问身份验证器应用，可使用这些备用码登录。",
 	"profile_mfa_backup_file_note": "每个备用码只能使用一次。",
-	"profile_mfa_backup_file_generated": "生成时间："
+	"profile_mfa_backup_file_generated": "生成时间：",
+	"navigation_open_app_on": "启动时打开",
+	"navigation_env_click": "环境点击",
+	"navigation_hint_open": "应用启动时的位置（基于最近使用的环境）。",
+	"navigation_hint_click": "点击环境卡片时跳转的位置。",
+	"navigation_use_global_default": "使用全局默认值",
+	"navigation_global_default_hint": "全局默认值（{defaultPage}）",
+	"navigation_audit_log": "审计日志",
+	"navigation_compose_stacks": "Compose 堆栈",
+	"navigation_save_error": "保存导航偏好失败"
 }

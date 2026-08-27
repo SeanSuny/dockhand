@@ -3159,5 +3159,14 @@
 	"profile_mfa_backup_file_title": "Dockhand MFA Backup Codes",
 	"profile_mfa_backup_file_intro": "These codes can be used to sign in if you lose access to your authenticator app.",
 	"profile_mfa_backup_file_note": "Each code can only be used once.",
-	"profile_mfa_backup_file_generated": "Generated:"
+	"profile_mfa_backup_file_generated": "Generated:",
+	"navigation_open_app_on": "Open the app on",
+	"navigation_env_click": "Environment click",
+	"navigation_hint_open": "Where the app opens (on the last-used environment).",
+	"navigation_hint_click": "Where a tile click goes.",
+	"navigation_use_global_default": "Use global default",
+	"navigation_global_default_hint": "Global default ({defaultPage})",
+	"navigation_audit_log": "Audit log",
+	"navigation_compose_stacks": "Compose stacks",
+	"navigation_save_error": "Failed to save navigation preference"
 }

@@ -2957,5 +2957,9 @@
 	"container_inspect_bind": "bind",
 	"container_inspect_volume": "volume",
 	"container_inspect_ulimit": "软限制={soft} 硬限制={hard}",
-	"common_state_on": "开"
+	"common_state_on": "开",
+	"container_compose_belongs_hint": "此容器已属于堆栈 {stack}。生成的 Compose 是一份全新定义，你可以单独保存或合并到别处。",
+	"container_compose_append": "追加到现有",
+	"container_compose_no_stacks": "无内部堆栈",
+	"container_compose_reviewing_merge": "正在审查合并到 {stack}。高亮的服务是要添加的服务。"
 }

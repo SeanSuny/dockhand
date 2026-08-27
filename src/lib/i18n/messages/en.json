@@ -2957,5 +2957,9 @@
 	"container_inspect_bind": "bind",
 	"container_inspect_volume": "volume",
 	"container_inspect_ulimit": "soft={soft} hard={hard}",
-	"common_state_on": "on"
+	"common_state_on": "on",
+	"container_compose_belongs_hint": "This container already belongs to stack {stack}. The generated compose is a fresh definition you can save separately or merge elsewhere.",
+	"container_compose_append": "Append to existing",
+	"container_compose_no_stacks": "No internal stacks",
+	"container_compose_reviewing_merge": "Reviewing merge into {stack}. The highlighted service is what will be added."
 }

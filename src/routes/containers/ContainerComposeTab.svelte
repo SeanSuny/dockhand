@@ -299,7 +299,7 @@
 		{#if stackProject}
 			<div class="flex items-center gap-2 text-xs rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
 				<Layers class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-				<span>This container already belongs to stack <span class="font-semibold">{stackProject}</span>. The generated compose is a fresh definition you can save separately or merge elsewhere.</span>
+				<span>{m.container_compose_belongs_hint({ stack: stackProject })}</span>
 			</div>
 		{/if}
 
@@ -331,14 +331,14 @@
 			<DropdownMenu.Root bind:open={appendMenuOpen} onOpenChange={(o) => o && loadInternalStacks()}>
 				<DropdownMenu.Trigger>
 					<Button size="sm" variant="outline">
-						<ListPlus class="h-3.5 w-3.5 mr-1.5" /> Append to existing <ChevronDown class="h-3.5 w-3.5 ml-1" />
+						<ListPlus class="h-3.5 w-3.5 mr-1.5" /> {m.container_compose_append()} <ChevronDown class="h-3.5 w-3.5 ml-1" />
 					</Button>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end" class="w-64 max-h-72 overflow-auto">
 					{#if loadingStacks}
 						<div class="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" />{m.common_loading()}</div>
 					{:else if existingStacks.length === 0}
-						<div class="px-2 py-2 text-xs text-muted-foreground">No internal stacks</div>
+						<div class="px-2 py-2 text-xs text-muted-foreground">{m.container_compose_no_stacks()}</div>
 					{:else}
 						{#each existingStacks as s (s.name)}
 							<DropdownMenu.Item
@@ -359,7 +359,7 @@
 		{#if mergedIntoStack}
 			<div class="flex items-center gap-2 text-xs rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
 				<Info class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-				<span class="flex-1">Reviewing merge into <span class="font-semibold">{mergedIntoStack}</span>. The highlighted service is what will be added.</span>
+				<span class="flex-1">{m.container_compose_reviewing_merge({ stack: mergedIntoStack })}</span>
 				<Button variant="ghost" size="sm" onclick={cancelMerge} disabled={merging}>{m.common_cancel()}</Button>
 				<Button size="sm" onclick={saveToExisting} disabled={merging}>
 					{#if merging}<Loader2 class="h-3.5 w-3.5 mr-1.5 animate-spin" />{:else}<Save class="h-3.5 w-3.5 mr-1.5" />{/if}

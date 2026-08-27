@@ -2652,7 +2652,7 @@
 												{#snippet children()}
 													<div class="flex items-center gap-2">
 														<Share2 class="w-3.5 h-3.5 text-emerald-500" />
-														<span>Bridge</span>
+														<span>{m.network_mode_bridge()}</span>
 													</div>
 												{/snippet}
 											</Select.Item>
@@ -2660,7 +2660,7 @@
 												{#snippet children()}
 													<div class="flex items-center gap-2">
 														<Server class="w-3.5 h-3.5 text-sky-500" />
-														<span>Host</span>
+														<span>{m.network_mode_host()}</span>
 													</div>
 												{/snippet}
 											</Select.Item>
@@ -2668,7 +2668,7 @@
 												{#snippet children()}
 													<div class="flex items-center gap-2">
 														<Globe class="w-3.5 h-3.5 text-violet-500" />
-														<span>Overlay</span>
+														<span>{m.network_mode_overlay()}</span>
 													</div>
 												{/snippet}
 											</Select.Item>
@@ -2676,7 +2676,7 @@
 												{#snippet children()}
 													<div class="flex items-center gap-2">
 														<MonitorSmartphone class="w-3.5 h-3.5 text-amber-500" />
-														<span>Macvlan</span>
+														<span>{m.network_mode_macvlan()}</span>
 													</div>
 												{/snippet}
 											</Select.Item>
@@ -2684,7 +2684,7 @@
 												{#snippet children()}
 													<div class="flex items-center gap-2">
 														<Cpu class="w-3.5 h-3.5 text-orange-500" />
-														<span>IPvlan</span>
+														<span>{m.network_mode_ipvlan()}</span>
 													</div>
 												{/snippet}
 											</Select.Item>
@@ -2692,7 +2692,7 @@
 												{#snippet children()}
 													<div class="flex items-center gap-2">
 														<CircleOff class="w-3.5 h-3.5 text-muted-foreground" />
-														<span>None</span>
+														<span>{m.network_mode_none()}</span>
 													</div>
 												{/snippet}
 											</Select.Item>

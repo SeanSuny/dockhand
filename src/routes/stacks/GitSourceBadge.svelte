@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { GitBranch, GitCommitHorizontal } from 'lucide-svelte';
 	import { forgeIcon } from '$lib/utils/git-forge';
@@ -54,7 +55,7 @@ import { effectiveStackBranch } from '$lib/git-stack-branch';
 							<GitBranch class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
 							<span class="text-xs">{effectiveBranch}</span>
 							{#if isPerStackBranch}
-								<span class="text-[10px] text-muted-foreground">(per-stack)</span>
+								<span class="text-[10px] text-muted-foreground">{m.stacks_git_per_stack()}</span>
 							{/if}
 						</div>
 					{/if}

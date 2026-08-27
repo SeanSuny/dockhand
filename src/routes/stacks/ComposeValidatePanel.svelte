@@ -71,7 +71,7 @@
 <div class="cvp">
 	<!-- Header: title + count chips inline -->
 	<div class="cvp-header">
-		<div class="cvp-title">Compose Validate</div>
+		<div class="cvp-title">{m.stacks_compose_validate()}</div>
 		{#if !loading && !error && report}
 			<div class="cvp-chips">
 				{#each ['error', 'warn', 'info'] as const as sev}
@@ -103,8 +103,8 @@
 		{:else if clean}
 			<div class="cvp-center cvp-clean">
 				<div class="cvp-clean-badge"><CheckCircle2 class="h-7 w-7" /></div>
-				<p class="cvp-clean-title">No problems found</p>
-				<p class="cvp-clean-sub">Passes every enabled check.</p>
+				<p class="cvp-clean-title">{m.stacks_no_problems()}</p>
+				<p class="cvp-clean-sub">{m.stacks_all_checks_pass()}</p>
 			</div>
 		{:else}
 			{#each grouped as group (group.sev)}

@@ -3012,5 +3012,22 @@
 	"common_not_set": "Not set",
 	"stacks_update_status_unknown": "Update status unknown — often a Docker Hub rate limit. Try again later.",
 	"stacks_modal_stack_name": "Stack name",
-	"stacks_modal_untracked": "Untracked stack"
+	"stacks_modal_untracked": "Untracked stack",
+	"stacks_git_deploy": "Git deploy",
+	"stacks_git_per_stack": "(per-stack)",
+	"stacks_loading_branches": "Loading branches…",
+	"stacks_use_branch": "Use \"{branch}\"",
+	"common_default": "default",
+	"stacks_compose_validate": "Compose Validate",
+	"stacks_no_problems": "No problems found",
+	"stacks_all_checks_pass": "Passes every enabled check.",
+	"stacks_delete_data_warning": "(data is unrecoverable)",
+	"stacks_delete_files": "Delete files on disk",
+	"stacks_delete_volumes": "Delete named volumes",
+	"network_mode_bridge": "Bridge",
+	"network_mode_host": "Host",
+	"network_mode_ipvlan": "IPvlan",
+	"network_mode_macvlan": "Macvlan",
+	"network_mode_none": "None",
+	"network_mode_overlay": "Overlay"
 }

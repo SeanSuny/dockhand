@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { ChevronDown, Check, GitBranch, Loader2 } from 'lucide-svelte';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
@@ -119,7 +120,7 @@
 				<GitBranch class="h-4 w-4 shrink-0 text-muted-foreground" />
 				{#if loading}
 					<Loader2 class="h-4 w-4 animate-spin" />
-					<span class="text-muted-foreground">Loading branches…</span>
+					<span class="text-muted-foreground">{m.stacks_loading_branches()}</span>
 				{:else}
 					<span class="truncate">{displayValue}</span>
 				{/if}
@@ -132,7 +133,7 @@
 			<Command.Input bind:value={searchQuery} placeholder="Type a branch name…" />
 			<Command.List class="max-h-[300px]">
 				{#if loading}
-					<Command.Empty>Loading branches…</Command.Empty>
+					<Command.Empty>{m.stacks_loading_branches()}</Command.Empty>
 				{:else}
 					{#if clearLabel && onclear && !searchQuery.trim()}
 						<Command.Item value="__repo_default__" onSelect={clearBranch}>
@@ -148,7 +149,7 @@
 									<Check class={cn('mr-2 h-4 w-4 shrink-0', value === branch.name ? 'opacity-100' : 'opacity-0')} />
 									<span class="truncate">{branch.name}</span>
 									{#if defaultBranch && branch.name === defaultBranch}
-										<span class="ml-2 shrink-0 text-[10px] font-medium uppercase tracking-wide text-amber-500">default</span>
+										<span class="ml-2 shrink-0 text-[10px] font-medium uppercase tracking-wide text-amber-500">{m.common_default()}</span>
 									{/if}
 									<span class="ml-auto shrink-0 pl-2 font-mono text-xs text-muted-foreground">{branch.sha}</span>
 								</Command.Item>
@@ -159,7 +160,7 @@
 						<Command.Group heading="Custom">
 							<Command.Item value={freeTextBranch} onSelect={() => selectBranch(freeTextBranch)}>
 								<GitBranch class="mr-2 h-4 w-4" />
-								<span class="truncate">Use "{freeTextBranch}"</span>
+								<span class="truncate">{m.stacks_use_branch({ branch: freeTextBranch })}</span>
 							</Command.Item>
 						</Command.Group>
 					{/if}

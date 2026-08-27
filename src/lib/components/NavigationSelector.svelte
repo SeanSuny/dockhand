@@ -137,11 +137,11 @@ import * as m from '$lib/paraglide/messages';
 				<Select.Trigger class="flex-1 min-w-0">
 					<div class="flex items-center gap-2">
 						{#if isUser && landingPage === null}
-							<span class="text-muted-foreground truncate">m.navigation_global_default_hint({ defaultPage: pageLabel(globalDefaults.landingPage ?? 'dashboard') })</span>
+							<span class="text-muted-foreground truncate">{m.navigation_global_default_hint({ defaultPage: pageLabel(globalDefaults.landingPage ?? 'dashboard') })}</span>
 						{:else}
 							{@const pg = pageOf(landingPage)}
 							<pg.Icon class="w-4 h-4 text-muted-foreground" />
-							<span class="truncate">{pg.label}</span>
+							<span class="truncate">{pg.label()}</span>
 						{/if}
 					</div>
 				</Select.Trigger>
@@ -171,11 +171,11 @@ import * as m from '$lib/paraglide/messages';
 			<Select.Trigger class="w-full">
 				<div class="flex items-center gap-2">
 					{#if isUser && envClickPageV === null}
-						<span class="text-muted-foreground">m.navigation_global_default_hint({ defaultPage: pageLabel(globalDefaults.envClickPage ?? 'containers') })</span>
+							<span class="text-muted-foreground">{m.navigation_global_default_hint({ defaultPage: pageLabel(globalDefaults.envClickPage ?? 'containers') })}</span>
 					{:else}
 						{@const pg = pageOf(envClickPageV ?? 'containers')}
 						<pg.Icon class="w-4 h-4 text-muted-foreground" />
-						<span>{pg.label}</span>
+						<span>{pg.label()}</span>
 					{/if}
 				</div>
 			</Select.Trigger>

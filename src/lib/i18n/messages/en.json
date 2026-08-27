@@ -2710,7 +2710,7 @@
 	"stack_env_vars_clear_title": "Clear all variables?",
 	"stack_env_vars_clear_item": "environment variables",
 	"stack_env_vars_clear_confirm": "Clear all",
-	"stack_env_vars_interpolation_hint": "These variables are available for compose file interpolation using ${VAR_NAME} syntax. To pass them to containers, reference them in the compose file's environment: section.",
+	"stack_env_vars_interpolation_hint": "These variables are available for compose file interpolation using {syntax} syntax. To pass them to containers, reference them in the compose file's environment: section.",
 	"stack_env_vars_required": "required",
 	"stack_env_vars_missing": "{n} missing",
 	"stack_env_vars_defined": "{n} defined",
@@ -3069,5 +3069,6 @@
 	"vulnerability_scan_summary_findings_many": " · {findings} findings",
 	"vulnerability_scan_status_clean": "clean",
 	"vulnerability_scan_status_failed": "failed",
-	"vulnerability_scan_waiting_first": "Waiting for first result…"
+	"vulnerability_scan_waiting_first": "Waiting for first result…",
+	"sidebar_alerts": "Alerts"
 }

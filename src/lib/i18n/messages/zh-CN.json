@@ -2710,7 +2710,7 @@
 	"stack_env_vars_clear_title": "清空所有变量？",
 	"stack_env_vars_clear_item": "环境变量",
 	"stack_env_vars_clear_confirm": "全部清空",
-	"stack_env_vars_interpolation_hint": "这些变量可用于 compose 文件插值，使用 ${VAR_NAME} 语法。要传递给容器，请在 compose 文件的 environment: 小节中引用它们。",
+	"stack_env_vars_interpolation_hint": "这些变量可用于 compose 文件插值，使用 {syntax} 语法。要传递给容器，请在 compose 文件的 environment: 小节中引用它们。",
 	"stack_env_vars_required": "必填",
 	"stack_env_vars_missing": "{n} 缺失",
 	"stack_env_vars_defined": "{n} 已定义",
@@ -3069,5 +3069,6 @@
 	"vulnerability_scan_summary_findings_many": " · {findings} 个发现",
 	"vulnerability_scan_status_clean": "干净",
 	"vulnerability_scan_status_failed": "失败",
-	"vulnerability_scan_waiting_first": "等待首个结果…"
+	"vulnerability_scan_waiting_first": "等待首个结果…",
+	"sidebar_alerts": "告警"
 }

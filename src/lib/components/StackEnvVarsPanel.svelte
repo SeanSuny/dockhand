@@ -446,7 +446,7 @@
 				<div class="flex items-start gap-2 px-2.5 py-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50">
 					<Info class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
 					<p class="text-xs text-blue-700 dark:text-blue-300">
-						These variables are available for {m.stack_env_vars_interpolation_hint()}
+						These variables are available for {m.stack_env_vars_interpolation_hint({ syntax: '${VAR_NAME}' })}
 					</p>
 				</div>
 			{/if}
@@ -461,7 +461,7 @@
 				<div class="flex items-start gap-2 px-2.5 py-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50">
 					<Info class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
 					<p class="text-xs text-blue-700 dark:text-blue-300">
-						{m.stack_env_vars_interpolation_hint()}
+						{m.stack_env_vars_interpolation_hint({ syntax: '${VAR_NAME}' })}
 					</p>
 				</div>
 				<div class="flex items-start gap-2 px-2.5 py-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50">
@@ -477,7 +477,7 @@
 			<div class="flex items-start gap-2 px-2.5 py-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50">
 				<Info class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
 				<p class="text-xs text-blue-700 dark:text-blue-300">
-					{m.stack_env_vars_interpolation_hint()}
+					{m.stack_env_vars_interpolation_hint({ syntax: '${VAR_NAME}' })}
 				</p>
 			</div>
 		{:else if secretCount > 0}

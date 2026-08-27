@@ -2810,5 +2810,13 @@
 	"backups_rotate_failed": "Rotation failed",
 	"backups_rotate_manual_hint": "Open <strong>Edit destination</strong> and manually set the password to the new value so Dockhand can talk to the repository again.",
 	"backups_rotate_in_progress": "Rotating…",
-	"backups_rotate_password_button": "Rotate password"
+	"backups_rotate_password_button": "Rotate password",
+	"backups_all_statuses": "All statuses",
+	"common_id": "ID",
+	"backups_initialized": "Initialized",
+	"backups_loading_destinations": "Loading backup destinations...",
+	"backups_needs_init": "Needs init",
+	"backups_no_snapshots_repo": "No snapshots in this repository.",
+	"backups_not_tested": "Not tested",
+	"backups_missing": "missing"
 }

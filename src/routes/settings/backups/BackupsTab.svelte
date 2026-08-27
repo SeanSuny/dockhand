@@ -544,12 +544,12 @@
 			</div>
 			<Select.Root type="single" value={statusFilter} onValueChange={(v) => statusFilter = (v as typeof statusFilter) ?? 'all'}>
 				<Select.Trigger class="h-8 w-40 text-sm">
-					{statusFilter === 'success' ? 'Initialized' : statusFilter === 'needs_init' ? 'Needs init' : statusFilter === 'failed' ? 'Failed' : 'All statuses'}
+					{statusFilter === 'success' ? '{m.backups_initialized()}' : statusFilter === 'needs_init' ? '{m.backups_needs_init()}' : statusFilter === 'failed' ? 'Failed' : '{m.backups_all_statuses()}'}
 				</Select.Trigger>
 				<Select.Content>
-					<Select.Item value="all">All statuses</Select.Item>
-					<Select.Item value="success"><CheckCircle class="w-3.5 h-3.5 text-green-500 mr-1.5 inline" />Initialized</Select.Item>
-					<Select.Item value="needs_init"><AlertCircle class="w-3.5 h-3.5 text-amber-500 mr-1.5 inline" />Needs init</Select.Item>
+					<Select.Item value="all">{m.backups_all_statuses()}</Select.Item>
+					<Select.Item value="success"><CheckCircle class="w-3.5 h-3.5 text-green-500 mr-1.5 inline" />{m.backups_initialized()}</Select.Item>
+					<Select.Item value="needs_init"><AlertCircle class="w-3.5 h-3.5 text-amber-500 mr-1.5 inline" />{m.backups_needs_init()}</Select.Item>
 					<Select.Item value="failed"><XCircle class="w-3.5 h-3.5 text-destructive mr-1.5 inline" />{m.common_failed()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
@@ -573,7 +573,7 @@
 	</div>
 
 	{#if loading && destinations.length === 0}
-		<p class="text-muted-foreground text-sm">Loading backup destinations...</p>
+		<p class="text-muted-foreground text-sm">{m.backups_loading_destinations()}</p>
 	{:else if destinations.length === 0}
 		<EmptyState
 			icon={Archive as unknown as Component}
@@ -635,12 +635,12 @@
 					{#if dest.lastTestStatus === 'success'}
 						<div class="flex items-center gap-1.5">
 							<CheckCircle class="w-3.5 h-3.5 text-green-500" />
-							<span class="text-xs text-green-600 dark:text-green-400">Initialized</span>
+							<span class="text-xs text-green-600 dark:text-green-400">{m.backups_initialized()}</span>
 						</div>
 					{:else if dest.lastTestStatus === 'needs_init'}
 						<div class="flex items-center gap-1.5">
 							<AlertCircle class="w-3.5 h-3.5 text-amber-500" />
-							<span class="text-xs text-amber-600 dark:text-amber-400">Needs init</span>
+							<span class="text-xs text-amber-600 dark:text-amber-400">{m.backups_needs_init()}</span>
 						</div>
 					{:else if dest.lastTestStatus === 'failed'}
 						<Tooltip.Root>
@@ -662,7 +662,7 @@
 					{:else}
 						<div class="flex items-center gap-1.5">
 							<AlertCircle class="w-3.5 h-3.5 text-muted-foreground" />
-							<span class="text-xs text-muted-foreground">Not tested</span>
+							<span class="text-xs text-muted-foreground">{m.backups_not_tested()}</span>
 						</div>
 					{/if}
 				{:else if column.id === 'actions'}
@@ -781,7 +781,7 @@
 			{#if browseLoading}
 				<LoadingState class="h-full" label="Loading snapshots..." />
 			{:else if browseSnapshots.length === 0}
-				<div class="flex h-full items-center justify-center"><p class="text-sm text-muted-foreground">No snapshots in this repository.</p></div>
+				<div class="flex h-full items-center justify-center"><p class="text-sm text-muted-foreground">{m.backups_no_snapshots_repo()}</p></div>
 			{:else}
 				<DataGrid
 					data={browseGroups}
@@ -815,13 +815,13 @@
 								{/if}
 							</div>
 						{:else if column.id === 'environment'}
-							{#if group.env && !('missing' in group.env)}
+							{#if group.env && !('{m.backups_missing()}' in group.env)}
 								<span class="inline-flex items-center gap-1.5 text-xs truncate">
 									<EnvironmentIcon icon={group.env.icon} envId={group.env.id} class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
 									<span class="truncate">{group.env.name}</span>
 								</span>
 							{:else if group.env}
-								<Badge variant="secondary" class="text-2xs font-normal text-muted-foreground">missing</Badge>
+								<Badge variant="secondary" class="text-2xs font-normal text-muted-foreground">{m.backups_missing()}</Badge>
 							{:else}
 								<span class="text-xs text-muted-foreground">—</span>
 							{/if}
@@ -842,7 +842,7 @@
 								<Table.Root>
 									<Table.Header class="sticky top-0 z-10 bg-background">
 										<Table.Row>
-											<Table.Head class="w-28 py-1.5 text-xs" style="padding-left:8px">ID</Table.Head>
+											<Table.Head class="w-28 py-1.5 text-xs" style="padding-left:8px">{m.common_id()}</Table.Head>
 											<Table.Head class="py-1.5 text-xs" style="padding-left:8px">{m.status_created()}</Table.Head>
 											<Table.Head class="w-16 py-1.5 text-xs text-right" style="padding-right:8px">{m.templates_tab_browse()}</Table.Head>
 										</Table.Row>

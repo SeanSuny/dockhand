@@ -2810,5 +2810,13 @@
 	"backups_rotate_failed": "轮换失败",
 	"backups_rotate_manual_hint": "打开<strong>编辑目标</strong>，手动将密码设为最新值，以便 Dockhand 重新连接该仓库。",
 	"backups_rotate_in_progress": "轮换中…",
-	"backups_rotate_password_button": "轮换密码"
+	"backups_rotate_password_button": "轮换密码",
+	"backups_all_statuses": "全部状态",
+	"common_id": "ID",
+	"backups_initialized": "已初始化",
+	"backups_loading_destinations": "正在加载备份目标...",
+	"backups_needs_init": "需要初始化",
+	"backups_no_snapshots_repo": "此仓库中没有快照。",
+	"backups_not_tested": "未测试",
+	"backups_missing": "缺失"
 }

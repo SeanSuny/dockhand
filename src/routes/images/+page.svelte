@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Images - Dockhand</title>
+	<title>{m.images_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">
@@ -993,10 +993,10 @@
 						<span class="text-muted-foreground">{m.common_all()}</span>
 					{:else if usageFilter === 'in-use'}
 						<CircleDot class="w-3.5 h-3.5 mr-1.5 text-emerald-500 shrink-0" />
-						<span>In use</span>
+						<span>{m.images_filter_in_use()}</span>
 					{:else if usageFilter === 'some-unused'}
 						<CircleDot class="w-3.5 h-3.5 mr-1.5 text-amber-500 shrink-0" />
-						<span>Some unused</span>
+						<span>{m.images_some_unused()}</span>
 					{:else}
 						<Circle class="w-3.5 h-3.5 mr-1.5 text-muted-foreground shrink-0" />
 						<span>{m.images_filter_unused()}</span>
@@ -1182,7 +1182,7 @@
 	<div class="shrink-0">
 		{#if selectedImages.size > 0}
 			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
-			<span>{selectedInFilter.length} selected</span>
+			<span>{m.common_x_selected({ n: selectedInFilter.length })}</span>
 			<button
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
@@ -1628,7 +1628,7 @@
 		</Dialog.Header>
 		<div class="py-4 space-y-4">
 			<div>
-				<Label for="tagRepo">Repository name</Label>
+				<Label for="tagRepo">{m.images_repository_name()}</Label>
 				<Input
 					id="tagRepo"
 					bind:value={tagNewRepo}

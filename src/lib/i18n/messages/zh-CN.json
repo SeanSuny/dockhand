@@ -3000,5 +3000,9 @@
 	"containers_create_scan_images_hint": "在“设置 -> 环境”中启用，以扫描镜像。",
 	"common_unsaved_changes": "未保存的更改",
 	"container_edit_stack_warning": "此容器属于 {stack} 堆栈。重新部署堆栈时，这些更改可能会被覆盖。",
-	"container_edit_rename_warning": "此容器属于 {stack} 堆栈。重命名可能会影响堆栈管理。"
+	"container_edit_rename_warning": "此容器属于 {stack} 堆栈。重命名可能会影响堆栈管理。",
+	"images_page_title": "镜像 - Dockhand",
+	"images_repository_name": "仓库名",
+	"images_some_unused": "部分未使用",
+	"common_x_selected": "已选择 {n}"
 }

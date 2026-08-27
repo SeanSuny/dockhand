@@ -3000,5 +3000,9 @@
 	"containers_create_scan_images_hint": "Enable it in Settings -> Environments to scan images.",
 	"common_unsaved_changes": "Unsaved changes",
 	"container_edit_stack_warning": "This container is part of the {stack} compose stack. Changes may be overwritten when the stack is redeployed.",
-	"container_edit_rename_warning": "This container is part of the {stack} compose stack. Renaming it may cause issues with stack management."
+	"container_edit_rename_warning": "This container is part of the {stack} compose stack. Renaming it may cause issues with stack management.",
+	"images_page_title": "Images - Dockhand",
+	"images_repository_name": "Repository name",
+	"images_some_unused": "Some unused",
+	"common_x_selected": "{n} selected"
 }

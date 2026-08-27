@@ -579,7 +579,7 @@
 			<Dialog.Title class="text-base font-semibold">
 				Create new container
 				{#if $currentEnvironment}
-					<span class="font-semibold">on <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
+					<span class="font-semibold">{m.common_state_on()} <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
 				{/if}
 			</Dialog.Title>
 			<button
@@ -678,7 +678,7 @@
 					<div class="text-center">
 						<Shield class="w-12 h-12 text-muted-foreground/50 mx-auto mb-2" />
 						<p class="text-sm text-muted-foreground">{m.container_create_scan_disabled()}</p>
-						<p class="text-xs text-muted-foreground mt-1">Enable it in Settings -> Environments to scan images.</p>
+						<p class="text-xs text-muted-foreground mt-1">{m.containers_create_scan_images_hint()}</p>
 					</div>
 				</div>
 			{/if}

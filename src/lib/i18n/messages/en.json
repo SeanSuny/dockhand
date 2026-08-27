@@ -2996,5 +2996,6 @@
 	"backups_webhook_hooks": "Webhook hooks",
 	"backups_schedule_yearly": "Yearly",
 	"backups_cancelling": "Cancelling…",
-	"backups_cancel_backup": "Cancel backup"
+	"backups_cancel_backup": "Cancel backup",
+	"containers_create_scan_images_hint": "Enable it in Settings -> Environments to scan images."
 }

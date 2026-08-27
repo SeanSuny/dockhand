@@ -2996,5 +2996,6 @@
 	"backups_webhook_hooks": "Webhook 钩子",
 	"backups_schedule_yearly": "每年",
 	"backups_cancelling": "正在取消…",
-	"backups_cancel_backup": "取消备份"
+	"backups_cancel_backup": "取消备份",
+	"containers_create_scan_images_hint": "在“设置 -> 环境”中启用，以扫描镜像。"
 }

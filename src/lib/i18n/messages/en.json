@@ -3041,5 +3041,12 @@
 	"alerts_coming_soon": "Alert configuration coming soon",
 	"templates_page_title": "Templates - Dockhand",
 	"volumes_filter_in_use": "In use",
-	"volumes_filter_unused": "Unused"
+	"volumes_filter_unused": "Unused",
+	"vulnerabilities_images_scanned": "Images scanned: {scanned}/{total}",
+	"vulnerabilities_total": "Total: {total}",
+	"vulnerabilities_no_scanner": "No vulnerability scanner is configured for this environment.",
+	"vulnerabilities_configure_scanner": "Configure a scanner in settings",
+	"vulnerabilities_none_found": "No vulnerabilities found.",
+	"vulnerabilities_scan_hint": "Click \"Scan all images\" to populate this view.",
+	"vulnerabilities_no_fix": "No fix"
 }

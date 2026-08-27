@@ -3041,5 +3041,12 @@
 	"alerts_coming_soon": "告警配置即将推出",
 	"templates_page_title": "模板 - Dockhand",
 	"volumes_filter_in_use": "使用中",
-	"volumes_filter_unused": "未使用"
+	"volumes_filter_unused": "未使用",
+	"vulnerabilities_images_scanned": "已扫描镜像：{scanned}/{total}",
+	"vulnerabilities_total": "总计：{total}",
+	"vulnerabilities_no_scanner": "此环境未配置漏洞扫描器。",
+	"vulnerabilities_configure_scanner": "去设置中配置扫描器",
+	"vulnerabilities_none_found": "未发现漏洞。",
+	"vulnerabilities_scan_hint": "点击“扫描所有镜像”以填充此视图。",
+	"vulnerabilities_no_fix": "无修复"
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Label } from '$lib/components/ui/label';
@@ -31,17 +32,17 @@
 
 	async function changePassword() {
 		if (!currentPassword || !newPassword) {
-			error = 'All fields are required';
+			error = m.profile_change_password_error_required();
 			return;
 		}
 
 		if (newPassword !== newPasswordRepeat) {
-			error = 'Passwords do not match';
+			error = m.profile_change_password_error_mismatch();
 			return;
 		}
 
 		if (newPassword.length < 8) {
-			error = 'Password must be at least 8 characters';
+			error = m.profile_change_password_error_min_length();
 			return;
 		}
 
@@ -59,14 +60,14 @@
 			});
 
 			if (response.ok) {
-				onSuccess('Password changed successfully');
+				onSuccess(m.profile_change_password_success());
 				onClose();
 			} else {
 				const data = await response.json();
-				error = data.error || 'Failed to change password';
+				error = data.error || m.profile_change_password_error_failed();
 			}
 		} catch (e) {
-			error = 'Failed to change password';
+			error = m.profile_change_password_error_failed();
 		} finally {
 			saving = false;
 		}
@@ -79,7 +80,7 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<Key class="w-5 h-5" />
-				Change password
+				{m.profile_change_password_title()}
 			</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4">
@@ -90,43 +91,43 @@
 				</Alert.Root>
 			{/if}
 			<div class="space-y-2">
-				<Label>Current password</Label>
+				<Label>{m.profile_change_password_current_label()}</Label>
 				<Input
 					type="password"
 					bind:value={currentPassword}
-					placeholder="Enter current password"
+					placeholder={m.profile_change_password_current_placeholder()}
 					autocomplete="current-password"
 				/>
 			</div>
 			<div class="space-y-2">
-				<Label>New password</Label>
+				<Label>{m.profile_change_password_new_label()}</Label>
 				<Input
 					type="password"
 					bind:value={newPassword}
-					placeholder="Enter new password"
+					placeholder={m.profile_change_password_new_placeholder()}
 					autocomplete="new-password"
 				/>
 				<PasswordStrengthIndicator password={newPassword} />
 			</div>
 			<div class="space-y-2">
-				<Label>Repeat new password</Label>
+				<Label>{m.profile_change_password_repeat_label()}</Label>
 				<Input
 					type="password"
 					bind:value={newPasswordRepeat}
-					placeholder="Repeat new password"
+					placeholder={m.profile_change_password_repeat_placeholder()}
 					autocomplete="new-password"
 				/>
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={onClose}>Cancel</Button>
+			<Button variant="outline" onclick={onClose}>{m.common_cancel()}</Button>
 			<Button onclick={changePassword} disabled={saving}>
 				{#if saving}
 					<RefreshCw class="w-4 h-4 animate-spin" />
 				{:else}
 					<Check class="w-4 h-4" />
 				{/if}
-				Change password
+				{m.profile_change_password_title()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -3070,5 +3070,18 @@
 	"vulnerability_scan_status_clean": "clean",
 	"vulnerability_scan_status_failed": "failed",
 	"vulnerability_scan_waiting_first": "Waiting for first result…",
-	"sidebar_alerts": "Alerts"
+	"sidebar_alerts": "Alerts",
+	"notifications_tab_title": "Notification channels",
+	"notifications_tab_description": "Configure notification channels to receive alerts about Docker events. Supports SMTP email and webhook URLs (Discord, Slack, Telegram, ntfy, Bark, Signal, Zabbix, Apprise, and more).",
+	"notifications_count": "{n} channels",
+	"notifications_add_channel": "Add channel",
+	"notifications_loading": "Loading notification channels...",
+	"notifications_none": "No notification channels configured",
+	"notifications_empty_title": "No notification channels configured",
+	"notifications_empty_desc": "Add a channel to start receiving alerts about Docker events",
+	"notifications_count_one": "{n} channel",
+	"notifications_count_many": "{n} channels",
+	"notifications_enabled": "Enabled",
+	"notifications_disabled": "Disabled",
+	"notifications_smtp_label": "SMTP"
 }

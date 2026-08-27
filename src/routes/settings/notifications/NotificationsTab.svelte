@@ -132,10 +132,8 @@
 			<div class="flex items-start gap-3">
 				<Bell class="w-5 h-5 text-muted-foreground mt-0.5" />
 				<div>
-					<p class="text-sm font-medium">Notification channels</p>
-					<p class="text-xs text-muted-foreground mt-1">
-						Configure notification channels to receive alerts about Docker events. Supports SMTP email and webhook URLs (Discord, Slack, Telegram, ntfy, Bark, Signal, Zabbix, Apprise, and more).
-					</p>
+					<p class="text-sm font-medium">{m.notifications_tab_title()}</p>
+					<p class="text-xs text-muted-foreground mt-1">{m.notifications_tab_description()}</p>
 					<p class="text-xs text-amber-600 dark:text-amber-500 mt-2 flex items-center gap-1">
 						<Info class="w-3 h-3" />{m.settings_notif_per_env_hint()}</p>
 				</div>
@@ -151,7 +149,7 @@
 			{#if $canAccess('notifications', 'create')}
 				<Button size="sm" onclick={() => openNotifModal()}>
 					<Plus class="w-4 h-4" />
-					Add channel
+					{m.notifications_add_channel()}
 				</Button>
 			{/if}
 			<Button size="sm" variant="outline" onclick={fetchNotifications}>{m.common_refresh()}</Button>
@@ -163,8 +161,8 @@
 	{:else if notifications.length === 0}
 		<EmptyState
 			icon={Bell}
-			title="No notification channels configured"
-			description="Add a channel to start receiving alerts about Docker events"
+			title={m.notifications_empty_title()}
+			description={m.notifications_empty_desc()}
 		/>
 	{:else}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -188,7 +186,7 @@
 								/>
 							{:else}
 								<Badge variant={notif.enabled ? 'default' : 'secondary'} class="text-xs">
-									{notif.enabled ? 'Enabled' : 'Disabled'}
+									{notif.enabled ? m.notifications_enabled() : m.notifications_disabled()}
 								</Badge>
 							{/if}
 						</div>
@@ -196,7 +194,7 @@
 					<Card.Content class="space-y-3">
 						<div class="text-sm text-muted-foreground">
 							{#if notif.type === 'smtp'}
-								<span>SMTP: {notif.config.host}:{notif.config.port}</span>
+								<span>{m.notifications_smtp_label()}: {notif.config.host}:{notif.config.port}</span>
 							{:else}
 								<span>Webhook: {notif.config.urls?.length || 0} URL{notif.config.urls?.length === 1 ? '' : 's'}</span>
 							{/if}

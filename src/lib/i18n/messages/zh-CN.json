@@ -3070,5 +3070,18 @@
 	"vulnerability_scan_status_clean": "干净",
 	"vulnerability_scan_status_failed": "失败",
 	"vulnerability_scan_waiting_first": "等待首个结果…",
-	"sidebar_alerts": "告警"
+	"sidebar_alerts": "告警",
+	"notifications_tab_title": "通知渠道",
+	"notifications_tab_description": "配置通知渠道以接收 Docker 事件告警。支持 SMTP 邮件与 Webhook URL（Discord、Slack、Telegram、ntfy、Bark、Signal、Zabbix、Apprise 等）。",
+	"notifications_count": "{n} 个渠道",
+	"notifications_add_channel": "添加渠道",
+	"notifications_loading": "正在加载通知渠道...",
+	"notifications_none": "未配置通知渠道",
+	"notifications_empty_title": "未配置通知渠道",
+	"notifications_empty_desc": "添加渠道以开始接收 Docker 事件告警",
+	"notifications_count_one": "{n} 个渠道",
+	"notifications_count_many": "{n} 个渠道",
+	"notifications_enabled": "已启用",
+	"notifications_disabled": "已禁用",
+	"notifications_smtp_label": "SMTP"
 }

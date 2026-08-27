@@ -565,7 +565,7 @@
 		{#if selectedBackend.value === 'local'}
 			<div class="flex items-start gap-2 p-2.5 mt-4 rounded-md bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400">
 				<HardDrive class="w-3.5 h-3.5 shrink-0 mt-0.5" />
-				<span>Local path repositories work on the local Docker host, or a co-located socket-proxy on that same host. For remote hosts, use S3, REST, or another remote backend.</span>
+				<span>{m.backups_dest_local_path_hint()}</span>
 			</div>
 		{/if}
 		<div class="grid grid-cols-2 gap-6 py-4">
@@ -577,7 +577,7 @@
 				</div>
 
 				<div class="space-y-2">
-					<Label>Backend type</Label>
+					<Label>{m.backups_dest_backend_type()}</Label>
 					<Select.Root type="single" value={formBackendType} onValueChange={handleBackendChange}>
 						<Select.Trigger class="w-full">
 							<span class="flex items-center gap-2">
@@ -612,14 +612,14 @@
 									placeholder="e.g. eu-north-1"
 									class="flex-1"
 								/>
-								<!-- Quick-pick of AWS regions: fills the region AND the regional
+								<!-- Quick-pick of {m.backups_dest_aws_regions()}: fills the region AND the regional
 								     endpoint so AWS users don't have to know the URL. -->
 								<Select.Root type="single" value={formFields.region ?? ''} onValueChange={(v) => {
 									if (!v) return;
 									formFields.region = v;
 									formFields.endpoint = regionalEndpoint(v);
 								}}>
-									<Select.Trigger class="w-36 shrink-0" aria-label="AWS regions quick pick">AWS regions</Select.Trigger>
+									<Select.Trigger class="w-36 shrink-0" aria-label="{m.backups_dest_aws_regions()} quick pick">{m.backups_dest_aws_regions()}</Select.Trigger>
 									<Select.Content class="max-h-64">
 										{#each AWS_REGIONS as r}
 											<Select.Item value={r}>{r}</Select.Item>
@@ -696,39 +696,39 @@
 					<FieldLabel label="Encryption password" forId="dest-password" required={!isEditing} />
 					<div class="flex gap-1.5">
 						<Input id="dest-password" type="password" bind:value={formPassword} placeholder={isEditing ? '(leave blank to keep current)' : ''} class="flex-1" />
-						<Button variant="outline" size="sm" class="h-9 px-2 shrink-0" onclick={generatePassword} title="Generate strong password">
+						<Button variant="outline" size="sm" class="h-9 px-2 shrink-0" onclick={generatePassword} title={m.backups_dest_generate_password_title()}>
 							{#if generatedOk}<Check class="w-3.5 h-3.5 text-green-500" />{:else}<Dices class="w-3.5 h-3.5" />{/if}
 						</Button>
 						{#if formPassword}
-							<Button variant="outline" size="sm" class="h-9 px-2 shrink-0" onclick={copyPassword} title="Copy password">
+							<Button variant="outline" size="sm" class="h-9 px-2 shrink-0" onclick={copyPassword} title={m.backups_dest_copy_password_title()}>
 								{#if copiedOk}<Check class="w-3.5 h-3.5 text-green-500" />{:else}<Copy class="w-3.5 h-3.5" />{/if}
 							</Button>
 						{/if}
 					</div>
-					<p class="text-xs text-muted-foreground">Restic encrypts all data with this password. You will need it to restore.</p>
+					<p class="text-xs text-muted-foreground">{m.backups_dest_password_desc()}</p>
 				</div>
 
 				<div class="space-y-2">
-					<Label for="dest-backup-flags">Extra backup flags</Label>
+					<Label for="dest-backup-flags">{m.backups_dest_extra_backup_flags()}</Label>
 					<Input id="dest-backup-flags" bind:value={formBackupFlags} />
 					<div class="text-xs text-muted-foreground space-y-0.5">
-						<p>Applied to backups. Common flags:</p>
+						<p>{m.backups_dest_common_backup_flags()}</p>
 						<div class="flex flex-wrap gap-x-3 gap-y-0.5 font-mono">
-							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --limit-upload 5120').trim(); }} title="Limit upload speed to 5 MB/s">--limit-upload</span>
-							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --limit-download 10240').trim(); }} title="Limit download speed to 10 MB/s">--limit-download</span>
-							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --verbose').trim(); }} title="Verbose output">--verbose</span>
-							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --compression max').trim(); }} title="Maximum compression">--compression max</span>
+							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --limit-upload 5120').trim(); }} title={m.backups_dest_limit_upload_title()}>--limit-upload</span>
+							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --limit-download 10240').trim(); }} title={m.backups_dest_limit_download_title()}>--limit-download</span>
+							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --verbose').trim(); }} title={m.backups_dest_verbose_title()}>--verbose</span>
+							<span class="cursor-pointer hover:text-foreground" onclick={() => { formBackupFlags = (formBackupFlags + ' --compression max').trim(); }} title={m.backups_dest_compression_title()}>--compression max</span>
 						</div>
 					</div>
 				</div>
 
 				<div class="space-y-2">
-					<Label for="dest-restore-flags">Extra restore flags</Label>
+					<Label for="dest-restore-flags">{m.backups_dest_extra_restore_flags()}</Label>
 					<Input id="dest-restore-flags" bind:value={formRestoreFlags} />
 					<div class="text-xs text-muted-foreground space-y-0.5">
-						<p>Applied only to restores. Common flags:</p>
+						<p>{m.backups_dest_common_restore_flags()}</p>
 						<div class="flex flex-wrap gap-x-3 gap-y-0.5 font-mono">
-							<span class="cursor-pointer hover:text-foreground" onclick={() => { formRestoreFlags = (formRestoreFlags + ' --exclude-xattr security.selinux').trim(); }} title="Skip the SELinux xattr the helper can't remove on a cross-distro restore (e.g. Ubuntu -> Fedora)">--exclude-xattr security.selinux</span>
+							<span class="cursor-pointer hover:text-foreground" onclick={() => { formRestoreFlags = (formRestoreFlags + ' --exclude-xattr security.selinux').trim(); }} title={m.backups_dest_exclude_xattr_title()}>--exclude-xattr security.selinux</span>
 						</div>
 					</div>
 				</div>
@@ -741,14 +741,14 @@
 		     there. Optional; blank = use the system trust store. PEM content, uploaded or pasted. -->
 		{#if showTlsSection}
 		<div class="border-t pt-3 mt-2 space-y-3">
-			<span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">TLS certificates (optional)</span>
+			<span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{m.backups_dest_tls_certificates()}</span>
 			<p class="text-xs text-muted-foreground -mt-1">
 				For a backend served over HTTPS with a private/self-signed CA. Leave blank to use the system trust store.
 			</p>
 			<div class="grid grid-cols-2 gap-6">
 				<div class="space-y-1">
 					<div class="flex items-center justify-between">
-						<Label for="dest-cacert">CA certificate</Label>
+						<Label for="dest-cacert">{m.backups_dest_ca_certificate()}</Label>
 						<div class="flex gap-1">
 							{#if isEditing && hadCacert && !formCacert}
 								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadCacert = false; }}>{m.containers_clear_selection()}</Button>
@@ -763,14 +763,14 @@
 						id="dest-cacert"
 						rows={4}
 						bind:value={formCacert}
-						placeholder={isEditing && hadCacert ? '(a CA certificate is stored - leave blank to keep it)' : '-----BEGIN CERTIFICATE-----'}
+						placeholder={isEditing && hadCacert ? '(a {m.backups_dest_ca_certificate()} is stored - leave blank to keep it)' : '-----BEGIN CERTIFICATE-----'}
 						class="field-sizing-fixed max-h-40 resize-y overflow-auto font-mono text-xs"
 					/>
-					<p class="text-xs text-muted-foreground">Verifies the backend's TLS certificate (restic <code class="font-mono">RESTIC_CACERT</code>).</p>
+					<p class="text-xs text-muted-foreground">{m.backups_dest_tls_cacert_desc()}</p>
 				</div>
 				<div class="space-y-1">
 					<div class="flex items-center justify-between">
-						<Label for="dest-client-cert">Client certificate (mTLS)</Label>
+						<Label for="dest-client-cert">{m.backups_dest_client_certificate()}</Label>
 						<div class="flex gap-1">
 							{#if isEditing && hadTlsClientCert && !formTlsClientCert}
 								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadTlsClientCert = false; }}>{m.containers_clear_selection()}</Button>
@@ -788,7 +788,7 @@
 						placeholder={isEditing && hadTlsClientCert ? '(a client certificate is stored - leave blank to keep it)' : 'certificate + private key in one PEM'}
 						class="field-sizing-fixed max-h-40 resize-y overflow-auto font-mono text-xs"
 					/>
-					<p class="text-xs text-muted-foreground">Certificate + key in one PEM for mutual TLS (restic <code class="font-mono">RESTIC_TLS_CLIENT_CERT</code>).</p>
+					<p class="text-xs text-muted-foreground">{m.backups_dest_tls_client_cert_desc()}</p>
 				</div>
 			</div>
 		</div>
@@ -797,17 +797,17 @@
 
 		<!-- Policies section -->
 		<div class="border-t pt-3 mt-2 space-y-3">
-			<span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Repository policies</span>
+			<span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{m.backups_dest_repo_policies()}</span>
 
 			<!-- Prune policy -->
 			<div class="space-y-1.5">
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-1.5">
 						<Clock class="w-3.5 h-3.5 text-muted-foreground" />
-						<Label class="text-sm">Scheduled prune</Label>
+						<Label class="text-sm">{m.backups_dest_scheduled_prune()}</Label>
 						<Tooltip.Provider delayDuration={200}>
 							<Tooltip.Root><Tooltip.Trigger><CircleHelp class="w-3 h-3 text-muted-foreground/50 cursor-help" /></Tooltip.Trigger>
-								<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">Removes unreferenced data from the repository. Frees disk space after snapshots are forgotten. Run monthly for most repos.</Tooltip.Content></Tooltip.Portal>
+								<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">{m.backups_dest_prune_desc()}</Tooltip.Content></Tooltip.Portal>
 							</Tooltip.Root>
 						</Tooltip.Provider>
 					</div>
@@ -817,7 +817,7 @@
 					<div class="pl-5 space-y-2">
 						<CronEditor value={policyPruneSchedule} onchange={(v) => policyPruneSchedule = v} />
 						<div class="flex items-center gap-2">
-							<label class="text-xs text-muted-foreground">Max unused %</label>
+							<label class="text-xs text-muted-foreground">{m.backups_dest_max_unused_percent()}</label>
 							<Input bind:value={policyPruneMaxUnused} type="number" min="0" max="100" class="h-8 text-xs w-20" />
 						</div>
 					</div>
@@ -829,10 +829,10 @@
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-1.5">
 						<PackageCheck class="w-3.5 h-3.5 text-muted-foreground" />
-						<Label class="text-sm">Scheduled integrity check</Label>
+						<Label class="text-sm">{m.backups_dest_scheduled_integrity_check()}</Label>
 						<Tooltip.Provider delayDuration={200}>
 							<Tooltip.Root><Tooltip.Trigger><CircleHelp class="w-3 h-3 text-muted-foreground/50 cursor-help" /></Tooltip.Trigger>
-								<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">Verifies the structure and integrity of the repository. Detects corruption or missing data. Run monthly or after storage issues.</Tooltip.Content></Tooltip.Portal>
+								<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">{m.backups_dest_integrity_check_desc()}</Tooltip.Content></Tooltip.Portal>
 							</Tooltip.Root>
 						</Tooltip.Provider>
 					</div>
@@ -850,10 +850,10 @@
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-1.5">
 						<FolderCheck class="w-3.5 h-3.5 text-muted-foreground" />
-						<Label class="text-sm">Scheduled data verification</Label>
+						<Label class="text-sm">{m.backups_dest_scheduled_data_verification()}</Label>
 						<Tooltip.Provider delayDuration={200}>
 							<Tooltip.Root><Tooltip.Trigger><CircleHelp class="w-3 h-3 text-muted-foreground/50 cursor-help" /></Tooltip.Trigger>
-								<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">Reads a random subset of data packs to verify they're readable and intact. Catches bit rot and storage corruption. Slower and uses bandwidth on cloud repos. Off by default.</Tooltip.Content></Tooltip.Portal>
+								<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">{m.backups_dest_data_verification_desc()}</Tooltip.Content></Tooltip.Portal>
 							</Tooltip.Root>
 						</Tooltip.Provider>
 					</div>
@@ -863,7 +863,7 @@
 					<div class="pl-5 space-y-2">
 						<CronEditor value={policyVerifySchedule} onchange={(v) => policyVerifySchedule = v} />
 						<div class="flex items-center gap-2">
-							<label class="text-xs text-muted-foreground">Data %</label>
+							<label class="text-xs text-muted-foreground">{m.backups_dest_data_percent()}</label>
 							<Select.Root type="single" value={policyVerifyDataSubset} onValueChange={(v) => policyVerifyDataSubset = v}>
 								<Select.Trigger class="h-8 w-20 text-xs">{policyVerifyDataSubset}</Select.Trigger>
 								<Select.Content>
@@ -883,10 +883,10 @@
 			<div class="flex items-center gap-3">
 				<div class="flex items-center gap-1.5">
 					<Unlock class="w-3.5 h-3.5 text-muted-foreground" />
-					<Label class="text-sm">Auto-unlock stale locks</Label>
+					<Label class="text-sm">{m.backups_dest_auto_unlock()}</Label>
 					<Tooltip.Provider delayDuration={200}>
 						<Tooltip.Root><Tooltip.Trigger><CircleHelp class="w-3 h-3 text-muted-foreground/50 cursor-help" /></Tooltip.Trigger>
-							<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">Automatically removes stale repository locks before prune and check operations. Locks can be left behind by interrupted or crashed backups.</Tooltip.Content></Tooltip.Portal>
+							<Tooltip.Portal><Tooltip.Content side="right" class="!w-64 text-xs">{m.backups_dest_auto_unlock_desc()}</Tooltip.Content></Tooltip.Portal>
 						</Tooltip.Root>
 					</Tooltip.Provider>
 				</div>
@@ -899,7 +899,7 @@
 			<div class="border-t pt-3 mt-2">
 				<div class="flex items-center gap-2 mb-2">
 					<BarChart3 class="w-3.5 h-3.5 text-muted-foreground" />
-					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Repository usage</span>
+					<span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{m.backups_dest_repo_usage()}</span>
 					{#if loadingStats}
 						<Loader2 class="w-3 h-3 animate-spin text-muted-foreground" />
 					{/if}
@@ -916,7 +916,7 @@
 						</div>
 						<div class="bg-muted/30 rounded px-2 py-1.5 text-center border border-border/30">
 							<div class="text-sm font-semibold">{repoStats.snapshots}</div>
-							<div class="text-[9px] text-muted-foreground">Snapshots</div>
+							<div class="text-[9px] text-muted-foreground">{m.backups_snapshots()}</div>
 						</div>
 					</div>
 					<!-- Usage bar -->
@@ -924,10 +924,10 @@
 						<div class="h-2 bg-muted rounded-full overflow-hidden">
 							<div class="h-full bg-primary/60 rounded-full transition-all" style="width: {Math.min(100, (repoStats.totalSize / (1024 * 1024 * 1024)) * 10)}%"></div>
 						</div>
-						<p class="text-[10px] text-muted-foreground mt-1">{repoStats.snapshots} snapshots across {repoStats.totalFiles.toLocaleString()} files</p>
+						<p class="text-[10px] text-muted-foreground mt-1">{m.backups_dest_repo_usage_desc({ snapshots: repoStats.snapshots, files: repoStats.totalFiles.toLocaleString() })}</p>
 					{/if}
 				{:else if !loadingStats}
-					<p class="text-xs text-muted-foreground">Loading repository stats...</p>
+					<p class="text-xs text-muted-foreground">{m.backups_dest_loading_stats()}</p>
 				{/if}
 			</div>
 		{/if}
@@ -939,7 +939,7 @@
 				<span>
 					This repository is already used by <span class="font-medium">"{repoConflictName}"</span>.
 					Backups to a shared repository run one at a time (restic locks the repo), not in parallel.
-					Click <span class="font-medium">Save anyway</span> to continue.
+					Click <span class="font-medium">{m.backups_dest_save_anyway()}</span> to continue.
 				</span>
 			</div>
 		{/if}
@@ -969,7 +969,7 @@
 			<Button variant="outline" onclick={() => { open = false; onClose(); }}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving || !formValid} variant={repoConflictName ? 'destructive' : 'default'} title={!formValid ? 'Fill in all required fields first' : undefined}>
 				{#if formSaving}<Loader2 class="w-4 h-4 mr-1 animate-spin" />{:else if repoConflictName}<AlertTriangle class="w-4 h-4 mr-1" />{:else if isEditing}<Check class="w-4 h-4 mr-1" />{:else}<Plus class="w-4 h-4 mr-1" />{/if}
-				{repoConflictName ? 'Save anyway' : needsInit && !isEditing ? 'Create and init' : isEditing ? 'Save' : 'Create'}
+				{repoConflictName ? '{m.backups_dest_save_anyway()}' : needsInit && !isEditing ? 'Create and init' : isEditing ? 'Save' : 'Create'}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

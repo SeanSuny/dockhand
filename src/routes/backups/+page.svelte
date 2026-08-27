@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Backups - Dockhand</title>
+	<title>{m.backups_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">
@@ -703,10 +703,10 @@
 				<Select.Trigger class="h-8 w-32 text-xs">
 					{#if filterType === 'container'}<Box class="w-3 h-3 mr-1 text-muted-foreground" />Containers
 					{:else if filterType === 'stack'}<Layers class="w-3 h-3 mr-1 text-muted-foreground" />Stacks
-					{:else}All types{/if}
+					{:else}{m.backups_all_types()}{/if}
 				</Select.Trigger>
 				<Select.Content>
-					<Select.Item value="all">All types</Select.Item>
+					<Select.Item value="all">{m.backups_all_types()}</Select.Item>
 					<Select.Item value="container"><Box class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{m.common_containers()}</Select.Item>
 					<Select.Item value="stack"><Layers class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{m.sidebar_stacks()}</Select.Item>
 				</Select.Content>
@@ -719,7 +719,7 @@
 					{:else}All envs{/if}
 				</Select.Trigger>
 				<Select.Content>
-					<Select.Item value="all">All environments</Select.Item>
+					<Select.Item value="all">{m.backups_all_envs()}</Select.Item>
 					{#each environments as env}
 						<Select.Item value={String(env.id)}>
 							<EnvironmentIcon icon={env.icon || 'globe'} envId={env.id} class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{env.name}
@@ -733,7 +733,7 @@
 					{#if dest}{dest.name}{:else}All repos{/if}
 				</Select.Trigger>
 				<Select.Content>
-					<Select.Item value="all">All repositories</Select.Item>
+					<Select.Item value="all">{m.backups_all_repos()}</Select.Item>
 					{#each destinations as dest}
 						<Select.Item value={String(dest.id)}>{dest.name}</Select.Item>
 					{/each}
@@ -741,17 +741,17 @@
 			</Select.Root>
 			<Select.Root type="single" value={filterStatus} onValueChange={(v) => { filterStatus = v === 'all' ? '' : v; }}>
 				<Select.Trigger class="h-8 w-32 text-xs">
-					{#if filterStatus === 'success'}<CheckCircle class="w-3 h-3 mr-1 text-green-500" />Success
-					{:else if filterStatus === 'failed'}<XCircle class="w-3 h-3 mr-1 text-destructive" />Failed
-					{:else if filterStatus === 'orphan'}<AlertCircle class="w-3 h-3 mr-1 text-amber-500" />No schedule
-					{:else if filterStatus === 'scheduled'}<Clock class="w-3 h-3 mr-1 text-muted-foreground" />Scheduled
-					{:else}All status{/if}
+					{#if filterStatus === 'success'}<CheckCircle class="w-3 h-3 mr-1 text-green-500" />{m.schedules_status_success()}
+					{:else if filterStatus === 'failed'}<XCircle class="w-3 h-3 mr-1 text-destructive" />{m.common_failed()}
+					{:else if filterStatus === 'orphan'}<AlertCircle class="w-3 h-3 mr-1 text-amber-500" />{m.backups_no_schedule()}
+					{:else if filterStatus === 'scheduled'}<Clock class="w-3 h-3 mr-1 text-muted-foreground" />{m.schedules_trigger_scheduled()}
+					{:else}{m.backups_all_status()}{/if}
 				</Select.Trigger>
 				<Select.Content>
-					<Select.Item value="all">All status</Select.Item>
+					<Select.Item value="all">{m.backups_all_status()}</Select.Item>
 					<Select.Item value="success"><CheckCircle class="w-3 h-3 mr-1 inline text-green-500" />{m.schedules_status_success()}</Select.Item>
 					<Select.Item value="failed"><XCircle class="w-3 h-3 mr-1 inline text-destructive" />{m.common_failed()}</Select.Item>
-					<Select.Item value="orphan"><AlertCircle class="w-3 h-3 mr-1 inline text-amber-500" />No schedule</Select.Item>
+					<Select.Item value="orphan"><AlertCircle class="w-3 h-3 mr-1 inline text-amber-500" />{m.backups_no_schedule()}</Select.Item>
 					<Select.Item value="scheduled"><Clock class="w-3 h-3 mr-1 inline text-muted-foreground" />{m.schedules_trigger_scheduled()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
@@ -759,7 +759,7 @@
 				<RefreshCw class="w-3.5 h-3.5 {loading ? 'animate-spin' : ''}" />
 			</Button>
 			<Button size="sm" onclick={() => showCreateModal = true}>
-				<Package class="w-3.5 h-3.5 mr-1" />Backup
+				<Package class="w-3.5 h-3.5 mr-1" />{m.common_backup()}
 			</Button>
 		</div>
 	</div>
@@ -767,22 +767,22 @@
 	{#if !loading && configs.length > 0}
 		<div class="shrink-0 flex flex-wrap items-center gap-3 text-xs text-muted-foreground px-1 pb-1">
 			{#if healthStats.healthy > 0}
-				<span class="flex items-center gap-1"><CheckCircle class="w-3 h-3 text-green-500" />{healthStats.healthy} healthy</span>
+				<span class="flex items-center gap-1"><CheckCircle class="w-3 h-3 text-green-500" />{m.backups_stats_healthy({ n: healthStats.healthy })}</span>
 			{/if}
 			{#if healthStats.failed > 0}
-				<span class="flex items-center gap-1"><XCircle class="w-3 h-3 text-destructive" />{healthStats.failed} failed</span>
+				<span class="flex items-center gap-1"><XCircle class="w-3 h-3 text-destructive" />{m.backups_stats_failed({ n: healthStats.failed })}</span>
 			{/if}
 			{#if healthStats.stale > 0}
-				<span class="flex items-center gap-1"><AlertCircle class="w-3 h-3 text-amber-500" />{healthStats.stale} stale</span>
+				<span class="flex items-center gap-1"><AlertCircle class="w-3 h-3 text-amber-500" />{m.backups_stats_stale({ n: healthStats.stale })}</span>
 			{/if}
 			{#if healthStats.neverRun > 0}
-				<span class="flex items-center gap-1"><Clock class="w-3 h-3" />{healthStats.neverRun} never run</span>
+				<span class="flex items-center gap-1"><Clock class="w-3 h-3" />{m.backups_stats_never_run({ n: healthStats.neverRun })}</span>
 			{/if}
 			{#if healthStats.orphans > 0}
-				<span class="flex items-center gap-1"><AlertCircle class="w-3 h-3 text-amber-500" />{healthStats.orphans} orphan{healthStats.orphans !== 1 ? 's' : ''}</span>
+				<span class="flex items-center gap-1"><AlertCircle class="w-3 h-3 text-amber-500" />{m.backups_stats_orphans({ n: healthStats.orphans })}</span>
 			{/if}
 			<span class="text-muted-foreground/50">·</span>
-			<span>{healthStats.scheduled} scheduled</span>
+			<span>{m.backups_stats_scheduled({ n: healthStats.scheduled })}</span>
 		</div>
 	{/if}
 
@@ -790,8 +790,8 @@
 	{#if configs.length === 0 && orphanTargets.length === 0 && !loading && !snapshotCountsLoading}
 		<div class="flex flex-col items-center justify-center py-16 text-center">
 			<Archive class="w-12 h-12 text-muted-foreground/30 mb-4" />
-			<h3 class="text-lg font-medium mb-1">No backups configured</h3>
-			<p class="text-sm text-muted-foreground">Configure backups on individual containers or stacks via their edit modal.</p>
+			<h3 class="text-lg font-medium mb-1">{m.backups_no_configs()}</h3>
+			<p class="text-sm text-muted-foreground">{m.backups_empty_hint()}</p>
 		</div>
 	{:else}
 		<!-- virtualScroll is OFF here on purpose: it assumes a fixed rowHeight, but an
@@ -834,9 +834,9 @@
 				{:else if column.id === 'type'}
 					<div class="flex justify-center">
 						{#if config.type === 'container'}
-							<Tooltip.Root><Tooltip.Trigger><Box class="w-3 h-3 text-muted-foreground" /></Tooltip.Trigger><Tooltip.Content>Container backup</Tooltip.Content></Tooltip.Root>
+							<Tooltip.Root><Tooltip.Trigger><Box class="w-3 h-3 text-muted-foreground" /></Tooltip.Trigger><Tooltip.Content>{m.backups_type_container()}</Tooltip.Content></Tooltip.Root>
 						{:else}
-							<Tooltip.Root><Tooltip.Trigger><Layers class="w-3 h-3 text-muted-foreground" /></Tooltip.Trigger><Tooltip.Content>Stack backup</Tooltip.Content></Tooltip.Root>
+							<Tooltip.Root><Tooltip.Trigger><Layers class="w-3 h-3 text-muted-foreground" /></Tooltip.Trigger><Tooltip.Content>{m.backups_type_stack()}</Tooltip.Content></Tooltip.Root>
 						{/if}
 					</div>
 				{:else if column.id === 'environment'}
@@ -889,7 +889,7 @@
 					{/if}
 				{:else if column.id === 'schedule'}
 					{#if config.isOrphan}
-						<span class="text-xs text-amber-500">no schedule</span>
+						<span class="text-xs text-amber-500">{m.backups_no_schedule_short()}</span>
 					{:else if config.schedule}
 						<span class="text-xs text-muted-foreground" title={config.schedule}>{formatCron(config.schedule)}</span>
 					{:else}
@@ -898,15 +898,15 @@
 				{:else if column.id === 'status'}
 					<div class="flex items-center justify-center">
 						{#if config.isOrphan}
-							<Tooltip.Root><Tooltip.Trigger><AlertCircle class="w-3 h-3 text-amber-500" /></Tooltip.Trigger><Tooltip.Content>No schedule — snapshots found in repository</Tooltip.Content></Tooltip.Root>
+							<Tooltip.Root><Tooltip.Trigger><AlertCircle class="w-3 h-3 text-amber-500" /></Tooltip.Trigger><Tooltip.Content>{m.backups_no_schedule_orphan()}</Tooltip.Content></Tooltip.Root>
 						{:else if runningBackup === config.id}
-							<Tooltip.Root><Tooltip.Trigger><Loader2 class="w-3 h-3 text-primary animate-spin" /></Tooltip.Trigger><Tooltip.Content>Backup in progress</Tooltip.Content></Tooltip.Root>
+							<Tooltip.Root><Tooltip.Trigger><Loader2 class="w-3 h-3 text-primary animate-spin" /></Tooltip.Trigger><Tooltip.Content>{m.backups_status_in_progress()}</Tooltip.Content></Tooltip.Root>
 						{:else if config.lastBackupStatus === 'success'}
-							<Tooltip.Root><Tooltip.Trigger><CheckCircle class="w-3 h-3 text-green-500" /></Tooltip.Trigger><Tooltip.Content>Last backup succeeded</Tooltip.Content></Tooltip.Root>
+							<Tooltip.Root><Tooltip.Trigger><CheckCircle class="w-3 h-3 text-green-500" /></Tooltip.Trigger><Tooltip.Content>{m.backups_last_succeeded()}</Tooltip.Content></Tooltip.Root>
 						{:else if config.lastBackupStatus === 'failed'}
-							<Tooltip.Root><Tooltip.Trigger><XCircle class="w-3 h-3 text-destructive" /></Tooltip.Trigger><Tooltip.Content>Last backup failed</Tooltip.Content></Tooltip.Root>
+							<Tooltip.Root><Tooltip.Trigger><XCircle class="w-3 h-3 text-destructive" /></Tooltip.Trigger><Tooltip.Content>{m.backups_last_failed()}</Tooltip.Content></Tooltip.Root>
 						{:else}
-							<Tooltip.Root><Tooltip.Trigger><AlertCircle class="w-3 h-3 text-muted-foreground" /></Tooltip.Trigger><Tooltip.Content>No backup run yet</Tooltip.Content></Tooltip.Root>
+							<Tooltip.Root><Tooltip.Trigger><AlertCircle class="w-3 h-3 text-muted-foreground" /></Tooltip.Trigger><Tooltip.Content>{m.backups_no_run()}</Tooltip.Content></Tooltip.Root>
 						{/if}
 					</div>
 				{:else if column.id === 'actions'}
@@ -963,7 +963,7 @@
 						</div>
 					{/if}
 					<div class="flex items-center gap-1.5 mb-2">
-						<h4 class="text-xs font-medium text-muted-foreground">Snapshots</h4>
+						<h4 class="text-xs font-medium text-muted-foreground">{m.backups_snapshots()}</h4>
 						<!-- Hide the count while refreshing — the number is stale until the reload
 						     finishes; the table rows below stay visible in the meantime. Fades
 						     out on refresh, back in once the fresh count lands. -->
@@ -981,15 +981,15 @@
 							Loading snapshots…
 						</div>
 					{:else if snapshots.length === 0}
-						<p class="text-xs text-muted-foreground py-4">No snapshots yet. Run a backup to create one.</p>
+						<p class="text-xs text-muted-foreground py-4">{m.backups_no_snapshots()}</p>
 					{:else}
 							<div class="max-h-80 overflow-auto rounded border bg-background ml-4 w-fit max-w-full">
 							<table>
 								<thead class="sticky top-0 bg-background z-10">
 									<tr class="text-xs text-muted-foreground border-b">
-										<th class="text-left py-1.5 w-24" style="padding-left:8px">ID</th>
+										<th class="text-left py-1.5 w-24" style="padding-left:8px">{m.backups_id()}</th>
 										<th class="text-left py-1.5 w-40" style="padding-left:8px">{m.status_created()}</th>
-										<th class="text-left py-1.5 w-64" style="padding-left:8px">Stats</th>
+										<th class="text-left py-1.5 w-64" style="padding-left:8px">{m.backups_stats()}</th>
 										<th class="text-left py-1.5 w-32" style="padding-left:8px">{m.backup_history_repo()}</th>
 										<th class="text-right px-3 py-1.5 w-28">{m.common_actions()}</th>
 									</tr>

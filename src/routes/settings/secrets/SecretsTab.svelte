@@ -43,7 +43,7 @@
 			providers = await response.json();
 		} catch (e) {
 			console.error('Failed to fetch secret providers:', e);
-			toast.error('Failed to fetch secret providers');
+			toast.error(m.secrets_toast_fetch_failed());
 		} finally {
 			loading = false;
 		}
@@ -61,13 +61,13 @@
 			});
 			if (response.ok) {
 				await fetchProviders();
-				toast.success('Secret provider deleted');
+				toast.success(m.secrets_toast_deleted());
 			} else {
 				const data = await response.json();
-				toast.error(data.error || 'Failed to delete secret provider');
+				toast.error(data.error || m.secrets_toast_delete_failed());
 			}
 		} catch {
-			toast.error('Failed to delete secret provider');
+			toast.error(m.secrets_toast_delete_failed());
 		}
 	}
 
@@ -80,17 +80,17 @@
 			);
 			const data = await response.json();
 			if (data.ok) {
-				toast.success(`${provider.name}: connection works`);
+				toast.success(m.secrets_toast_test_ok({ name: provider.name }));
 				clearTimeout(testOkTimer);
 				testOkId = provider.id;
 				testOkTimer = setTimeout(() => (testOkId = null), 2000);
 			} else {
 				toast.error(
-					`${provider.name}: ${data.error || 'connection failed'}`,
+					`${provider.name}: ${data.error || m.secrets_connection_failed()}`,
 				);
 			}
 		} catch {
-			toast.error('Connection test failed');
+			toast.error(m.secrets_toast_test_failed_generic());
 		} finally {
 			testingId = null;
 		}
@@ -105,14 +105,14 @@
 	<div class="flex justify-between items-center">
 		<div class="flex items-center gap-3">
 			<Badge variant="secondary" class="text-xs"
-				>{providers.length} total</Badge
+				>{m.secrets_total({ n: providers.length })}</Badge
 			>
 		</div>
 		<div class="flex gap-2">
 			{#if $canAccess("secrets", "create")}
 				<Button size="sm" onclick={() => openModal()}>
 					<Plus class="w-4 h-4" />
-					Add secret provider
+					{m.secrets_add_provider()}
 				</Button>
 			{/if}
 			<Button size="sm" variant="outline" onclick={fetchProviders}
@@ -122,12 +122,12 @@
 	</div>
 
 	{#if loading && providers.length === 0}
-		<p class="text-muted-foreground text-sm">Loading secret providers...</p>
+		<p class="text-muted-foreground text-sm">{m.secrets_loading()}</p>
 	{:else if providers.length === 0}
 		<EmptyState
 			icon={KeyRound}
-			title="No secret providers"
-			description="Add a provider (1Password, Infisical, HashiCorp Vault, ...) to load secrets at deploy time"
+			title={m.secrets_empty_title()}
+			description={m.secrets_empty_desc()}
 		/>
 	{:else}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -150,9 +150,9 @@
 						</Card.Header>
 						<Card.Content class="space-y-3">
 							<div class="text-xs text-muted-foreground">
-								Added {new Date(
+								{m.secrets_added_on({ date: new Date(
 									provider.createdAt,
-								).toLocaleDateString()}
+								).toLocaleDateString() })}
 							</div>
 							<div class="flex gap-2 pt-2 min-h-[32px]">
 								{#if $canAccess("secrets", "view")}
@@ -187,10 +187,10 @@
 								{#if $canAccess("secrets", "delete")}
 									<ConfirmPopover
 										open={confirmDeleteId === provider.id}
-										action="Delete"
-										itemType="secret provider"
+										action={m.common_delete()}
+										itemType={m.secrets_item_type()}
 										itemName={provider.name}
-										title="Remove"
+										title={m.secrets_confirm_remove()}
 										position="left"
 										onConfirm={() =>
 											deleteProvider(provider.id)}

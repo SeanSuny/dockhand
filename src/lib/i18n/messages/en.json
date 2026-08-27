@@ -3083,5 +3083,19 @@
 	"notifications_count_many": "{n} channels",
 	"notifications_enabled": "Enabled",
 	"notifications_disabled": "Disabled",
-	"notifications_smtp_label": "SMTP"
+	"notifications_smtp_label": "SMTP",
+	"secrets_toast_fetch_failed": "Failed to fetch secret providers",
+	"secrets_toast_deleted": "Secret provider deleted",
+	"secrets_toast_delete_failed": "Failed to delete secret provider",
+	"secrets_toast_test_ok": "{name}: connection works",
+	"secrets_toast_test_failed_generic": "Connection test failed",
+	"secrets_total": "{n} total",
+	"secrets_add_provider": "Add secret provider",
+	"secrets_loading": "Loading secret providers...",
+	"secrets_empty_title": "No secret providers",
+	"secrets_empty_desc": "Add a provider (1Password, Infisical, HashiCorp Vault, ...) to load secrets at deploy time",
+	"secrets_added_on": "Added {date}",
+	"secrets_confirm_remove": "Remove",
+	"secrets_item_type": "secret provider",
+	"secrets_connection_failed": "connection failed"
 }

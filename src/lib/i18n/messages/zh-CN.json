@@ -3083,5 +3083,19 @@
 	"notifications_count_many": "{n} 个渠道",
 	"notifications_enabled": "已启用",
 	"notifications_disabled": "已禁用",
-	"notifications_smtp_label": "SMTP"
+	"notifications_smtp_label": "SMTP",
+	"secrets_toast_fetch_failed": "获取密钥提供方失败",
+	"secrets_toast_deleted": "密钥提供方已删除",
+	"secrets_toast_delete_failed": "删除密钥提供方失败",
+	"secrets_toast_test_ok": "{name}：连接正常",
+	"secrets_toast_test_failed_generic": "连接测试失败",
+	"secrets_total": "共 {n} 个",
+	"secrets_add_provider": "添加密钥提供方",
+	"secrets_loading": "正在加载密钥提供方...",
+	"secrets_empty_title": "暂无密钥提供方",
+	"secrets_empty_desc": "添加提供方（1Password、Infisical、HashiCorp Vault …）以在部署时加载密钥",
+	"secrets_added_on": "添加于 {date}",
+	"secrets_confirm_remove": "移除",
+	"secrets_item_type": "密钥提供方",
+	"secrets_connection_failed": "连接失败"
 }

@@ -1251,9 +1251,7 @@
 		<div class="flex justify-between items-center pb-2 border-b">
 			<h3 class="text-sm font-semibold text-foreground">{m.container_settings_port_mappings()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addPortMapping} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">
@@ -1333,9 +1331,7 @@
 		<div class="flex justify-between items-center pb-2 border-b">
 			<h3 class="text-sm font-semibold text-foreground">{m.container_settings_volume_mappings()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addVolumeMapping} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">
@@ -1374,9 +1370,7 @@
 		<div class="flex justify-between items-center pb-2 border-b">
 			<h3 class="text-sm font-semibold text-foreground">{m.container_settings_environment_variables()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addEnvVar} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">
@@ -1410,9 +1404,7 @@
 		<div class="flex justify-between items-center pb-2 border-b">
 			<h3 class="text-sm font-semibold text-foreground">{m.common_labels()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addLabel} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">

@@ -123,7 +123,7 @@
 					{snapshotTime}
 				/>
 			</Dialog.Title>
-			<Dialog.Description class="sr-only">Browse files in snapshot {snapshotId ? String(snapshotId).slice(0, 8) : ''}.</Dialog.Description>
+			<Dialog.Description class="sr-only">{m.snapshots_browser_title({ id: snapshotId ? String(snapshotId).slice(0, 8) : '' })}</Dialog.Description>
 		</Dialog.Header>
 
 		<!-- Tabs -->
@@ -167,26 +167,26 @@
 					<div class="max-w-2xl space-y-5 px-1">
 						<!-- Backup info -->
 						<section class="space-y-2">
-							<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Backup info</h4>
+							<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{m.snapshots_browser_backup_info()}</h4>
 							<dl class="grid grid-cols-[130px_1fr] gap-y-1.5 text-sm">
 								<dt class="text-muted-foreground">{m.volumes_col_type()}</dt>
 								<dd><Badge variant="outline" class="text-[10px]">{metadata.type}</Badge></dd>
 								<dt class="text-muted-foreground">{m.common_name()}</dt>
 								<dd class="font-medium">{metadata.targetName}</dd>
-								<dt class="text-muted-foreground">Backup time</dt>
+								<dt class="text-muted-foreground">{m.snapshots_browser_backup_time()}</dt>
 								<dd>{formatDateTime(metadata.backupTime)}</dd>
 								{#if metadata.environmentId != null}
-									<dt class="text-muted-foreground">Environment ID</dt>
+									<dt class="text-muted-foreground">{m.snapshots_browser_env_id()}</dt>
 									<dd class="font-mono">{metadata.environmentId}</dd>
 								{/if}
 								<dt class="text-muted-foreground">{m.sidebar_volumes()}</dt>
 								<dd>{metadata.volumes?.length ?? 0}</dd>
 								{#if metadata.type === 'stack'}
 									{#if metadata.stack?.composeFileName}
-										<dt class="text-muted-foreground">Compose file</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_compose_file()}</dt>
 										<dd class="font-mono">{metadata.stack.composeFileName}</dd>
 									{/if}
-									<dt class="text-muted-foreground">Stack files</dt>
+									<dt class="text-muted-foreground">{m.snapshots_browser_stack_files({ n: metadata.stack.fileList.length })}</dt>
 									<dd>{metadata.hasStackFiles ? 'captured' : 'not captured'}</dd>
 								{/if}
 							</dl>
@@ -195,7 +195,7 @@
 						<!-- Volumes / binds -->
 						{#if metadata.volumes?.length}
 							<section class="space-y-2 border-t pt-4">
-								<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><HardDrive class="w-3.5 h-3.5" />Volumes &amp; binds ({metadata.volumes.length})</h4>
+								<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><HardDrive class="w-3.5 h-3.5" />{m.snapshots_browser_volumes({ n: metadata.volumes.length })}</h4>
 								<div class="space-y-1">
 									{#each metadata.volumes as vol}
 										<!-- Docker convention: source (host path / volume name) → destination
@@ -221,7 +221,7 @@
 						     without a browse roundtrip. -->
 						{#if metadata.type === 'stack' && metadata.stack?.fileList?.length}
 							<section class="space-y-2 border-t pt-4">
-								<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><FileText class="w-3.5 h-3.5" />Stack files ({metadata.stack.fileList.length})</h4>
+								<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><FileText class="w-3.5 h-3.5" />{m.snapshots_browser_stack_files({ n: metadata.stack.fileList.length })}</h4>
 								<div class="space-y-1">
 									{#each metadata.stack.fileList as file}
 										<div class="flex items-center gap-2 text-sm bg-muted/30 rounded px-2 py-1.5">
@@ -241,13 +241,13 @@
 						     DB on restore unless the user opts out. -->
 						{#if metadata.type === 'stack' && metadata.stack?.secretKeys?.length}
 							<section class="space-y-2 border-t pt-4">
-								<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><KeyRound class="w-3.5 h-3.5" />Secrets ({metadata.stack.secretKeys.length})</h4>
+								<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><KeyRound class="w-3.5 h-3.5" />{m.snapshots_browser_secrets({ n: metadata.stack.secretKeys.length })}</h4>
 								<div class="flex flex-wrap gap-1">
 									{#each metadata.stack.secretKeys as key}
 										<code class="rounded bg-muted px-1.5 py-0.5 text-xs">{key}</code>
 									{/each}
 								</div>
-								<p class="text-xs text-muted-foreground">Stored encrypted with this instance's key. Restored to the stack on restore (values never shown).</p>
+								<p class="text-xs text-muted-foreground">{m.snapshots_browser_secrets_encrypted()}</p>
 							</section>
 						{/if}
 
@@ -267,7 +267,7 @@
 										<dd class="font-mono">{containerInspect.Id.slice(0, 12)}</dd>
 									{/if}
 									{#if containerInspect.State?.Status}
-										<dt class="text-muted-foreground">State at backup</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_state()}</dt>
 										<dd>{containerInspect.State.Status}</dd>
 									{/if}
 									{#if containerInspect.Created}
@@ -279,11 +279,11 @@
 										<dd class="font-mono break-all">{containerInspect.Config.Cmd.join(' ')}</dd>
 									{/if}
 									{#if containerInspect.Config.Entrypoint?.length}
-										<dt class="text-muted-foreground">Entrypoint</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_entrypoint()}</dt>
 										<dd class="font-mono break-all">{containerInspect.Config.Entrypoint.join(' ')}</dd>
 									{/if}
 									{#if containerInspect.Config.WorkingDir}
-										<dt class="text-muted-foreground">Working dir</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_working_dir()}</dt>
 										<dd class="font-mono break-all">{containerInspect.Config.WorkingDir}</dd>
 									{/if}
 									{#if containerInspect.Config.User}
@@ -291,20 +291,20 @@
 										<dd class="font-mono">{containerInspect.Config.User}</dd>
 									{/if}
 									{#if containerInspect.Config.ExposedPorts}
-										<dt class="text-muted-foreground">Exposed ports</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_exposed_ports()}</dt>
 										<dd class="break-all">{Object.keys(containerInspect.Config.ExposedPorts).join(', ')}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.RestartPolicy?.Name}
-										<dt class="text-muted-foreground">Restart policy</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_restart_policy()}</dt>
 										<dd>{containerInspect.HostConfig.RestartPolicy.Name}{containerInspect.HostConfig.RestartPolicy.MaximumRetryCount ? ` (max ${containerInspect.HostConfig.RestartPolicy.MaximumRetryCount})` : ''}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.NetworkMode}
-										<dt class="text-muted-foreground">Network mode</dt>
+										<dt class="text-muted-foreground">{m.snapshots_browser_network_mode()}</dt>
 										<dd class="break-all">{containerInspect.HostConfig.NetworkMode}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.Privileged}
 										<dt class="text-muted-foreground">{m.container_inspect_privileged()}</dt>
-										<dd>yes</dd>
+										<dd>{m.snapshots_browser_yes()}</dd>
 									{/if}
 								</dl>
 
@@ -312,7 +312,7 @@
 								     ExposedPorts above; only present when ports are published). -->
 								{#if containerInspect.HostConfig?.PortBindings && Object.keys(containerInspect.HostConfig.PortBindings).length}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Plug class="w-3.5 h-3.5" />Port bindings</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Plug class="w-3.5 h-3.5" />{m.snapshots_browser_port_bindings()}</span>
 										<div class="flex flex-wrap gap-1">
 											{#each Object.entries(containerInspect.HostConfig.PortBindings) as [containerPort, hostArr]}
 												{@const h = (hostArr as any[])?.[0]}
@@ -325,7 +325,7 @@
 								<!-- Health at backup -->
 								{#if containerInspect.State?.Health?.Status}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><HeartPulse class="w-3.5 h-3.5" />Health at backup</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><HeartPulse class="w-3.5 h-3.5" />{m.snapshots_browser_health()}</span>
 										<Badge variant="outline" class="text-xs {containerInspect.State.Health.Status === 'healthy' ? 'text-green-600 border-green-600/40' : containerInspect.State.Health.Status === 'unhealthy' ? 'text-destructive border-destructive/40' : ''}">{containerInspect.State.Health.Status}</Badge>
 									</div>
 								{/if}
@@ -335,8 +335,8 @@
 									<div class="pt-1 space-y-1.5">
 										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><ShieldAlert class="w-3.5 h-3.5" />{m.settings_env_modal_tab_security()}</span>
 										<div class="flex flex-wrap gap-1">
-											{#if containerInspect.HostConfig.Privileged}<Badge variant="outline" class="text-xs text-amber-600 border-amber-600/40">privileged</Badge>{/if}
-											{#if containerInspect.HostConfig.ReadonlyRootfs}<Badge variant="outline" class="text-xs">read-only rootfs</Badge>{/if}
+											{#if containerInspect.HostConfig.Privileged}<Badge variant="outline" class="text-xs text-amber-600 border-amber-600/40">{m.snapshots_browser_privileged()}</Badge>{/if}
+											{#if containerInspect.HostConfig.ReadonlyRootfs}<Badge variant="outline" class="text-xs">{m.snapshots_browser_readonly_rootfs()}</Badge>{/if}
 											{#each containerInspect.HostConfig.CapAdd ?? [] as cap}<Badge variant="outline" class="text-xs text-green-600 border-green-600/40 font-mono">+{cap}</Badge>{/each}
 											{#each containerInspect.HostConfig.CapDrop ?? [] as cap}<Badge variant="outline" class="text-xs text-muted-foreground font-mono">-{cap}</Badge>{/each}
 										</div>
@@ -349,11 +349,11 @@
 										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Server class="w-3.5 h-3.5" />{m.container_inspect_runtime()}</span>
 										<dl class="grid grid-cols-[130px_1fr] gap-y-1 text-sm">
 											{#if containerInspect.HostConfig?.LogConfig?.Type}
-												<dt class="text-muted-foreground flex items-center gap-1.5"><ScrollText class="w-3.5 h-3.5" />Log driver</dt>
+												<dt class="text-muted-foreground flex items-center gap-1.5"><ScrollText class="w-3.5 h-3.5" />{m.snapshots_browser_log_driver()}</dt>
 												<dd class="font-mono">{containerInspect.HostConfig.LogConfig.Type}</dd>
 											{/if}
 											{#if containerInspect.Config?.StopSignal}
-												<dt class="text-muted-foreground">Stop signal</dt>
+												<dt class="text-muted-foreground">{m.snapshots_browser_stop_signal()}</dt>
 												<dd class="font-mono">{containerInspect.Config.StopSignal}</dd>
 											{/if}
 											{#if containerInspect.Platform}
@@ -367,9 +367,9 @@
 								<!-- DNS / extra hosts -->
 								{#if containerInspect.HostConfig?.Dns?.length || containerInspect.HostConfig?.ExtraHosts?.length}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Globe class="w-3.5 h-3.5" />DNS &amp; hosts</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Globe class="w-3.5 h-3.5" />{m.snapshots_browser_dns_hosts()}</span>
 										<div class="flex flex-wrap gap-1">
-											{#each containerInspect.HostConfig.Dns ?? [] as dns}<Badge variant="secondary" class="text-xs font-mono">DNS {dns}</Badge>{/each}
+											{#each containerInspect.HostConfig.Dns ?? [] as dns}<Badge variant="secondary" class="text-xs font-mono">{m.snapshots_browser_dns_server({ server: dns })}</Badge>{/each}
 											{#each containerInspect.HostConfig.ExtraHosts ?? [] as host}<Badge variant="secondary" class="text-xs font-mono">{host}</Badge>{/each}
 										</div>
 									</div>
@@ -390,7 +390,7 @@
 								<!-- Labels -->
 								{#if containerInspect.Config.Labels && Object.keys(containerInspect.Config.Labels).length}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Tag class="w-3.5 h-3.5" />Labels ({Object.keys(containerInspect.Config.Labels).length})</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Tag class="w-3.5 h-3.5" />{m.snapshots_browser_labels({ n: Object.keys(containerInspect.Config.Labels).length })}</span>
 										<div class="max-h-40 overflow-y-auto text-sm font-mono bg-muted/20 rounded p-2 space-y-0.5">
 											{#each Object.entries(containerInspect.Config.Labels) as [key, value]}
 												<div class="truncate"><span class="text-muted-foreground">{key}</span>=<span>{value}</span></div>
@@ -402,7 +402,7 @@
 								<!-- Env vars (values masked) -->
 								{#if containerInspect.Config.Env?.length}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Variable class="w-3.5 h-3.5" />Environment variables ({containerInspect.Config.Env.length})</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Variable class="w-3.5 h-3.5" />{m.snapshots_browser_env_vars({ n: containerInspect.Config.Env.length })}</span>
 										<div class="max-h-40 overflow-y-auto text-sm font-mono bg-muted/20 rounded p-2 space-y-0.5">
 											{#each containerInspect.Config.Env as envVar}
 												{@const eqIdx = envVar.indexOf('=')}
@@ -417,7 +417,7 @@
 						{/if}
 					</div>
 				{:else}
-					<p class="text-sm text-muted-foreground p-4">No metadata available for this snapshot</p>
+					<p class="text-sm text-muted-foreground p-4">{m.snapshots_browser_no_metadata()}</p>
 				{/if}
 			</div>
 		{/if}

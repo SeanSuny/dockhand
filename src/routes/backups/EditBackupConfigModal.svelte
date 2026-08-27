@@ -5,6 +5,7 @@
 	 * list, which this page fetches like CreateBackupModal does.
 	 */
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Loader2, Archive } from 'lucide-svelte';
 	import BackupPanel from '../containers/BackupPanel.svelte';
 	import { normalizeMounts, volumesForStack, type VolumeInfo } from '$lib/utils/mounts';
@@ -70,7 +71,7 @@
 			{#if config}
 				{#if loading}
 					<div class="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-						<Loader2 class="w-4 h-4 animate-spin" /> Loading volumes…
+						<Loader2 class="w-4 h-4 animate-spin" /> {m.backups_edit_loading_volumes()}
 					</div>
 				{:else}
 					<BackupPanel

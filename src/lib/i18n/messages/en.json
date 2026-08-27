@@ -2886,5 +2886,6 @@
 	"backups_diff_added_line": "+ {path}",
 	"backups_diff_removed_line": "- {path}",
 	"backups_diff_modified_line": "M {path}",
-	"backups_diff_unknown_line": "U {path}"
+	"backups_diff_unknown_line": "U {path}",
+	"backups_edit_loading_volumes": "Loading volumes…"
 }

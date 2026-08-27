@@ -105,7 +105,7 @@
 			<Square class="w-3 h-3 text-muted-foreground" />
 			<span class="text-2xs font-medium">{containers.stopped}</span>
 		</div>
-		<div class="flex items-center gap-0.5" title={m.status_paused()}>
+		<div class="flex items-center gap-0.5" title={m.logs_paused()}>
 			<Pause class="w-3 h-3 text-amber-500" />
 			<span class="text-2xs font-medium">{containers.paused}</span>
 		</div>

@@ -59,8 +59,8 @@
 	function getAuthLabel(type: string) {
 		switch (type) {
 			case 'ssh': return m.stacks_git_modal_auth_ssh();
-			case 'password': return m.stacks_git_modal_auth_password();
-			default: return m.stacks_git_modal_auth_none();
+			case 'password': return m.login_password();
+			default: return m.network_mode_none();
 		}
 	}
 

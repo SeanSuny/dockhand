@@ -132,8 +132,8 @@
 
 		ws.onerror = (e) => {
 			console.error('WebSocket error:', e);
-			error = m.container_terminal_connection_error();
-			terminal?.writeln(`\x1b[31m${m.container_terminal_connection_error()}\x1b[0m`);
+			error = m.logs_connection_error();
+			terminal?.writeln(`\x1b[31m${m.logs_connection_error()}\x1b[0m`);
 		};
 
 		ws.onclose = () => {
@@ -209,11 +209,11 @@
 			{:else if error}
 				<span class="text-xs text-red-500">{error}</span>
 			{:else}
-				<span class="text-xs text-zinc-500">{m.dashboard_connecting()}</span>
+				<span class="text-xs text-zinc-500">{m.logs_connecting()}</span>
 			{/if}
 		</div>
 		<div class="flex items-center gap-2 text-xs text-zinc-500">
-			<span>{m.container_terminal_shell_label()}: {shell}</span>
+			<span>{m.sidebar_shell()}: {shell}</span>
 			<span>|</span>
 			<span>{m.common_user()}: {user}</span>
 		</div>

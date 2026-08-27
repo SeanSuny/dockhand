@@ -152,8 +152,8 @@
 
 		ws.onerror = (e) => {
 			console.error('WebSocket error:', e);
-			error = m.container_terminal_connection_error();
-			terminal?.writeln(`\x1b[31m${m.container_terminal_connection_error()}\x1b[0m`);
+			error = m.logs_connection_error();
+			terminal?.writeln(`\x1b[31m${m.logs_connection_error()}\x1b[0m`);
 		};
 
 		ws.onclose = () => {
@@ -324,7 +324,7 @@
 
 						<div class="space-y-4">
 							<div class="space-y-2">
-								<Label>{m.container_terminal_shell_label()}</Label>
+								<Label>{m.sidebar_shell()}</Label>
 								<Select.Root type="single" bind:value={selectedShell}>
 									<Select.Trigger class="w-full h-10">
 										<Shell class="w-4 h-4 mr-2 text-muted-foreground" />

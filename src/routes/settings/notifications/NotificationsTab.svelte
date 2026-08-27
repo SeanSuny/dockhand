@@ -157,11 +157,11 @@
 	</div>
 
 	{#if notifLoading && notifications.length === 0}
-		<p class="text-muted-foreground text-sm">{m.settings_notif_loading()}</p>
+		<p class="text-muted-foreground text-sm">{m.notifications_loading()}</p>
 	{:else if notifications.length === 0}
 		<EmptyState
 			icon={Bell}
-			title={m.notifications_empty_title()}
+			title={m.notifications_none()}
 			description={m.notifications_empty_desc()}
 		/>
 	{:else}

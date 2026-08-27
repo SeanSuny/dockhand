@@ -214,7 +214,7 @@
 							<div class="px-4 pb-3 space-y-3 border-t border-border bg-muted/20">
 								<div class="grid grid-cols-2 gap-2 pt-3 text-sm">
 									<div>
-										<p class="text-xs text-muted-foreground">{m.container_inspect_created()}</p>
+										<p class="text-xs text-muted-foreground">{m.volumes_col_created()}</p>
 										<p class="text-xs">{formatDate(layer.Created)}</p>
 									</div>
 									<div>

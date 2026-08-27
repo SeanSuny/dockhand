@@ -25,7 +25,7 @@
 	function onToggle(value: boolean) {
 		checked = value;
 		themeStore.setPreference('animateIcons', value, userId, skipApply);
-		toast.success(value ? m.toast_setting_enabled() : m.toast_setting_disabled());
+		toast.success(value ? m.notifications_enabled() : m.notifications_disabled());
 	}
 </script>
 

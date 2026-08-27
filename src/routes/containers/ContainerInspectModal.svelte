@@ -831,8 +831,8 @@
 						<Tabs.Trigger value="files" onclick={() => showLogs = false}>{m.container_inspect_tab_files()}</Tabs.Trigger>
 						<Tabs.Trigger value="env" onclick={() => showLogs = false}>{m.dashboard_col_environment()}</Tabs.Trigger>
 						<Tabs.Trigger value="labels" onclick={() => showLogs = false}>{m.common_labels()}</Tabs.Trigger>
-						<Tabs.Trigger value="security" onclick={() => showLogs = false}>{m.settings_env_modal_tab_security()}</Tabs.Trigger>
-						<Tabs.Trigger value="resources" onclick={() => showLogs = false}>{m.container_inspect_tab_resources()}</Tabs.Trigger>
+						<Tabs.Trigger value="security" onclick={() => showLogs = false}>{m.container_settings_security()}</Tabs.Trigger>
+						<Tabs.Trigger value="resources" onclick={() => showLogs = false}>{m.container_settings_resources()}</Tabs.Trigger>
 						<Tabs.Trigger value="health" onclick={() => showLogs = false}>{m.container_inspect_tab_health()}</Tabs.Trigger>
 						<Tabs.Trigger value="compose" onclick={() => showLogs = false}>{m.container_inspect_compose()}</Tabs.Trigger>
 					</Tabs.List>
@@ -846,7 +846,7 @@
 								<div class="p-3 border border-border rounded-lg">
 									<div class="flex items-center gap-2 mb-2">
 										<Cpu class="w-4 h-4 text-blue-500" />
-										<span class="text-xs font-medium">{m.container_inspect_cpu()}</span>
+										<span class="text-xs font-medium">{m.common_cpu()}</span>
 										<span class="ml-auto text-sm font-bold">{currentStats?.cpuPercent?.toFixed(1) ?? '—'}%</span>
 									</div>
 									{#if cpuHistory.length >= 2}
@@ -914,7 +914,7 @@
 								<div class="p-3 border border-border rounded-lg">
 									<div class="flex items-center gap-2 mb-2">
 										<HardDrive class="w-4 h-4 text-orange-500" />
-										<span class="text-xs font-medium">{m.container_inspect_disk_io()}</span>
+										<span class="text-xs font-medium">{m.stacks_col_disk_io()}</span>
 									</div>
 									<div class="space-y-1 text-xs">
 										<div class="flex justify-between">
@@ -962,7 +962,7 @@
 									<Info class="w-4 h-4" />{m.common_status()}</h3>
 								<div class="grid grid-cols-2 gap-2 text-sm">
 									<div>
-										<p class="text-muted-foreground text-xs">{m.container_inspect_state()}</p>
+										<p class="text-muted-foreground text-xs">{m.containers_col_state()}</p>
 										<Badge variant={getStateColor(containerData.State?.Status || 'unknown')}>
 											{containerData.State?.Status || 'unknown'}
 										</Badge>
@@ -987,7 +987,7 @@
 								<h3 class="text-sm font-semibold">{m.container_inspect_basic_info()}</h3>
 								<div class="grid grid-cols-2 gap-2 text-sm">
 									<div>
-										<p class="text-muted-foreground text-xs">{m.container_inspect_id()}</p>
+										<p class="text-muted-foreground text-xs">{m.common_id()}</p>
 										<code class="text-xs">{containerData.Id?.slice(0, 12)}</code>
 									</div>
 									<div>
@@ -1008,7 +1008,7 @@
 
 						<!-- Image -->
 						<div class="space-y-2">
-							<h3 class="text-sm font-semibold">{m.container_inspect_image()}</h3>
+							<h3 class="text-sm font-semibold">{m.containers_col_image()}</h3>
 							<div class="flex items-center gap-2 p-2 bg-muted rounded">
 								<code class="text-xs break-all flex-1">{containerData.Config?.Image || 'N/A'}</code>
 							</div>
@@ -1104,7 +1104,7 @@
 					<Tabs.Content value="network" class="space-y-4 overflow-auto">
 						<!-- Network Mode -->
 						<div class="space-y-2">
-							<h3 class="text-sm font-semibold">{m.container_inspect_network_mode()}</h3>
+							<h3 class="text-sm font-semibold">{m.settings_general_network_mode()}</h3>
 							<Badge variant="outline">{networkModeLabel}</Badge>
 						</div>
 
@@ -1504,7 +1504,7 @@
 									{/each}
 								</div>
 							{:else}
-								<p class="text-sm text-muted-foreground">{m.container_inspect_no_labels_filter({ filter: labelFilter })}</p>
+								<p class="text-sm text-muted-foreground">{m.container_inspect_no_labels_match({ filter: labelFilter })}</p>
 							{/if}
 						{:else}
 							<p class="text-sm text-muted-foreground">{m.container_inspect_no_labels()}</p>
@@ -1573,7 +1573,7 @@
 						<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 							{#if containerData.HostConfig?.CapAdd?.length > 0}
 								<div class="space-y-2">
-									<h3 class="text-sm font-semibold text-green-600 dark:text-green-400">{m.container_inspect_added_caps()}</h3>
+									<h3 class="text-sm font-semibold text-green-600 dark:text-green-400">{m.container_inspect_added_capabilities()}</h3>
 									<div class="flex flex-wrap gap-1">
 										{#each containerData.HostConfig.CapAdd as cap}
 											<Badge variant="outline" class="text-xs bg-green-500/10">{cap}</Badge>
@@ -1583,7 +1583,7 @@
 							{/if}
 							{#if containerData.HostConfig?.CapDrop?.length > 0}
 								<div class="space-y-2">
-									<h3 class="text-sm font-semibold text-red-600 dark:text-red-400">{m.container_inspect_dropped_caps()}</h3>
+									<h3 class="text-sm font-semibold text-red-600 dark:text-red-400">{m.container_inspect_dropped_capabilities()}</h3>
 									<div class="flex flex-wrap gap-1">
 										{#each containerData.HostConfig.CapDrop as cap}
 											<Badge variant="outline" class="text-xs bg-red-500/10">{cap}</Badge>
@@ -1776,7 +1776,7 @@
 												<code class="text-xs">{formatNs(healthConfig.Timeout)}</code>
 											</div>
 											<div>
-												<p class="text-muted-foreground">{m.container_inspect_health_retries()}</p>
+												<p class="text-muted-foreground">{m.container_settings_retries()}</p>
 												<code class="text-xs">{healthConfig.Retries || '-'}</code>
 											</div>
 											<div>
@@ -1870,7 +1870,7 @@
 							<Tooltip.Trigger>
 								<XCircle class="w-4 h-4 mr-1.5 text-red-500" />
 							</Tooltip.Trigger>
-							<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
+							<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
 						</Tooltip.Root>
 						<span class="text-red-500">{m.common_failed()}</span>
 					{:else if jsonCopied === 'ok'}

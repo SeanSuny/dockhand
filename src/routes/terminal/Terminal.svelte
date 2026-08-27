@@ -219,8 +219,8 @@
 		};
 
 		ws.onerror = () => {
-			error = m.container_terminal_connection_error();
-			terminal?.writeln(`\x1b[31m${m.container_terminal_connection_error()}\x1b[0m`);
+			error = m.logs_connection_error();
+			terminal?.writeln(`\x1b[31m${m.logs_connection_error()}\x1b[0m`);
 		};
 
 		ws.onclose = () => {

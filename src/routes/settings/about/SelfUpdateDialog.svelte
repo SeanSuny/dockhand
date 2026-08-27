@@ -223,7 +223,7 @@
 			if (contentType.includes('application/json')) {
 				const data = await response.json();
 				phase = 'error';
-				errorMessage = data.error || m.settings_selfupdate_error_failed();
+				errorMessage = data.error || m.container_batch_status_error();
 				return;
 			}
 
@@ -285,7 +285,7 @@
 			startProgressPolling();
 		} else if (event === 'error') {
 			phase = 'error';
-			errorMessage = data.message || m.settings_selfupdate_error_failed();
+			errorMessage = data.message || m.container_batch_status_error();
 			// Mark current active step as error
 			const currentId = activeStepId();
 			if (currentId) {
@@ -494,9 +494,9 @@
 						<span class="text-primary font-medium">{activeStep.label}...</span>
 						<span class="text-muted-foreground ml-2">({completedCount}/{ALL_STEPS.length})</span>
 					{:else if phase === 'completed'}
-						{m.settings_selfupdate_status_complete()}
+						{m.container_batch_status_complete()}
 					{:else if phase === 'error'}
-						{m.settings_selfupdate_status_failed()}
+						{m.container_batch_status_error()}
 					{:else}
 						{m.settings_selfupdate_status_preparing()}
 					{/if}
@@ -509,7 +509,7 @@
 			<div class="space-y-4 py-2 overflow-y-auto min-h-0 flex-1">
 				<div class="space-y-2">
 					<div class="flex items-center justify-between text-sm">
-						<span class="text-muted-foreground">{m.container_create_tab_container()}</span>
+						<span class="text-muted-foreground">{m.stacks_graph_label_container()}</span>
 						<span class="font-medium flex items-center gap-1.5">
 							<Ship class="w-3.5 h-3.5" />
 							{containerName}
@@ -526,7 +526,7 @@
 						</div>
 					{:else}
 						<div class="flex items-center justify-between text-sm">
-							<span class="text-muted-foreground">{m.container_inspect_image()}</span>
+							<span class="text-muted-foreground">{m.containers_col_image()}</span>
 							<Badge variant="secondary" class="font-mono text-xs">{currentImage}</Badge>
 						</div>
 						{#if currentDigest || newDigest}
@@ -660,7 +660,7 @@
 				{:else}
 					<Button variant="outline" disabled>
 						<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-						{m.container_batch_updating()}
+						{m.container_edit_updating()}
 					</Button>
 				{/if}
 			</Dialog.Footer>

@@ -13,7 +13,7 @@
 {#if compact}
 	<div class="flex items-center gap-2 text-muted-foreground py-1">
 		<WifiOff class="w-4 h-4 opacity-50" />
-		<span class="text-xs">{m.dashboard_offline()}</span>
+		<span class="text-xs">{m.logs_offline()}</span>
 	</div>
 {:else}
 	<div class="flex flex-col items-center justify-center py-8 text-muted-foreground">

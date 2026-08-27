@@ -57,7 +57,7 @@
 				{:else}
 					<Shield class="w-4 h-4" />
 				{/if}
-				{m.profile_disable_mfa_submit()}
+				{m.profile_disable_mfa()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

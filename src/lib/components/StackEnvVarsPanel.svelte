@@ -427,7 +427,7 @@
 								class="h-6 text-xs px-2 {hasContent ? 'text-destructive hover:text-destructive' : 'text-muted-foreground/50 cursor-not-allowed'}"
 								disabled={!hasContent}
 							>
-								<Trash2 class="w-3.5 h-3.5" />{m.containers_clear_selection()}</Button>
+								<Trash2 class="w-3.5 h-3.5" />{m.stacks_clear_selection()}</Button>
 						{/snippet}
 					</ConfirmPopover>
 				</div>

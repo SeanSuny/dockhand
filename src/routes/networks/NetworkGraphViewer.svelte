@@ -563,7 +563,7 @@
 				<button
 					onclick={() => (showLayoutMenu = !showLayoutMenu)}
 					class="h-6 px-2 flex items-center gap-1 rounded text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-					title={m.networks_graph_tooltip_change_layout()}
+					title={m.stacks_graph_tooltip_change_layout()}
 				>
 					{#if currentLayout === "breadthfirst"}
 						<GitBranch class="w-3 h-3" />
@@ -637,7 +637,7 @@
 			<button
 				onclick={toggleGraphTheme}
 				class="h-6 w-6 flex items-center justify-center rounded text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-				title={graphTheme === "light" ? m.stacks_graph_tooltip_switch_dark() : m.stacks_graph_tooltip_switch_light()}
+				title={graphTheme === "light" ? m.container_files_switch_dark() : m.container_files_switch_light()}
 			>
 				{#if graphTheme === "light"}
 					<Moon class="w-3.5 h-3.5" />
@@ -673,7 +673,7 @@
 				>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-blue-500 flex-shrink-0"></div>
-						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_legend_service()}</span>
+						<span class="text-zinc-600 dark:text-zinc-300">{m.stacks_graph_type_service()}</span>
 					</div>
 					<div class="flex items-center gap-1 flex-shrink-0">
 						<div class="w-2 h-2 rounded-sm bg-violet-500 flex-shrink-0"></div>

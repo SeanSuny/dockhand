@@ -97,7 +97,7 @@
 				<Label for="rotate-confirm">{m.backups_rotate_confirm_password()}</Label>
 				<Input id="rotate-confirm" type="password" bind:value={confirmPassword} autocomplete="new-password" />
 				{#if confirmPassword.length > 0 && !passwordsMatch}
-					<p class="text-xs text-destructive">{m.settings_auth_user_modal_err_passwords_mismatch()}</p>
+					<p class="text-xs text-destructive">{m.profile_change_password_error_mismatch()}</p>
 				{/if}
 				{#if newPassword.length > 0 && newPassword === currentPassword}
 					<p class="text-xs text-destructive">{m.backups_rotate_passwords_same()}</p>

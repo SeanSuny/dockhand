@@ -70,8 +70,8 @@
 
 	// Usage filter options (static)
 	const usageOptions = [
-		{ value: 'in-use', label: m.volumes_filter_in_use(), icon: CircleDot, color: 'text-emerald-500' },
-		{ value: 'unused', label: m.volumes_filter_unused(), icon: Circle, color: 'text-muted-foreground' }
+		{ value: 'in-use', label: m.images_filter_in_use(), icon: CircleDot, color: 'text-emerald-500' },
+		{ value: 'unused', label: m.images_filter_unused(), icon: Circle, color: 'text-muted-foreground' }
 	];
 
 	// Confirmation popover state
@@ -495,7 +495,7 @@
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
-			>{m.containers_clear_selection()}</button>
+			>{m.stacks_clear_selection()}</button>
 			{#if $canAccess('volumes', 'remove')}
 			<ConfirmPopover
 				open={confirmBulkRemove}

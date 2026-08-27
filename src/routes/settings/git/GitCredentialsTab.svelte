@@ -72,11 +72,11 @@
 	function getAuthTypeBadge(authType: string) {
 		switch (authType) {
 			case 'password':
-				return { label: m.stacks_git_modal_auth_password(), class: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' };
+				return { label: m.login_password(), class: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' };
 			case 'ssh':
 				return { label: m.stacks_git_modal_auth_ssh(), class: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' };
 			default:
-				return { label: m.stacks_git_modal_auth_none(), class: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' };
+				return { label: m.network_mode_none(), class: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' };
 		}
 	}
 

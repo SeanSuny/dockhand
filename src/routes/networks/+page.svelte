@@ -578,13 +578,13 @@
 	<div class="h-4 shrink-0">
 		{#if selectedNetworks.size > 0}
 			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
-			<span>{m.networks_selected_count({ count: selectedInFilter.length })}</span>
+			<span>{m.stacks_selected_count({ count: selectedInFilter.length })}</span>
 			<button
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
 			>
-				{m.containers_clear_selection()}
+				{m.stacks_clear_selection()}
 			</button>
 			{#if $canAccess('networks', 'remove')}
 			<ConfirmPopover

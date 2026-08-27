@@ -716,18 +716,18 @@
 													{#if vol.destKind === 'path'}
 														<span class="flex items-center gap-1.5"><Folder class="h-3.5 w-3.5 text-amber-500" /> Host path</span>
 													{:else}
-														<span class="flex items-center gap-1.5"><HardDrive class="h-3.5 w-3.5 text-sky-500" />{m.stacks_graph_legend_volume()}</span>
+														<span class="flex items-center gap-1.5"><HardDrive class="h-3.5 w-3.5 text-sky-500" />{m.stacks_graph_type_volume()}</span>
 													{/if}
 												</Select.Trigger>
 												<Select.Content>
-													<Select.Item value="volume"><span class="flex items-center gap-1.5"><HardDrive class="h-3.5 w-3.5 text-sky-500" />{m.stacks_graph_legend_volume()}</span></Select.Item>
+													<Select.Item value="volume"><span class="flex items-center gap-1.5"><HardDrive class="h-3.5 w-3.5 text-sky-500" />{m.stacks_graph_type_volume()}</span></Select.Item>
 													<Select.Item value="path"><span class="flex items-center gap-1.5"><Folder class="h-3.5 w-3.5 text-amber-500" /> Host path</span></Select.Item>
 												</Select.Content>
 											</Select.Root>
 											<Input bind:value={vol.dest} class="h-8 flex-1 font-mono text-xs {(vol.conflict || vol.pathInvalid) ? 'border-destructive' : ''}" placeholder={vol.destKind === 'path' ? '/absolute/path' : 'volume-name'} />
 										</div>
 										{#if vol.conflict}
-											<p class="pl-6 text-xs text-destructive">{m.stacks_graph_legend_volume()}<span class="font-mono">{vol.dest}</span> already exists on {targetEnvName}. Remove it or choose another destination.</p>
+											<p class="pl-6 text-xs text-destructive">{m.stacks_graph_type_volume()}<span class="font-mono">{vol.dest}</span> already exists on {targetEnvName}. Remove it or choose another destination.</p>
 										{:else if vol.pathInvalid}
 											<p class="pl-6 text-xs text-destructive">A host path must be absolute — start it with <span class="font-mono">/</span> (e.g. <span class="font-mono">/srv/{vol.name}</span>).</p>
 										{/if}

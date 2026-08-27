@@ -222,7 +222,7 @@
 			</Command.Group>
 		{/if}
 		<Command.Separator />
-		<Command.Group heading={m.command_palette_group_light_theme()}>
+		<Command.Group heading={m.appearance_light_theme()}>
 			{#each lightThemes as theme (theme.id)}
 				<Command.Item
 					value={`light theme ${theme.name}`}
@@ -243,7 +243,7 @@
 			{/each}
 		</Command.Group>
 		<Command.Separator />
-		<Command.Group heading={m.command_palette_group_dark_theme()}>
+		<Command.Group heading={m.appearance_dark_theme()}>
 			{#each darkThemes as theme (theme.id)}
 				<Command.Item
 					value={`dark theme ${theme.name}`}
@@ -264,7 +264,7 @@
 			{/each}
 		</Command.Group>
 		<Command.Separator />
-		<Command.Group heading={m.command_palette_group_font()}>
+		<Command.Group heading={m.appearance_font()}>
 			{#each fonts as font (font.id)}
 				<Command.Item
 					value={`font ${font.name}`}

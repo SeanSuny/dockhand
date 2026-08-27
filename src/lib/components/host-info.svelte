@@ -543,7 +543,7 @@
 			<span class="text-muted-foreground" title={currentTimezone}>{formatLastUpdated(lastUpdated, currentTimezone)}</span>
 			{#if isConnected}
 				<Wifi class="{iconSizeLargeClass()}" />
-				<span class="font-medium">{m.container_inspect_live()}</span>
+				<span class="font-medium">{m.logs_live()}</span>
 			{:else}
 				<WifiOff class="{iconSizeLargeClass()}" />
 			{/if}

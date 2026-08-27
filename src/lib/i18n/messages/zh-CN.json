@@ -3069,5 +3069,8 @@
 	"backups_log_completed": "已完成",
 	"backups_log_copy_title": "复制",
 	"backups_log_run_in_background": "后台运行",
-	"backups_log_waiting_output": "等待输出…"
+	"backups_log_waiting_output": "等待输出…",
+	"secret_provider_label": "密钥提供方",
+	"secret_provider_unknown": "未知提供方",
+	"secret_provider_none_disabled": "无 — 已禁用"
 }

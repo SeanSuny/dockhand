@@ -3069,5 +3069,8 @@
 	"backups_log_completed": "Completed",
 	"backups_log_copy_title": "Copy",
 	"backups_log_run_in_background": "Run in background",
-	"backups_log_waiting_output": "Waiting for output…"
+	"backups_log_waiting_output": "Waiting for output…",
+	"secret_provider_label": "Secret provider",
+	"secret_provider_unknown": "Unknown provider",
+	"secret_provider_none_disabled": "None — disabled"
 }

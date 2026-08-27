@@ -2722,5 +2722,20 @@
 	"update_modal_github_token_hint": "（个人访问令牌，无需任何 scope）可将限制从 60 提升到 5000 请求/小时。",
 	"update_modal_dockhand_github_token": "DOCKHAND_GITHUB_TOKEN",
 	"update_modal_path": "路径：",
-	"update_modal_image_source_label": "org.opencontainers.image.source"
+	"update_modal_image_source_label": "org.opencontainers.image.source",
+	"semver_check_title": "检查新版本标签",
+	"semver_check_hint": "对固定到版本标签的容器（如 16.2、v3.0），检测到新版本发布时提醒。仅供参考。",
+	"semver_check_floating_hint": "{floatingTag} 是浮动标签 — 固定到版本标签（如 1.26）以启用新版本检测。",
+	"semver_check_which_updates": "显示哪些更新",
+	"semver_check_example_running": "运行 1.4.2 时，你将收到以下提醒：",
+	"semver_check_example_patch": "Patch 仅修复 bug → 1.4.3",
+	"semver_check_example_minor": "Minor 也包含新功能 → 1.4.3、1.5.0",
+	"semver_check_example_major": "Major 包含所有内容，包括破坏性变更 → 1.4.3、1.5.0、2.0.0",
+	"semver_check_match_flavor": "匹配标签风格",
+	"semver_check_match_flavor_hint": "仅推荐与当前运行标签相同后缀的标签 — 风格，如 -alpine 或 -ls123。",
+	"semver_check_example_on": "在 1.2-alpine 上 → 1.5-alpine，不会是裸 1.5",
+	"semver_check_example_off": "关：任何新版本，即使风格不同 — 更嘈杂",
+	"semver_check_include_prereleases": "包含预发布版本",
+	"semver_check_include_prereleases_hint": "考虑 -rc / -beta 标签。关闭则保持在稳定版本的稳定部署。",
+	"semver_check_never_auto_applied": "新版本会显示为容器上的徽标 — 永远不会自动应用。"
 }

@@ -2722,5 +2722,20 @@
 	"update_modal_github_token_hint": " (a personal access token, no scopes needed) to raise the limit from 60 to 5000 requests/hour.",
 	"update_modal_dockhand_github_token": "DOCKHAND_GITHUB_TOKEN",
 	"update_modal_path": "Path:",
-	"update_modal_image_source_label": "org.opencontainers.image.source"
+	"update_modal_image_source_label": "org.opencontainers.image.source",
+	"semver_check_title": "Check for newer version tags",
+	"semver_check_hint": "For a container pinned to a version tag (e.g. 16.2, v3.0), also detect when a newer version is published. Advisory only.",
+	"semver_check_floating_hint": "{floatingTag} is a floating tag — pin a version tag (e.g. 1.26) to enable newer-version detection.",
+	"semver_check_which_updates": "Which updates to show",
+	"semver_check_example_running": "Running 1.4.2, you will be told about:",
+	"semver_check_example_patch": "Patch bug-fix only → 1.4.3",
+	"semver_check_example_minor": "Minor new features too → 1.4.3, 1.5.0",
+	"semver_check_example_major": "Major everything, incl. breaking → 1.4.3, 1.5.0, 2.0.0",
+	"semver_check_match_flavor": "Match the tag flavor",
+	"semver_check_match_flavor_hint": "Only suggest tags with the same suffix as the one you run — the flavor, like -alpine or -ls123.",
+	"semver_check_example_on": "On 1.2-alpine → 1.5-alpine, never bare 1.5",
+	"semver_check_example_off": "Off: any newer version, even a different flavor — noisier",
+	"semver_check_include_prereleases": "Include prereleases",
+	"semver_check_include_prereleases_hint": "Consider -rc / -beta tags. Off keeps a stable deployment on stable releases.",
+	"semver_check_never_auto_applied": "A newer version shows as a badge on the container — it is never auto-applied."
 }

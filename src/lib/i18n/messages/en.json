@@ -3010,5 +3010,7 @@
 	"stacks_page_title": "Stacks - Dockhand",
 	"stacks_restart_stack": "Restart stack",
 	"common_not_set": "Not set",
-	"stacks_update_status_unknown": "Update status unknown — often a Docker Hub rate limit. Try again later."
+	"stacks_update_status_unknown": "Update status unknown — often a Docker Hub rate limit. Try again later.",
+	"stacks_modal_stack_name": "Stack name",
+	"stacks_modal_untracked": "Untracked stack"
 }

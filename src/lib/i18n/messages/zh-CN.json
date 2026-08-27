@@ -3097,5 +3097,10 @@
 	"secrets_added_on": "添加于 {date}",
 	"secrets_confirm_remove": "移除",
 	"secrets_item_type": "密钥提供方",
-	"secrets_connection_failed": "连接失败"
+	"secrets_connection_failed": "连接失败",
+	"dashboards_page_title": "仪表盘 - Dockhand",
+	"schedules_page_title": "计划任务 - Dockhand",
+	"audit_page_title": "审计日志 - Dockhand",
+	"registry_page_title": "镜像仓库 - Dockhand",
+	"activity_page_title": "活动 - Dockhand"
 }

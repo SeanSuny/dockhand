@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Registry - Dockhand</title>
+	<title>{m.registry_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">

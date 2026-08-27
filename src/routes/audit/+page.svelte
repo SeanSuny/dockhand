@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
@@ -596,7 +597,7 @@
 </script>
 
 <svelte:head>
-	<title>Audit log - Dockhand</title>
+	<title>{m.audit_page_title()}</title>
 </svelte:head>
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">

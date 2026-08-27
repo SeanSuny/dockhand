@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Dashboard - Dockhand</title>
+	<title>{m.dashboards_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">

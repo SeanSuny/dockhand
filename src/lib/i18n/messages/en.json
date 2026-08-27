@@ -3097,5 +3097,10 @@
 	"secrets_added_on": "Added {date}",
 	"secrets_confirm_remove": "Remove",
 	"secrets_item_type": "secret provider",
-	"secrets_connection_failed": "connection failed"
+	"secrets_connection_failed": "connection failed",
+	"dashboards_page_title": "Dashboard - Dockhand",
+	"schedules_page_title": "Schedules - Dockhand",
+	"audit_page_title": "Audit Log - Dockhand",
+	"registry_page_title": "Registry - Dockhand",
+	"activity_page_title": "Activity - Dockhand"
 }

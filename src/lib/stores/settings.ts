@@ -6,6 +6,7 @@ import {
 	buildFormatters,
 	formatDatePartWith,
 	formatTimePartWith,
+	parseTimestamp,
 	type DateTimeFormatters
 } from '$lib/utils/date-format';
 
@@ -20,6 +21,7 @@ export interface AppSettings {
 	confirmDestructive: boolean;
 	showStoppedContainers: boolean;
 	highlightUpdates: boolean;
+	showGitCommitHash: boolean;
 	timeFormat: TimeFormat;
 	dateFormat: DateFormat;
 	downloadFormat: DownloadFormat;
@@ -48,8 +50,11 @@ export interface AppSettings {
 	defaultTrivyImage: string;
 	defaultComposeTemplate: string;
 	labelFilterMode: LabelFilterMode;
+	defaultBackupImage: string;
 	honorProxyLabels: boolean;
 	showImageChangelogLinks: boolean;
+	// Fetch app logos from selfh.st for container icons (off by default; opt-in).
+	useSelfhstIcons: boolean;
 	showWhatsNew: boolean;   // show the "What's New" modal after an upgrade (#1235)
 	protectScannerImages: boolean;
 	// Scanner Advanced settings (#1219). Empty values = use auto-detection.
@@ -62,6 +67,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 	confirmDestructive: true,
 	showStoppedContainers: true,
 	highlightUpdates: true,
+	showGitCommitHash: false,
 	timeFormat: '24h',
 	dateFormat: 'DD.MM.YYYY',
 	downloadFormat: 'tar',
@@ -91,6 +97,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 	labelFilterMode: 'any',
 	honorProxyLabels: true,
 	showImageChangelogLinks: true,
+	useSelfhstIcons: false,
 	showWhatsNew: true,
 	protectScannerImages: true,
 	defaultScannerNetworkMode: '',
@@ -112,7 +119,10 @@ services:
 # networks:
 #   default:
 #     driver: bridge
-`
+`,
+	// Empty until the API responds with the real version-pinned default — never
+	// flash a hardcoded `:latest` (which the backup engine never actually uses).
+	defaultBackupImage: ''
 };
 
 // Derive logMaxLines from a settings payload — prefers the new field; if absent
@@ -156,6 +166,7 @@ function createSettingsStore() {
 					confirmDestructive: settings.confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
 					showStoppedContainers: settings.showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
 					highlightUpdates: settings.highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
+					showGitCommitHash: settings.showGitCommitHash ?? DEFAULT_SETTINGS.showGitCommitHash,
 					timeFormat: settings.timeFormat ?? DEFAULT_SETTINGS.timeFormat,
 					dateFormat: settings.dateFormat ?? DEFAULT_SETTINGS.dateFormat,
 					downloadFormat: settings.downloadFormat ?? DEFAULT_SETTINGS.downloadFormat,
@@ -183,13 +194,15 @@ function createSettingsStore() {
 					defaultGrypeImage: settings.defaultGrypeImage ?? DEFAULT_SETTINGS.defaultGrypeImage,
 					defaultTrivyImage: settings.defaultTrivyImage ?? DEFAULT_SETTINGS.defaultTrivyImage,
 					defaultComposeTemplate: settings.defaultComposeTemplate ?? DEFAULT_SETTINGS.defaultComposeTemplate,
-				labelFilterMode: settings.labelFilterMode ?? DEFAULT_SETTINGS.labelFilterMode,
-				honorProxyLabels: settings.honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
-				showImageChangelogLinks: settings.showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
-				showWhatsNew: settings.showWhatsNew ?? DEFAULT_SETTINGS.showWhatsNew,
-				protectScannerImages: settings.protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages,
-				defaultScannerNetworkMode: settings.defaultScannerNetworkMode ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
-				defaultScannerDns: Array.isArray(settings.defaultScannerDns) ? settings.defaultScannerDns : DEFAULT_SETTINGS.defaultScannerDns
+					labelFilterMode: settings.labelFilterMode ?? DEFAULT_SETTINGS.labelFilterMode,
+					defaultBackupImage: settings.defaultBackupImage ?? DEFAULT_SETTINGS.defaultBackupImage,
+					honorProxyLabels: settings.honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
+					showImageChangelogLinks: settings.showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
+					useSelfhstIcons: settings.useSelfhstIcons ?? DEFAULT_SETTINGS.useSelfhstIcons,
+					showWhatsNew: settings.showWhatsNew ?? DEFAULT_SETTINGS.showWhatsNew,
+					protectScannerImages: settings.protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages,
+					defaultScannerNetworkMode: settings.defaultScannerNetworkMode ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
+					defaultScannerDns: Array.isArray(settings.defaultScannerDns) ? settings.defaultScannerDns : DEFAULT_SETTINGS.defaultScannerDns
 				});
 			}
 		} catch {
@@ -214,6 +227,7 @@ function createSettingsStore() {
 					confirmDestructive: updatedSettings.confirmDestructive ?? DEFAULT_SETTINGS.confirmDestructive,
 					showStoppedContainers: updatedSettings.showStoppedContainers ?? DEFAULT_SETTINGS.showStoppedContainers,
 					highlightUpdates: updatedSettings.highlightUpdates ?? DEFAULT_SETTINGS.highlightUpdates,
+					showGitCommitHash: updatedSettings.showGitCommitHash ?? DEFAULT_SETTINGS.showGitCommitHash,
 					timeFormat: updatedSettings.timeFormat ?? DEFAULT_SETTINGS.timeFormat,
 					dateFormat: updatedSettings.dateFormat ?? DEFAULT_SETTINGS.dateFormat,
 					downloadFormat: updatedSettings.downloadFormat ?? DEFAULT_SETTINGS.downloadFormat,
@@ -241,13 +255,15 @@ function createSettingsStore() {
 					defaultGrypeImage: updatedSettings.defaultGrypeImage ?? DEFAULT_SETTINGS.defaultGrypeImage,
 					defaultTrivyImage: updatedSettings.defaultTrivyImage ?? DEFAULT_SETTINGS.defaultTrivyImage,
 					defaultComposeTemplate: updatedSettings.defaultComposeTemplate ?? DEFAULT_SETTINGS.defaultComposeTemplate,
-				labelFilterMode: updatedSettings.labelFilterMode ?? DEFAULT_SETTINGS.labelFilterMode,
-				honorProxyLabels: updatedSettings.honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
-				showImageChangelogLinks: updatedSettings.showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
-				showWhatsNew: updatedSettings.showWhatsNew ?? DEFAULT_SETTINGS.showWhatsNew,
-				protectScannerImages: updatedSettings.protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages,
-				defaultScannerNetworkMode: updatedSettings.defaultScannerNetworkMode ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
-				defaultScannerDns: Array.isArray(updatedSettings.defaultScannerDns) ? updatedSettings.defaultScannerDns : DEFAULT_SETTINGS.defaultScannerDns
+					labelFilterMode: updatedSettings.labelFilterMode ?? DEFAULT_SETTINGS.labelFilterMode,
+					defaultBackupImage: updatedSettings.defaultBackupImage ?? DEFAULT_SETTINGS.defaultBackupImage,
+					honorProxyLabels: updatedSettings.honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
+					showImageChangelogLinks: updatedSettings.showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
+					useSelfhstIcons: updatedSettings.useSelfhstIcons ?? DEFAULT_SETTINGS.useSelfhstIcons,
+					showWhatsNew: updatedSettings.showWhatsNew ?? DEFAULT_SETTINGS.showWhatsNew,
+					protectScannerImages: updatedSettings.protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages,
+					defaultScannerNetworkMode: updatedSettings.defaultScannerNetworkMode ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
+					defaultScannerDns: Array.isArray(updatedSettings.defaultScannerDns) ? updatedSettings.defaultScannerDns : DEFAULT_SETTINGS.defaultScannerDns
 				});
 			}
 		} catch (error) {
@@ -292,6 +308,20 @@ function createSettingsStore() {
 			update((current) => {
 				const newSettings = { ...current, highlightUpdates: value };
 				saveSettings({ highlightUpdates: value });
+				return newSettings;
+			});
+		},
+		setUseSelfhstIcons: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, useSelfhstIcons: value };
+				saveSettings({ useSelfhstIcons: value });
+				return newSettings;
+			});
+		},
+		setShowGitCommitHash: (value: boolean) => {
+			update((current) => {
+				const newSettings = { ...current, showGitCommitHash: value };
+				saveSettings({ showGitCommitHash: value });
 				return newSettings;
 			});
 		},
@@ -505,6 +535,13 @@ function createSettingsStore() {
 				return newSettings;
 			});
 		},
+		setDefaultBackupImage: (value: string) => {
+			update((current) => {
+				const newSettings = { ...current, defaultBackupImage: value };
+				saveSettings({ defaultBackupImage: value });
+				return newSettings;
+			});
+		},
 		setHonorProxyLabels: (value: boolean) => {
 			update((current) => {
 				const newSettings = { ...current, honorProxyLabels: value };
@@ -610,7 +647,7 @@ export function formatTime(
 	date: Date | string | number,
 	options: { includeDate?: boolean; includeSeconds?: boolean } = {}
 ): string {
-	const d = date instanceof Date ? date : new Date(date);
+	const d = parseTimestamp(date);
 	const { includeDate = false, includeSeconds = false } = options;
 
 	if (includeDate) {
@@ -632,9 +669,18 @@ export function formatDateTime(date: Date | string | number, includeSeconds = fa
  * Format just the date part according to user's preferences.
  */
 export function formatDate(date: Date | string | number): string {
-	const d = date instanceof Date ? date : new Date(date);
+	const d = parseTimestamp(date);
 	return formatDatePart(d);
 }
+
+/**
+ * Compact relative time like "just now", "5m ago", "2d ago", "3mo ago".
+ * For display ONLY, alongside the absolute date - sort still uses the raw
+ * timestamp, never this string.
+ */
+// Re-exported from the import-light utils/format module (so it stays unit-testable
+// without pulling $app/environment). Kept exported here for existing callers.
+export { formatRelativeTime } from '$lib/utils/format';
 
 /**
  * Get the current time format setting (for components that need it).
@@ -648,6 +694,14 @@ export function getTimeFormat(): TimeFormat {
  */
 export function getDateFormat(): DateFormat {
 	return cachedDateFormat;
+}
+
+/**
+ * Get the global default timezone setting (for components that format a time and have
+ * no more-specific timezone to use). Falls back to UTC via DEFAULT_SETTINGS.
+ */
+export function getDefaultTimezone(): string {
+	return cachedDefaultTimezone;
 }
 
 // Regex matching ISO 8601 timestamps at the start of log lines (after optional container prefix)

@@ -16,7 +16,9 @@
 		Users,
 		Info,
 		GitBranch,
-		Tags
+		Tags,
+		KeyRound,
+		Archive
 	} from 'lucide-svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -27,8 +29,10 @@
 	import LabelsTab from './labels/LabelsTab.svelte';
 	import RegistriesTab from './registries/RegistriesTab.svelte';
 	import GitTab from './git/GitTab.svelte';
+	import SecretsTab from './secrets/SecretsTab.svelte';
 	import ConfigSetsTab from './config-sets/ConfigSetsTab.svelte';
 	import NotificationsTab from './notifications/NotificationsTab.svelte';
+	import BackupsTab from './backups/BackupsTab.svelte';
 	import AuthTab from './auth/AuthTab.svelte';
 	import LicenseTab from './license/LicenseTab.svelte';
 	import AboutTab from './about/AboutTab.svelte';
@@ -70,6 +74,10 @@
 				<GitBranch class="w-4 h-4" />
 				{m.settings_tab_git()}
 			</Tabs.Trigger>
+			<Tabs.Trigger value="secrets" class="flex-1 flex items-center justify-center gap-1.5">
+				<KeyRound class="w-4 h-4" />
+				Secrets
+			</Tabs.Trigger>
 			<Tabs.Trigger value="config-sets" class="flex-1 flex items-center justify-center gap-1.5">
 				<Layers class="w-4 h-4" />
 				{m.settings_tab_config_sets()}
@@ -78,6 +86,13 @@
 				<Bell class="w-4 h-4" />
 				{m.settings_tab_notifications()}
 			</Tabs.Trigger>
+			<!-- BETA GATE: Backups tab hidden unless FEAT_BACKUPS_ENABLED (see features.ts) -->
+			{#if $page.data.backupsEnabled}
+				<Tabs.Trigger value="backups" class="flex-1 flex items-center justify-center gap-1.5">
+					<Archive class="w-4 h-4" />
+					Backups
+				</Tabs.Trigger>
+			{/if}
 			<Tabs.Trigger value="auth" class="flex-1 flex items-center justify-center gap-1.5">
 				<Users class="w-4 h-4" />
 				{m.settings_tab_auth()}
@@ -92,43 +107,51 @@
 			</Tabs.Trigger>
 		</Tabs.List>
 
-		<Tabs.Content value="general" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="general" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'general'}<GeneralTab />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="environments" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="environments" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'environments'}<EnvironmentsTab {editEnvId} {newEnv} />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="labels" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="labels" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'labels'}<LabelsTab />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="registries" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="registries" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'registries'}<RegistriesTab />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="git" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="git" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'git'}<GitTab />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="config-sets" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="secrets" class="flex-1 min-h-0 overflow-y-auto pr-5">
+			{#if activeTab === 'secrets'}<SecretsTab />{/if}
+		</Tabs.Content>
+
+		<Tabs.Content value="config-sets" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'config-sets'}<ConfigSetsTab />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="notifications" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="notifications" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'notifications'}<NotificationsTab />{/if}
+		</Tabs.Content>
+
+		<Tabs.Content value="backups" class="flex-1 min-h-0 overflow-y-auto">
+			{#if activeTab === 'backups'}<BackupsTab />{/if}
 		</Tabs.Content>
 
 		<Tabs.Content value="auth" class="flex-1 min-h-0 flex flex-col">
 			{#if activeTab === 'auth'}<AuthTab onTabChange={handleTabChange} />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="license" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="license" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'license'}<LicenseTab />{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="about" class="flex-1 min-h-0 overflow-y-auto pr-3">
+		<Tabs.Content value="about" class="flex-1 min-h-0 overflow-y-auto pr-5">
 			{#if activeTab === 'about'}<AboutTab />{/if}
 		</Tabs.Content>
 	</Tabs.Root>

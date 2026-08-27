@@ -24,6 +24,7 @@
 		ClipboardList,
 		Activity,
 		Timer,
+		Archive,
 		LibraryBig,
 		CircleArrowUp,
 		Pencil,
@@ -41,7 +42,6 @@
 	import { sidebarPreferencesStore, orderItems } from '$lib/stores/sidebar-preferences';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import * as m from '$lib/paraglide/messages';
 
 	const appVersion = __APP_VERSION__ || 'unknown';
 	const buildCommit = __BUILD_COMMIT__ ?? null;
@@ -71,8 +71,10 @@
 	const sidebar = useSidebar();
 
 	function isActive(path: string): boolean {
-		if (path === '/') return currentPath === '/';
-		return currentPath === path || currentPath.startsWith(`${path}/`);
+		// The Dashboard link carries a ?home marker; compare on the path only.
+		const p = path.split('?')[0];
+		if (p === '/') return currentPath === '/';
+		return currentPath === p || currentPath.startsWith(`${p}/`);
 	}
 
 	async function handleLogout() {
@@ -90,6 +92,11 @@
 	 * - ENTERPRISE edition: check if user has ANY permission for the resource
 	 */
 	function canSeeMenuItem(item: MenuItem): boolean {
+		// BETA GATE: hide Backups unless FEAT_BACKUPS_ENABLED is on (see features.ts)
+		if (item.href === '/backups' && !$page.data.backupsEnabled) {
+			return false;
+		}
+
 		// Enterprise-only items are hidden without enterprise license
 		if (item.enterpriseOnly && !$licenseStore.isEnterprise) {
 			return false;
@@ -116,20 +123,21 @@
 	}
 
 	const menuItems: readonly MenuItem[] = [
-		{ href: '/', Icon: LayoutDashboard, label: m.sidebar_dashboard(), permission: 'always' },
-		{ href: '/containers', Icon: Box, label: m.common_containers(), permission: 'containers' },
-		{ href: '/logs', Icon: ScrollText, label: m.sidebar_logs(), permission: 'containers' },
-		{ href: '/terminal', Icon: Terminal, label: m.sidebar_shell(), permission: 'containers' },
-		{ href: '/stacks', Icon: Layers, label: m.sidebar_stacks(), permission: 'stacks' },
-		{ href: '/images', Icon: Images, label: m.sidebar_images(), permission: 'images' },
-		{ href: '/volumes', Icon: HardDrive, label: m.sidebar_volumes(), permission: 'volumes' },
-		{ href: '/networks', Icon: Network, label: m.sidebar_networks(), permission: 'networks' },
-		{ href: '/templates', Icon: LibraryBig, label: m.sidebar_templates(), permission: 'templates' },
-		{ href: '/registry', Icon: Download, label: m.sidebar_registry(), permission: 'registries' },
-		{ href: '/activity', Icon: Activity, label: m.sidebar_activity(), permission: 'activity' },
-		{ href: '/schedules', Icon: Timer, label: m.sidebar_schedules(), permission: 'schedules' },
-		{ href: '/audit', Icon: ClipboardList, label: m.sidebar_audit_log(), permission: 'audit_logs', enterpriseOnly: true },
-		{ href: '/settings', Icon: Settings, label: m.sidebar_settings(), permission: 'settings' }
+		{ href: '/?home', Icon: LayoutDashboard, label: 'Dashboard', permission: 'always' },
+		{ href: '/containers', Icon: Box, label: 'Containers', permission: 'containers' },
+		{ href: '/logs', Icon: ScrollText, label: 'Logs', permission: 'containers' },
+		{ href: '/terminal', Icon: Terminal, label: 'Shell', permission: 'containers' },
+		{ href: '/stacks', Icon: Layers, label: 'Stacks', permission: 'stacks' },
+		{ href: '/images', Icon: Images, label: 'Images', permission: 'images' },
+		{ href: '/volumes', Icon: HardDrive, label: 'Volumes', permission: 'volumes' },
+		{ href: '/networks', Icon: Network, label: 'Networks', permission: 'networks' },
+		{ href: '/templates', Icon: LibraryBig, label: 'Templates', permission: 'templates' },
+		{ href: '/registry', Icon: Download, label: 'Registry', permission: 'registries' },
+		{ href: '/activity', Icon: Activity, label: 'Activity', permission: 'activity' },
+		{ href: '/backups', Icon: Archive, label: 'Backups', permission: 'backups' },
+		{ href: '/schedules', Icon: Timer, label: 'Schedules', permission: 'schedules' },
+		{ href: '/audit', Icon: ClipboardList, label: 'Audit log', permission: 'audit_logs', enterpriseOnly: true },
+		{ href: '/settings', Icon: Settings, label: 'Settings', permission: 'settings' }
 	] as const;
 
 	// --- Sidebar customization (#1252): reorder + hide/show menu items ---
@@ -235,7 +243,7 @@
 	<Sidebar.Header class="overflow-visible flex items-center justify-center p-0">
 		<!-- Expanded state: logo + collapse button -->
 		<div class="relative flex items-center justify-center w-full group-data-[state=collapsed]:hidden">
-			<a href="/" class="flex justify-center relative">
+			<a href="/?home" class="flex justify-center relative">
 				<img src="/logo-light.webp" alt="Dockhand Logo" class="h-[52px] w-auto object-contain mt-2 mb-1 dark:hidden" style="filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.9));" />
 				<img src="/logo-dark.webp" alt="Dockhand Logo" class="h-[52px] w-auto object-contain mt-2 mb-1 hidden dark:block" style="filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.6)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.2));" />
 				{#if $licenseStore.isEnterprise}
@@ -246,8 +254,8 @@
 				type="button"
 				onclick={() => sidebar.toggle()}
 				class="absolute right-1 p-1.5 rounded-md hover:bg-sidebar-accent text-gray-300 hover:text-gray-400 transition-colors"
-				title={m.sidebar_collapse()}
-				aria-label={m.sidebar_collapse()}
+				title="Collapse sidebar"
+				aria-label="Collapse sidebar"
 			>
 				<PanelLeftClose class="w-4 h-4" aria-hidden="true" />
 			</button>
@@ -257,8 +265,8 @@
 			type="button"
 			onclick={() => sidebar.toggle()}
 			class="hidden group-data-[state=collapsed]:flex p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors"
-			title={m.sidebar_expand()}
-			aria-label={m.sidebar_expand()}
+			title="Expand sidebar"
+			aria-label="Expand sidebar"
 		>
 			<PanelLeft class="w-4 h-4" aria-hidden="true" />
 		</button>

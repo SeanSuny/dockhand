@@ -1,14 +1,20 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
-	import { Pencil, Check, Loader2, X, Layers } from 'lucide-svelte';
+	import { Pencil, Check, Loader2, X, Layers, Settings, Archive } from 'lucide-svelte';
 	import { currentEnvironment, appendEnvParam } from '$lib/stores/environment';
+	import { page } from '$app/stores'; // BETA GATE: backups feature flag
 	import { focusFirstInput } from '$lib/utils';
+	import ContainerIcon from '$lib/components/ContainerIcon.svelte';
+	import IconPickerModal from '../stacks/IconPickerModal.svelte';
+	import { Box } from 'lucide-svelte';
 	import ContainerSettingsTab from './ContainerSettingsTab.svelte';
+	import BackupPanel from './BackupPanel.svelte';
+	import { volumeInfoFromBind } from '$lib/utils/mounts';
+	import { fetchBackupExecutions } from '$lib/utils/backup';
 	import type { VulnerabilityCriteria } from '$lib/components/VulnerabilityCriteriaSelector.svelte';
 	import { parseHostPort, expandPortBindings, formatHostPort } from '$lib/utils/port-parse';
 	import { formatBytes } from '$lib/utils/format';
-	import * as m from '$lib/paraglide/messages';
 
 	// Parse shell command respecting quotes
 	function parseShellCommand(cmd: string): string[] {
@@ -60,9 +66,11 @@
 		containerId: string;
 		onClose: () => void;
 		onSuccess: () => void;
+		/** Fired after the icon override changes, so the list can refresh its icons. */
+		onIconChanged?: () => void;
 	}
 
-	let { open = $bindable(), containerId, onClose, onSuccess }: Props = $props();
+	let { open = $bindable(), containerId, onClose, onSuccess, onIconChanged }: Props = $props();
 
 	// Config sets
 	let configSets = $state<ConfigSet[]>([]);
@@ -85,6 +93,42 @@
 	// Form state - Basic
 	let name = $state('');
 	let image = $state('');
+
+	// Per-container icon override (lucide / selfhst:<ref> / custom:container). Persisted
+	// immediately via the name-keyed /api/container-icons endpoint, keyed by name + env.
+	let iconOverride = $state<string | null>(null);
+	let showIconPicker = $state(false);
+
+	async function loadIconOverride(containerName: string) {
+		try {
+			const res = await fetch(appendEnvParam('/api/container-icons', currentEnvId));
+			iconOverride = res.ok ? ((await res.json())[containerName] ?? null) : null;
+		} catch {
+			iconOverride = null;
+		}
+	}
+
+	// Picker emits '' (clear), 'upload:<dataUrl>' (custom upload), or a lucide/selfhst value.
+	async function onIconSelect(value: string) {
+		const target = appendEnvParam(`/api/container-icons/${encodeURIComponent(name)}`, currentEnvId);
+		try {
+			if (!value) {
+				await fetch(target, { method: 'DELETE' });
+				iconOverride = null;
+			} else if (value.startsWith('upload:')) {
+				const image = value.slice('upload:'.length);
+				const res = await fetch(target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) });
+				if (res.ok) iconOverride = (await res.json()).icon;
+			} else {
+				const res = await fetch(target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ icon: value }) });
+				if (res.ok) iconOverride = (await res.json()).icon;
+			}
+			// Let the list refresh so the row icon reflects the change without an env switch.
+			onIconChanged?.();
+		} catch (e) {
+			console.error('Failed to set container icon:', e);
+		}
+	}
 	let command = $state('');
 	let restartPolicy = $state('no');
 	let restartMaxRetries = $state<number | ''>('');
@@ -229,7 +273,16 @@
 	let loading = $state(false);
 	let loadingData = $state(true);
 	let error = $state('');
+	let activeTab = $state<'settings' | 'backups'>('settings');
+	let backupCount = $state(0);
+	// Ok/fail run tally, reported by BackupPanel — shown on the Backups tab so a
+	// failed backup is visible without opening the tab.
+	let backupTally = $state<{ ok: number; failed: number }>({ ok: 0, failed: 0 });
 	let abortController: AbortController | null = null;
+	// Unsaved-changes guard on close (mirrors StackModal): settings changes OR a
+	// half-edited backup schedule in the embedded panel.
+	let showConfirmClose = $state(false);
+	let backupPanelRef = $state<BackupPanel | undefined>(undefined);
 	let statusMessage = $state('');
 	let visible = $state(false);
 
@@ -335,6 +388,7 @@
 			// Parse basic container data
 			name = data.Name.replace(/^\//, '');
 			image = data.Config.Image;
+			loadIconOverride(name);
 			command = data.Config.Cmd ? data.Config.Cmd.map((arg: string) =>
 				arg.includes(' ') ? `"${arg}"` : arg
 			).join(' ') : '';
@@ -596,9 +650,28 @@
 				runtime
 			};
 		} catch (err) {
-			error = m.container_edit_load_failed({ error: String(err) });
+			error = 'Failed to load container data: ' + String(err);
 		} finally {
 			loadingData = false;
+			// Fetch backup schedule count (BETA GATE: only when backups enabled)
+			if ($page.data.backupsEnabled) try {
+				const envId = $currentEnvironment?.id;
+				const bp = new URLSearchParams({ target: name, type: 'container' });
+				if (envId) bp.set('env', String(envId));
+				const bRes = await fetch(`/api/backup/configs?${bp}`);
+				if (bRes.ok) {
+						const bData = await bRes.json();
+						const cfgs = Array.isArray(bData) ? bData : bData?.id ? [bData] : [];
+						backupCount = cfgs.length;
+						// Compute the run tally at modal level (not from BackupPanel, which
+						// only mounts when the Backups tab is open) so the fail count shows
+						// on the tab immediately.
+						if (cfgs.length > 0) {
+							const t = await fetchBackupExecutions(cfgs.map((c: any) => c.id));
+							backupTally = { ok: t.ok, failed: t.failed };
+						}
+					}
+			} catch {}
 			requestAnimationFrame(() => {
 				visible = true;
 				focusFirstInput();
@@ -773,12 +846,12 @@
 
 		let hasErrors = false;
 		if (!name.trim()) {
-			errors.name = m.container_edit_name_required();
+			errors.name = 'Container name is required';
 			hasErrors = true;
 		}
 
 		if (!image.trim()) {
-			errors.image = m.container_edit_image_required();
+			errors.image = 'Image name is required';
 			hasErrors = true;
 		}
 
@@ -802,7 +875,7 @@
 		try {
 			// If only name changed, use the rename endpoint
 			if (hasOnlyNameChanged()) {
-				statusMessage = m.container_edit_renaming();
+				statusMessage = 'Renaming container...';
 
 				const response = await fetch(appendEnvParam(
 					`/api/containers/${containerId}/rename`,
@@ -817,12 +890,12 @@
 				const result = await response.json();
 
 				if (!response.ok) {
-					error = result.error || m.container_edit_rename_failed();
+					error = result.error || 'Failed to rename container';
 					loading = false;
 					return;
 				}
 
-				statusMessage = m.container_edit_renamed_success();
+				statusMessage = 'Container renamed successfully!';
 
 				if (autoUpdateChanged) {
 					await saveAutoUpdateSettings(name.trim());
@@ -837,7 +910,7 @@
 
 			// Full update required - recreate container
 			if (containerConfigChanged) {
-				statusMessage = m.container_edit_updating();
+				statusMessage = 'Updating container...';
 
 				const ports: Record<string, { HostIp?: string; HostPort: string }> = {};
 				portMappings
@@ -987,16 +1060,16 @@
 					return;
 				}
 
-				statusMessage = m.container_edit_updated_success();
+				statusMessage = 'Container updated successfully!';
 			}
 
 			if (autoUpdateChanged) {
 				if (!containerConfigChanged) {
-					statusMessage = m.container_edit_saving_auto_update();
+					statusMessage = 'Saving auto-update settings...';
 				}
 				await saveAutoUpdateSettings(name.trim());
 				if (!containerConfigChanged) {
-					statusMessage = m.container_edit_auto_update_saved();
+					statusMessage = 'Auto-update settings saved!';
 				}
 			}
 
@@ -1006,7 +1079,7 @@
 			onClose();
 		} catch (err) {
 			if (signal.aborted) return;
-			error = m.container_edit_update_failed_with_error({ error: String(err) });
+			error = 'Failed to update container: ' + String(err);
 		} finally {
 			loading = false;
 			abortController = null;
@@ -1019,7 +1092,32 @@
 			abortController = null;
 		}
 		loading = false;
+		showConfirmClose = false;
 		onClose();
+	}
+
+	/** True if closing now would lose unsaved work: container settings changed, OR the
+	 * embedded backup panel has a half-edited schedule. Guarded on `originalConfig`
+	 * (the loaded baseline) — while the container config is still loading it is null,
+	 * and hasContainerConfigChanged() returns true for a null baseline, which would
+	 * falsely block a close during load. No baseline yet ⇒ nothing to lose. */
+	function hasUnsavedChanges(): boolean {
+		if (!originalConfig) return false;
+		return hasContainerConfigChanged() || (backupPanelRef?.isDirty() ?? false);
+	}
+
+	/** Intercept a close request: confirm first if there are unsaved changes. */
+	function tryClose() {
+		if (hasUnsavedChanges()) {
+			showConfirmClose = true;
+		} else {
+			handleClose();
+		}
+	}
+
+	function discardAndClose() {
+		showConfirmClose = false;
+		handleClose();
 	}
 
 	$effect(() => {
@@ -1041,11 +1139,33 @@
 	});
 </script>
 
-<Dialog.Root bind:open onOpenChange={(isOpen) => isOpen && focusFirstInput()}>
-	<Dialog.Content class="max-w-4xl w-full max-h-[90vh] p-0 flex flex-col overflow-hidden sm:max-h-[85vh]">
+<Dialog.Root
+	bind:open
+	onOpenChange={(isOpen) => {
+		if (isOpen) {
+			focusFirstInput();
+		} else if (hasUnsavedChanges()) {
+			// Re-open and show the confirmation instead of closing on unsaved changes.
+			open = true;
+			showConfirmClose = true;
+		} else {
+			handleClose();
+		}
+	}}
+>
+	<Dialog.Content class="max-w-4xl w-[calc(100%-2rem)] h-[85vh] p-0 flex flex-col overflow-hidden">
 		<Dialog.Header class="px-5 py-4 border-b bg-muted/30 shrink-0 sticky top-0 z-10">
 			<Dialog.Title class="text-base font-semibold flex items-center gap-1">
-				{m.container_edit_title()}
+				<button
+					type="button"
+					onclick={() => (showIconPicker = true)}
+					title="Change icon"
+					class="mr-1 rounded p-0.5 hover:bg-muted transition-colors cursor-pointer"
+					aria-label="Change container icon"
+				>
+					<ContainerIcon {image} name={name} override={iconOverride} envId={currentEnvId} class="w-4 h-4" fallbackIcon={Box} showFallbackWhenOff />
+				</button>
+				Edit container
 				{#if isEditingTitle}
 					<span class="ml-1">-</span>
 					<input
@@ -1061,7 +1181,7 @@
 					<button
 						type="button"
 						onclick={saveEditingTitle}
-						title={m.common_save()}
+						title="Save"
 						class="p-0.5 rounded hover:bg-muted transition-colors"
 					>
 						<Check class="w-3 h-3 text-green-500 hover:text-green-600" />
@@ -1069,21 +1189,25 @@
 					<button
 						type="button"
 						onclick={cancelEditingTitle}
-						title={m.common_cancel()}
+						title="Cancel"
 						class="p-0.5 rounded hover:bg-muted transition-colors"
 					>
 						<X class="w-3 h-3 text-muted-foreground hover:text-foreground" />
 					</button>
 				{:else if name}
-					<span class="font-normal text-muted-foreground ml-1">- {name}</span>
+					<span class="text-muted-foreground ml-1">-</span>
+					<span class="font-semibold">{name}</span>
 					<button
 						type="button"
 						onclick={startEditingTitle}
-						title={m.container_edit_rename_tooltip()}
+						title="Rename container"
 						class="p-0.5 rounded hover:bg-muted transition-colors ml-0.5"
 					>
 						<Pencil class="w-3 h-3 text-muted-foreground hover:text-foreground" />
 					</button>
+					{#if $currentEnvironment}
+						<span class="font-semibold ml-1">on <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
+					{/if}
 				{/if}
 			</Dialog.Title>
 		</Dialog.Header>
@@ -1091,21 +1215,56 @@
 		{#if loadingData}
 			<div class="flex-1 flex items-center justify-center text-muted-foreground text-sm min-h-[200px]">
 				<Loader2 class="w-5 h-5 animate-spin mr-2" />
-				{m.container_edit_loading()}
+				Loading container data...
 			</div>
 		{:else}
-			<div class="px-5 py-4 flex-1 overflow-y-auto">
+			<div class="px-5 flex gap-1 border-b shrink-0">
+				<button
+					type="button"
+					class="flex items-center gap-1.5 px-3 py-2 text-sm transition-colors border-b-2 -mb-px {activeTab === 'settings' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+					onclick={() => activeTab = 'settings'}
+				>
+					<Settings class="w-3.5 h-3.5" />
+					Settings
+				</button>
+				<!-- BETA GATE: Backups tab hidden unless FEAT_BACKUPS_ENABLED (see features.ts) -->
+				{#if $page.data.backupsEnabled}
+					<button
+						type="button"
+						class="flex items-center gap-1.5 px-3 py-2 text-sm transition-colors border-b-2 -mb-px {activeTab === 'backups' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+						onclick={() => activeTab = 'backups'}
+					>
+						<Archive class="w-3.5 h-3.5" />
+						Backups
+						{#if backupCount > 0}<span class="bg-primary/15 text-primary text-[10px] px-1.5 rounded-full font-medium">{backupCount}</span>{/if}
+						<!-- Run tally so a failed backup is visible before opening the tab. -->
+						{#if backupTally.ok > 0}<span class="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-500"><Check class="w-2.5 h-2.5" />{backupTally.ok}</span>{/if}
+						{#if backupTally.failed > 0}<span class="inline-flex items-center gap-0.5 rounded-full bg-red-500/15 px-1.5 text-[10px] font-semibold text-red-500"><X class="w-2.5 h-2.5" />{backupTally.failed}</span>{/if}
+					</button>
+				{/if}
+			</div>
+
+			<div class="px-5 py-4 flex-1 overflow-y-auto h-0">
+				{#if activeTab === 'backups'}
+					<BackupPanel
+						bind:this={backupPanelRef}
+						containerName={name}
+						volumes={volumeMappings.filter(v => v.hostPath && v.containerPath).map((v) => volumeInfoFromBind(v))}
+						type="container"
+						onTally={(t) => (backupTally = t)}
+					/>
+				{:else}
 				<!-- Compose warning banners -->
 				{#if showComposeRenameWarning}
 					<div class="mb-4 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-900/30 rounded-md flex items-start gap-2">
 						<Layers class="w-4 h-4 shrink-0 mt-0.5" />
-						<span>{m.container_edit_compose_rename_warning({ name: composeStackName })}</span>
+						<span>This container is part of the <strong>{composeStackName}</strong> compose stack. Renaming it may cause issues with stack management.</span>
 					</div>
 				{/if}
 				{#if showComposeConfigWarning}
 					<div class="mb-4 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-900/30 rounded-md flex items-start gap-2">
 						<Layers class="w-4 h-4 shrink-0 mt-0.5" />
-						<span>{m.container_edit_compose_config_warning({ name: composeStackName })}</span>
+						<span>This container is part of the <strong>{composeStackName}</strong> compose stack. Changes may be overwritten when the stack is redeployed.</span>
 					</div>
 				{/if}
 
@@ -1176,21 +1335,44 @@
 						{error}
 					</div>
 				{/if}
+				{/if}
 			</div>
 
 			<div class="flex justify-end gap-2 px-5 py-3 border-t bg-muted/30 shrink-0">
 				<Button type="button" variant="outline" onclick={handleClose} size="sm">
-					{m.common_cancel()}
+					Cancel
 				</Button>
 				<Button type="button" variant="secondary" disabled={loading} size="sm" onclick={handleSubmit}>
 					{#if loading}
 						<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-						{m.container_edit_updating()}
+						Updating...
 					{:else}
-						{m.container_edit_update_button()}
+						Update container
 					{/if}
 				</Button>
 			</div>
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Unsaved changes confirmation dialog -->
+<Dialog.Root bind:open={showConfirmClose}>
+	<Dialog.Content class="max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Unsaved changes</Dialog.Title>
+			<Dialog.Description>
+				You have unsaved changes. Are you sure you want to close without saving?
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="flex justify-end gap-1.5 mt-4">
+			<Button variant="outline" size="sm" onclick={() => showConfirmClose = false}>
+				Continue editing
+			</Button>
+			<Button variant="destructive" size="sm" onclick={discardAndClose}>
+				Discard changes
+			</Button>
+		</div>
+	</Dialog.Content>
+</Dialog.Root>
+
+<IconPickerModal bind:open={showIconPicker} value={iconOverride} onselect={onIconSelect} title="Choose a container icon" />

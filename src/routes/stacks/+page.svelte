@@ -1,9 +1,8 @@
 <svelte:head>
-	<title>{m.stacks_title()} - Dockhand</title>
+	<title>Stacks - Dockhand</title>
 </svelte:head>
 
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -14,19 +13,23 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import * as Popover from '$lib/components/ui/popover';
-	import { formatBytes } from '$lib/utils/format';
 	import MultiSelectFilter from '$lib/components/MultiSelectFilter.svelte';
-	import { Play, Square, Trash2, Plus, ArrowBigDown, Search, Pencil, ExternalLink, GitBranch, RefreshCw, Loader2, FileCode, FileText, FileOutput, Box, RotateCcw, ScrollText, Terminal, Eye, Network, HardDrive, Heart, HeartPulse, HeartOff, ChevronsUpDown, ChevronsDownUp, Rocket, AlertTriangle, X, Layers, Pause, CircleDashed, Skull, FolderOpen, Variable, Clock, RotateCw, Import, Ship, Cable, LayoutPanelLeft, Rows3, GripVertical, Globe, CircleArrowUp, NotepadText } from 'lucide-svelte';
+	import { Play, Square, Trash2, Plus, ArrowBigDown, Search, Pencil, ExternalLink, GitBranch, RefreshCw, Loader2, FileCode, FileText, FileOutput, Box, RotateCcw, ScrollText, Terminal, Eye, Network, HardDrive, Heart, HeartPulse, HeartOff, ChevronsUpDown, ChevronsDownUp, Rocket, AlertTriangle, X, Layers, Pause, CircleDashed, Skull, FolderOpen, Variable, Clock, RotateCw, Import, Ship, Cable, LayoutPanelLeft, Rows3, GripVertical, Globe, CircleArrowUp, NotepadText, Tag } from 'lucide-svelte';
 	import { formatPorts } from '$lib/utils/port-format';
 	import { parseCustomUrl } from '$lib/utils/custom-url';
 	import { extractTraefikUrls } from '$lib/utils/traefik-urls';
 	import { resolveChangelogUrl } from '$lib/utils/changelog-url';
 	import { extractPangolinUrls } from '$lib/utils/pangolin-urls';
+	import { extractCaddyUrls } from '$lib/utils/caddy-urls';
 	import { appSettings } from '$lib/stores/settings';
 	import ConfirmPopover from '$lib/components/ConfirmPopover.svelte';
+	import StackIcon from '$lib/components/StackIcon.svelte';
+	import ContainerIcon from '$lib/components/ContainerIcon.svelte';
 	import BatchOperationModal from '$lib/components/BatchOperationModal.svelte';
-	import type { ComposeStackInfo, ContainerStats } from '$lib/types';
+	import type { ComposeStackInfo, ContainerStats, StackContainer } from '$lib/types';
 	import StackModal from './StackModal.svelte';
+	import DeleteStackModal from './DeleteStackModal.svelte';
+	import GitSourceBadge from './GitSourceBadge.svelte';
 	import GitStackModal from './GitStackModal.svelte';
 	import ImportStackModal from './ImportStackModal.svelte';
 	import GitDeployProgressPopover from './GitDeployProgressPopover.svelte';
@@ -35,6 +38,9 @@
 	import FileBrowserModal from '../containers/FileBrowserModal.svelte';
 	import BatchUpdateModal from '../containers/BatchUpdateModal.svelte';
 	import CheckUpdatesButton from '$lib/components/CheckUpdatesButton.svelte';
+	import DismissUpdatesButton from '$lib/components/DismissUpdatesButton.svelte';
+	import VersionUpdateBadge from '$lib/components/VersionUpdateBadge.svelte';
+	import VersionUpdateModal from '$lib/components/VersionUpdateModal.svelte';
 	import LogsPanel from '../logs/LogsPanel.svelte';
 	import { currentEnvironment, environments, appendEnvParam, clearStaleEnvironment } from '$lib/stores/environment';
 	import { onDockerEvent, isContainerListChange } from '$lib/stores/events';
@@ -46,12 +52,18 @@
 	import type { DataGridSortState } from '$lib/components/data-grid/types';
 	import { ErrorDialog } from '$lib/components/ui/error-dialog';
 	import { formatHostPortUrl } from '$lib/utils/url';
+	import { formatBytes, formatBytesCompact } from '$lib/utils/format';
+	import { effectiveStackBranch } from '$lib/git-stack-branch';
 
 	type SortField = 'name' | 'containers' | 'status' | 'cpu' | 'memory';
 	type SortDirection = 'asc' | 'desc';
 
 	let stacks = $state<ComposeStackInfo[]>([]);
-	let stackSources = $state<Record<string, { sourceType: string; composePath?: string | null; repository?: any; gitStack?: any }>>({});
+	// Container IDs whose last update check failed this session (e.g. registry
+	// rate-limited), with the error text for the tooltip — session-only (#1255).
+	let failedUpdateCheckIds = $state<Set<string>>(new Set());
+	let failedUpdateCheckErrors = $state<Map<string, string>>(new Map());
+	let stackSources = $state<Record<string, { sourceType: string; composePath?: string | null; repository?: any; gitStack?: any; icon?: string | null }>>({});
 	let stackEnvVarCounts = $state<Record<string, number>>({});
 	let gitStacks = $state<any[]>([]);
 	let gitRepositories = $state<any[]>([]);
@@ -67,6 +79,7 @@
 	let showImportModal = $state(false);
 	let editingStackName = $state('');
 	let stackModalReadonly = $state(false);
+	let stackModalGitInfo = $state<{ commit?: string; url?: string; branch?: string } | null>(null);
 	let editingGitStack = $state<any>(null);
 	let envId = $state<number | null>(null);
 
@@ -74,6 +87,12 @@
 	let showBatchUpdateModal = $state(false);
 	let singleUpdateContainerId = $state<string | null>(null);
 	let singleUpdateContainerName = $state<string | null>(null);
+
+	// Version-update (semver) release-notes modal — opened from a container's Tag badge.
+	let versionModalContainer = $state<StackContainer | null>(null);
+	function openVersionModal(container: StackContainer) {
+		versionModalContainer = container;
+	}
 	let envHasScanning = $state(false);
 	let envVulnerabilityCriteria = $state<'never' | 'any' | 'critical_high' | 'critical' | 'more_than_current'>('never');
 
@@ -344,11 +363,12 @@
 
 	// Stack status types with icons and colors
 	const stackStatusTypes = [
-		{ value: 'running', label: m.stacks_status_running(), icon: Play, color: 'text-emerald-500' },
-		{ value: 'partial', label: m.stacks_status_partial(), icon: CircleDashed, color: 'text-amber-500' },
-		{ value: 'stopped', label: m.stacks_status_stopped(), icon: Square, color: 'text-rose-500' },
-		{ value: 'created', label: m.stacks_status_created(), icon: CircleDashed, color: 'text-slate-500' },
-		{ value: 'not deployed', label: m.stacks_status_not_deployed(), icon: Rocket, color: 'text-violet-500' }
+		{ value: 'running', label: 'Running', icon: Play, color: 'text-emerald-500' },
+		{ value: 'partial', label: 'Partial', icon: CircleDashed, color: 'text-amber-500' },
+		{ value: 'restarting', label: 'Restarting', icon: RotateCw, color: 'text-orange-500' },
+		{ value: 'stopped', label: 'Stopped', icon: Square, color: 'text-rose-500' },
+		{ value: 'created', label: 'Created', icon: CircleDashed, color: 'text-slate-500' },
+		{ value: 'not deployed', label: 'Not deployed', icon: Rocket, color: 'text-violet-500' }
 	];
 
 	function getStackStatusIcon(status: string) {
@@ -472,10 +492,12 @@
 	}
 
 	// Confirmation popover state
-	let confirmDeleteName = $state<string | null>(null);
 	let confirmStopName = $state<string | null>(null);
 	let confirmDownName = $state<string | null>(null);
-	let deleteVolumes = $state(false);
+	// Delete-stack modal state (replaces the old confirm popover — shows the exact dirs
+	// that will be removed and offers "remove stack" vs "remove stack + files").
+	let showDeleteModal = $state(false);
+	let deleteStackName = $state('');
 
 	// Stack operation loading state
 	let stackActionLoading = $state<string | null>(null);
@@ -489,7 +511,15 @@
 	let confirmRemoveContainerId = $state<string | null>(null);
 
 	// Operation error state (for stack and container operations)
-	let operationError = $state<{ id: string; title: string; message: string } | null>(null);
+	let operationError = $state<{ id: string; message: string } | null>(null);
+
+	// Inline operation-error auto-dismiss timers, cleared on destroy.
+	let pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+	function clearErrorAfterDelay(id: string) {
+		pendingTimeouts.push(setTimeout(() => {
+			if (operationError?.id === id) operationError = null;
+		}, 5000));
+	}
 
 	// Error dialog state (for showing detailed errors)
 	let errorDialogData = $state<{ title: string; message: string } | null>(null);
@@ -752,6 +782,37 @@
 		}
 	});
 
+	// True when any stack container shows an update-available (amber) or
+	// check-failed (red) indicator — gates the "dismiss indicators" button.
+	const hasUpdateIndicators = $derived(
+		stacks.some((s) => s.updatesAvailable || (s.newerVersionCount ?? 0) > 0) ||
+			failedUpdateCheckIds.size > 0
+	);
+	// Counts for the compact dismiss: stacks with a digest update, and total containers
+	// with a newer version tag - each shown with its icon, mirroring the containers page.
+	const stackDigestCount = $derived(stacks.filter((s) => s.updatesAvailable).length);
+	const stackNewerVersionCount = $derived(
+		stacks.reduce((sum, s) => sum + (s.newerVersionCount ?? 0), 0)
+	);
+
+	// Dismiss both the amber "update available" and red "check failed" indicators.
+	// Update-available lives in the shared pending_container_updates table (same
+	// one the containers page clears); failed-check state is session-only.
+	async function dismissStackUpdates() {
+		const id = $currentEnvironment?.id;
+		if (!id) return;
+		try {
+			const response = await fetch(`/api/containers/pending-updates?env=${id}`, { method: 'DELETE' });
+			if (response.ok) {
+				failedUpdateCheckIds = new Set();
+				failedUpdateCheckErrors = new Map();
+				await fetchStacks();
+			}
+		} catch {
+			toast.error('Failed to clear update indicators');
+		}
+	}
+
 	async function fetchStacks() {
 		// Show loading skeleton on initial load or when environment changes, but not on refreshes
 		if (lastLoadedEnvId !== envId) {
@@ -819,7 +880,7 @@
 			fetchEnvVarCounts(allStackNames, sourcesData);
 		} catch (error) {
 			console.error('Failed to fetch stacks:', error);
-			toast.error(m.stacks_toast_load_failed());
+			toast.error('Failed to load stacks');
 		} finally {
 			loading = false;
 			lastLoadedEnvId = envId;
@@ -880,7 +941,7 @@
 		return stack.status;
 	}
 
-	async function openGitModal(gitStack?: any) {
+	async function openGitModal(gitStack: any = undefined) {
 		editingGitStack = gitStack || null;
 		// Fetch repositories and credentials before opening modal
 		try {
@@ -905,15 +966,15 @@
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/start`, envId), { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(m.stacks_error_start({ name }), data.error || m.stacks_error_start({ name }));
+				showErrorDialog(`Failed to start ${name}`, data.error || 'Failed to start stack');
 				return;
 			}
-			toast.success(m.stacks_toast_started({ name }));
+			toast.success(`Started ${name}`);
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to start stack:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_error_start({ name });
-			showErrorDialog(m.stacks_error_start({ name }), errorMsg);
+			const errorMsg = error instanceof Error ? error.message : 'Failed to start stack';
+			showErrorDialog(`Failed to start ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
 		}
@@ -926,14 +987,14 @@
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/stop`, envId), { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(m.stacks_error_stop({ name }), data.error || m.stacks_error_stop({ name }));
+				showErrorDialog(`Failed to stop ${name}`, data.error || 'Failed to stop stack');
 				return;
 			}
-			toast.success(m.stacks_toast_stopped({ name }));
+			toast.success(`Stopped ${name}`);
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to stop stack:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_error_stop({ name });
+			const errorMsg = error instanceof Error ? error.message : 'Failed to stop stack';
 			showErrorDialog(`Failed to stop ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -951,14 +1012,14 @@
 			const response = await fetch(url, { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(m.stacks_error_restart({ name }), data.error || m.stacks_error_restart({ name }));
+				showErrorDialog(`Failed to restart ${name}`, data.error || 'Failed to restart stack');
 				return;
 			}
-			toast.success(mode === 'recreate' ? m.stacks_toast_recreated({ name }) : m.stacks_toast_restarted({ name }));
+			toast.success(mode === 'recreate' ? `Recreated ${name}` : `Restarted ${name}`);
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to restart stack:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_error_restart({ name });
+			const errorMsg = error instanceof Error ? error.message : 'Failed to restart stack';
 			showErrorDialog(`Failed to restart ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -976,14 +1037,14 @@
 			});
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(m.stacks_error_redeploy({ name }), data.error || m.stacks_error_redeploy({ name }));
+				showErrorDialog(`Failed to redeploy ${name}`, data.error || 'Failed to redeploy stack');
 				return;
 			}
-			toast.success(m.stacks_toast_redeployed({ name }));
+			toast.success(`Redeployed ${name}`);
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to redeploy stack:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_error_redeploy({ name });
+			const errorMsg = error instanceof Error ? error.message : 'Failed to redeploy stack';
 			showErrorDialog(`Failed to redeploy ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -998,14 +1059,14 @@
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/down`, envId), { method: 'POST' });
 			const data = await readJobResponse(response);
 			if (!data.success) {
-				showErrorDialog(m.stacks_error_down({ name }), data.error || m.stacks_error_down({ name }));
+				showErrorDialog(`Failed to bring down ${name}`, data.error || 'Failed to bring down stack');
 				return;
 			}
-			toast.success(m.stacks_toast_brought_down({ name }));
+			toast.success(`Brought down ${name}`);
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to bring down stack:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_error_down({ name });
+			const errorMsg = error instanceof Error ? error.message : 'Failed to bring down stack';
 			showErrorDialog(`Failed to bring down ${name}`, errorMsg);
 		} finally {
 			stackActionLoading = null;
@@ -1026,24 +1087,23 @@
 		}
 	}
 
-	async function removeStack(name: string) {
+	async function removeStack(name: string, opts: { deleteFiles: boolean; deleteVolumes: boolean }) {
 		operationError = null;
-		const withVolumes = deleteVolumes;
-		deleteVolumes = false;
 		try {
-			const params = `force=true${withVolumes ? '&volumes=true' : ''}`;
+			const params = `force=true${opts.deleteVolumes ? '&volumes=true' : ''}${opts.deleteFiles ? '' : '&files=false'}`;
 			const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(name)}?${params}`, envId), { method: 'DELETE' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || m.stacks_error_remove({ name });
-				showErrorDialog(m.stacks_error_remove({ name }), errorMsg);
+				const errorMsg = data.error || 'Failed to remove stack';
+				showErrorDialog(`Failed to remove ${name}`, errorMsg);
 				return;
 			}
-			toast.success(withVolumes ? m.stacks_toast_removed_volumes({ name }) : m.stacks_toast_removed({ name }));
+			const bits = [opts.deleteFiles ? 'files deleted' : 'files kept', ...(opts.deleteVolumes ? ['volumes deleted'] : [])];
+			toast.success(`Removed ${name} (${bits.join(', ')})`);
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to remove stack:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_error_remove({ name });
+			const errorMsg = error instanceof Error ? error.message : 'Failed to remove stack';
 			showErrorDialog(`Failed to remove ${name}`, errorMsg);
 		}
 	}
@@ -1057,6 +1117,15 @@
 	function viewGitStack(name: string) {
 		editingStackName = name;
 		stackModalReadonly = true;
+		const src = getStackSource(name);
+		// Effective branch: per-stack override wins, else repository default
+		// (shared with the server-side resolver in src/lib/git-stack-branch.ts).
+		const eff = effectiveStackBranch(src?.gitStack ?? null, src?.repository ?? undefined);
+		stackModalGitInfo = {
+			commit: src?.gitStack?.lastCommit || undefined,
+			url: src?.repository?.url || undefined,
+			branch: eff.branch
+		};
 		showEditModal = true;
 	}
 
@@ -1069,6 +1138,8 @@
 				return `${base} bg-red-200 dark:bg-red-800 text-red-900 dark:text-red-100`;
 			case 'partial':
 				return `${base} bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100`;
+			case 'restarting':
+				return `${base} bg-orange-200 dark:bg-orange-800 text-orange-900 dark:text-orange-100`;
 			case 'created':
 				return `${base} bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100`;
 			case 'not deployed':
@@ -1098,17 +1169,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/start`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || m.stacks_container_error_start();
+				const errorMsg = data.error || 'Failed to start container';
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success(m.stacks_container_toast_started());
+			toast.success('Container started');
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to start container:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_start();
+			const errorMsg = error instanceof Error ? error.message : 'Failed to start container';
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1124,17 +1195,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/stop`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || m.stacks_container_error_stop();
+				const errorMsg = data.error || 'Failed to stop container';
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success(m.stacks_container_toast_stopped());
+			toast.success('Container stopped');
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to stop container:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_stop();
+			const errorMsg = error instanceof Error ? error.message : 'Failed to stop container';
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1150,17 +1221,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/restart`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || m.stacks_container_error_restart();
+				const errorMsg = data.error || 'Failed to restart container';
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success(m.stacks_container_toast_restarted());
+			toast.success('Container restarted');
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to restart container:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_restart();
+			const errorMsg = error instanceof Error ? error.message : 'Failed to restart container';
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1176,17 +1247,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/pause`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || m.stacks_container_error_pause();
+				const errorMsg = data.error || 'Failed to pause container';
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success(m.stacks_container_toast_paused());
+			toast.success('Container paused');
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to pause container:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_pause();
+			const errorMsg = error instanceof Error ? error.message : 'Failed to pause container';
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1203,17 +1274,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}/unpause`, envId), { method: 'POST' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || m.stacks_container_error_unpause();
+				const errorMsg = data.error || 'Failed to unpause container';
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success(m.stacks_container_toast_unpaused());
+			toast.success('Container unpaused');
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to unpause container:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_unpause();
+			const errorMsg = error instanceof Error ? error.message : 'Failed to unpause container';
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1229,17 +1300,17 @@
 			const response = await fetch(appendEnvParam(`/api/containers/${containerId}?force=true`, envId), { method: 'DELETE' });
 			if (!response.ok) {
 				const data = await response.json();
-				const errorMsg = data.error || m.stacks_container_error_remove();
+				const errorMsg = data.error || 'Failed to remove container';
 				operationError = { id: containerId, message: errorMsg };
 				toast.error(errorMsg);
 				clearErrorAfterDelay(containerId);
 				return;
 			}
-			toast.success(m.stacks_container_toast_removed());
+			toast.success('Container removed');
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to remove container:', error);
-			const errorMsg = error instanceof Error ? error.message : m.stacks_container_error_remove();
+			const errorMsg = error instanceof Error ? error.message : 'Failed to remove container';
 			operationError = { id: containerId, message: errorMsg };
 			toast.error(errorMsg);
 			clearErrorAfterDelay(containerId);
@@ -1342,6 +1413,10 @@
 
 	// Cleanup on component destroy
 	onDestroy(() => {
+		// Clear pending inline-error dismiss timers
+		pendingTimeouts.forEach(clearTimeout);
+		pendingTimeouts = [];
+
 		// Clear polling intervals
 		if (stacksInterval) {
 			clearInterval(stacksInterval);
@@ -1370,13 +1445,13 @@
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
-		<PageHeader icon={Layers} title={m.stacks_header_title()} count={stacks.length}>
+		<PageHeader icon={Layers} title="Compose stacks" count={stacks.length}>
 			{#if stacks.length > 0}
 				<button
 					type="button"
 					onclick={allExpanded ? collapseAll : expandAll}
 					class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border border-border hover:border-foreground/30 hover:shadow-sm transition-all cursor-pointer text-muted-foreground hover:text-foreground"
-					title={allExpanded ? m.stacks_collapse_all() : m.stacks_expand_all()}
+					title={allExpanded ? 'Collapse all' : 'Expand all'}
 				>
 					{#if allExpanded}
 						<ChevronsDownUp class="w-3 h-3" />
@@ -1393,7 +1468,7 @@
 				<Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
 				<Input
 					type="text"
-					placeholder={m.stacks_search_placeholder()}
+					placeholder="Search stacks..."
 					bind:value={searchInput}
 					onkeydown={(e) => e.key === 'Escape' && (searchInput = '')}
 					class="pl-8 h-8 w-48 text-sm"
@@ -1402,26 +1477,39 @@
 			<MultiSelectFilter
 				bind:value={statusFilter}
 				options={stackStatusTypes}
-				placeholder={m.stacks_filter_all_statuses()}
-				pluralLabel={m.stacks_filter_statuses_label()}
+				placeholder="All statuses"
+				pluralLabel="statuses"
 				width="w-44"
 				defaultIcon={Layers}
 			/>
 			<Button size="sm" variant="outline" onclick={fetchStacks}>
 				<RefreshCw class="w-3.5 h-3.5" />
-				{m.common_refresh()}
+				Refresh
 			</Button>
 			<CheckUpdatesButton
 				{envId}
 				hasPendingUpdates={stacks.some((s) => s.updatesAvailable)}
-				onComplete={() => fetchStacks()}
+				onComplete={(result) => {
+					// Record failed checks so stack containers show a "check failed" state
+					// instead of masquerading as up to date (#1255). Session-only.
+					const failed = result.failed ?? [];
+					failedUpdateCheckIds = new Set(failed.map((f) => f.containerId));
+					failedUpdateCheckErrors = new Map(failed.map((f) => [f.containerId, f.error]));
+					fetchStacks();
+				}}
+			/>
+			<DismissUpdatesButton
+				show={hasUpdateIndicators}
+				digestCount={stackDigestCount}
+				newerVersionCount={stackNewerVersionCount}
+				onDismiss={dismissStackUpdates}
 			/>
 			<Button
 				size="sm"
 				variant="outline"
 				onclick={toggleLayoutMode}
 				class="h-8 w-8 p-0"
-				title={layoutMode === 'horizontal' ? m.stacks_layout_vertical_tooltip() : m.stacks_layout_horizontal_tooltip()}
+				title={layoutMode === 'horizontal' ? 'Switch to vertical layout (logs on side)' : 'Switch to horizontal layout (logs below)'}
 			>
 				{#if layoutMode === 'horizontal'}
 					<LayoutPanelLeft class="w-4 h-4" />
@@ -1432,15 +1520,15 @@
 			{#if $canAccess('stacks', 'create')}
 				<Button size="sm" variant="outline" onclick={() => openGitModal()}>
 					<GitBranch class="w-3.5 h-3.5" />
-					{m.stacks_from_git()}
+					From Git
 				</Button>
 				<Button size="sm" variant="secondary" onclick={() => showCreateModal = true}>
 					<Plus class="w-3.5 h-3.5" />
-					{m.common_create()}
+					Create
 				</Button>
 				<Button size="sm" variant="outline" onclick={() => showImportModal = true}>
 					<Import class="w-3.5 h-3.5" />
-					{m.stacks_adopt()}
+					Adopt
 				</Button>
 			{/if}
 		</div>
@@ -1449,111 +1537,113 @@
 	<!-- Selection bar - always reserve space to prevent layout shift -->
 	<div class="h-4 shrink-0">
 		{#if selectedStacks.size > 0}
-				<span>{m.stacks_selected_count({ count: selectedInFilter.length })}</span>
-				<button
-					type="button"
-					class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
-					onclick={selectNone}
-				>
-					{m.stacks_clear_selection()}
-				</button>
-				{#if selectedStopped.length > 0 && $canAccess('stacks', 'start')}
-					<ConfirmPopover
-						open={confirmBulkStart}
-						action={m.common_start()}
-						itemType={m.stacks_selected_count({ count: selectedStopped.length })}
-						itemName=""
-						title={m.common_start()}
-						variant="secondary"
-						unstyled
-						onConfirm={bulkStart}
-						onOpenChange={(open) => confirmBulkStart = open}
-					>
-						{#snippet children({ open })}
-							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer">
-								<Play class="w-3 h-3" />
-								{m.common_start()}
-							</span>
-						{/snippet}
-					</ConfirmPopover>
-				{/if}
-				{#if selectedRunning.length > 0 && $canAccess('stacks', 'restart')}
-					<ConfirmPopover
-						open={confirmBulkRestart}
-						action={m.common_restart()}
-						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
-						itemName=""
-						title={m.common_restart()}
-						variant="secondary"
-						unstyled
-						onConfirm={bulkRestart}
-						onOpenChange={(open) => confirmBulkRestart = open}
-					>
-						{#snippet children({ open })}
-							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-amber-600 hover:border-amber-500/40 hover:shadow transition-all cursor-pointer">
-								<RotateCcw class="w-3 h-3" />
-													{m.common_restart()}
-							</span>
-						{/snippet}
-					</ConfirmPopover>
-				{/if}
-				{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
-					<ConfirmPopover
-						open={confirmBulkStop}
-						action={m.common_stop()}
-						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
-						itemName=""
-						title={m.common_stop()}
-						unstyled
-						onConfirm={bulkStop}
-						onOpenChange={(open) => confirmBulkStop = open}
-					>
-						{#snippet children({ open })}
-							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer">
-								<Square class="w-3 h-3" />
-								{m.common_stop()}
-							</span>
-						{/snippet}
-					</ConfirmPopover>
-				{/if}
-				{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
-					<ConfirmPopover
-						open={confirmBulkDown}
-						action={m.common_actions()}
-						itemType={m.stacks_selected_count({ count: selectedRunning.length })}
-						itemName=""
-						title={m.stacks_action_down_title()}
-						unstyled
-						onConfirm={bulkDown}
-						onOpenChange={(open) => confirmBulkDown = open}
-					>
-						{#snippet children({ open })}
-							<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-orange-600 hover:border-orange-500/40 hover:shadow transition-all cursor-pointer">
-								<ArrowBigDown class="w-3 h-3" />
-								Down
-							</span>
-						{/snippet}
-					</ConfirmPopover>
-				{/if}
-				{#if $canAccess('stacks', 'remove')}
+			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
+			<span>{selectedInFilter.length} selected</span>
+			<button
+				type="button"
+				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
+				onclick={selectNone}
+			>
+				Clear
+			</button>
+			{#if selectedStopped.length > 0 && $canAccess('stacks', 'start')}
 				<ConfirmPopover
-					open={confirmBulkRemove}
-					action={m.common_remove()}
-					itemType={m.stacks_selected_count({ count: selectedInFilter.length })}
-					itemName=""
-						title={m.common_remove()}
+					open={confirmBulkStart}
+					action="Start"
+					itemType="stacks"
+					itemName="{selectedStopped.length} stack{selectedStopped.length !== 1 ? 's' : ''}"
+					title="Start {selectedStopped.length}"
+					variant="secondary"
 					unstyled
-					onConfirm={bulkRemove}
-					onOpenChange={(open) => confirmBulkRemove = open}
+					onConfirm={bulkStart}
+					onOpenChange={(open) => confirmBulkStart = open}
 				>
 					{#snippet children({ open })}
-						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
-							<Trash2 class="w-3 h-3" />
-							{m.common_remove()}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer">
+							<Play class="w-3 h-3" />
+							Start
 						</span>
 					{/snippet}
 				</ConfirmPopover>
-				{/if}
+			{/if}
+			{#if selectedRunning.length > 0 && $canAccess('stacks', 'restart')}
+				<ConfirmPopover
+					open={confirmBulkRestart}
+					action="Restart"
+					itemType="stacks"
+					itemName="{selectedRunning.length} stack{selectedRunning.length !== 1 ? 's' : ''}"
+					title="Restart {selectedRunning.length}"
+					variant="secondary"
+					unstyled
+					onConfirm={bulkRestart}
+					onOpenChange={(open) => confirmBulkRestart = open}
+				>
+					{#snippet children({ open })}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-amber-600 hover:border-amber-500/40 hover:shadow transition-all cursor-pointer">
+							<RotateCcw class="w-3 h-3" />
+							Restart
+						</span>
+					{/snippet}
+				</ConfirmPopover>
+			{/if}
+			{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
+				<ConfirmPopover
+					open={confirmBulkStop}
+					action="Stop"
+					itemType="stacks"
+					itemName="{selectedRunning.length} stack{selectedRunning.length !== 1 ? 's' : ''}"
+					title="Stop {selectedRunning.length}"
+					unstyled
+					onConfirm={bulkStop}
+					onOpenChange={(open) => confirmBulkStop = open}
+				>
+					{#snippet children({ open })}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer">
+							<Square class="w-3 h-3" />
+							Stop
+						</span>
+					{/snippet}
+				</ConfirmPopover>
+			{/if}
+			{#if selectedRunning.length > 0 && $canAccess('stacks', 'stop')}
+				<ConfirmPopover
+					open={confirmBulkDown}
+					action="Down"
+					itemType="stacks"
+					itemName="{selectedRunning.length} stack{selectedRunning.length !== 1 ? 's' : ''}"
+					title="Down {selectedRunning.length}"
+					unstyled
+					onConfirm={bulkDown}
+					onOpenChange={(open) => confirmBulkDown = open}
+				>
+					{#snippet children({ open })}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-orange-600 hover:border-orange-500/40 hover:shadow transition-all cursor-pointer">
+							<ArrowBigDown class="w-3 h-3" />
+							Down
+						</span>
+					{/snippet}
+				</ConfirmPopover>
+			{/if}
+			{#if $canAccess('stacks', 'remove')}
+			<ConfirmPopover
+				open={confirmBulkRemove}
+				action="Remove"
+				itemType="stacks"
+				itemName="{selectedInFilter.length} stack{selectedInFilter.length !== 1 ? 's' : ''}"
+				title="Remove {selectedInFilter.length}"
+				unstyled
+				onConfirm={bulkRemove}
+				onOpenChange={(open) => confirmBulkRemove = open}
+			>
+				{#snippet children({ open })}
+					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
+						<Trash2 class="w-3 h-3" />
+						Remove
+					</span>
+				{/snippet}
+			</ConfirmPopover>
+			{/if}
+			</div>
 		{/if}
 	</div>
 
@@ -1562,8 +1652,8 @@
 	{:else if !loading && stacks.length === 0}
 		<EmptyState
 			icon={Layers}
-			title={m.stacks_empty_title()}
-			description={m.stacks_empty_description()}
+			title="No compose stacks found"
+			description="Create a stack or deploy from Git to get started"
 		/>
 	{:else}
 		<!-- Main content area - changes layout based on mode -->
@@ -1599,7 +1689,10 @@
 				{@const source = getStackSource(stack.name)}
 				{#if column.id === 'name'}
 					{@const systemType = getStackSystemType(stack)}
-					<span class="flex items-center gap-1 min-w-0 w-full">
+					<span class="flex items-center gap-1.5 min-w-0 w-full">
+						{#if source.icon}
+							<StackIcon icon={source.icon} stackName={stack.name} envId={$currentEnvironment?.id ?? null} class="w-4 h-4 shrink-0 text-muted-foreground" />
+						{/if}
 						<button
 							type="button"
 							class="font-medium text-xs hover:text-primary hover:underline cursor-pointer text-left truncate min-w-0"
@@ -1624,7 +1717,7 @@
 								</Badge>
 							</Tooltip.Trigger>
 							<Tooltip.Content>
-								<p class="text-sm whitespace-nowrap">{systemType === 'dockhand' ? m.stacks_system_dockhand_tooltip() : m.stacks_system_hawser_tooltip()}</p>
+								<p class="text-sm whitespace-nowrap">{systemType === 'dockhand' ? 'Dockhand management container' : 'Hawser remote agent'}</p>
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
@@ -1636,8 +1729,8 @@
 									{stackEnvVarCounts[stack.name]}
 								</span>
 							</Tooltip.Trigger>
-							<Tooltip.Content class="whitespace-nowrap">
-								{m.stacks_env_vars_count({ count: stackEnvVarCounts[stack.name], plural: stackEnvVarCounts[stack.name] !== 1 ? "s" : "" })}
+							<Tooltip.Content>
+								{stackEnvVarCounts[stack.name]} environment variable{stackEnvVarCounts[stack.name] !== 1 ? 's' : ''} configured
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
@@ -1689,31 +1782,39 @@
 										<span class="text-2xs font-medium text-amber-500 leading-none">{stack.updateCount}</span>
 									{/if}
 								</Tooltip.Trigger>
-								<Tooltip.Content class="whitespace-nowrap">
+								<Tooltip.Content>
 									External stack - update possible for individual containers only.
 								</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 					{/if}
+					{#if (stack.newerVersionCount ?? 0) > 0}
+						<Tooltip.Root>
+							<Tooltip.Trigger class="inline-flex items-center gap-0.5 self-center shrink-0 text-amber-500">
+								<Tag class="w-3.5 h-3.5" />
+								<span class="text-2xs font-medium leading-none">{stack.newerVersionCount}</span>
+							</Tooltip.Trigger>
+							<Tooltip.Content>
+								{stack.newerVersionCount} container{(stack.newerVersionCount ?? 0) > 1 ? 's have' : ' has'} a newer version tag.
+							</Tooltip.Content>
+						</Tooltip.Root>
+					{/if}
 					</span>
-
 				{:else if column.id === 'source'}
 					{#if source.sourceType === 'git'}
-						<span
-							class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 shadow-sm min-w-[5.5rem]"
-							title={source.repository ? `${source.repository.url} (${source.repository.branch})` : m.stacks_source_git_tooltip()}
-						>
-							<GitBranch class="w-3 h-3" />
-							{m.stacks_source_git()}
-						</span>
+						<GitSourceBadge {source} />
 					{:else if source.sourceType === 'internal'}
-						<span
-							class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 shadow-sm min-w-[5.5rem]"
-							title={m.stacks_source_internal_tooltip()}
-						>
-							<FileCode class="w-3 h-3" />
-							{m.stacks_source_internal()}
-						</span>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								<span
+									class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 shadow-sm min-w-[5.5rem]"
+								>
+									<FileCode class="w-3 h-3" />
+									Internal
+								</span>
+							</Tooltip.Trigger>
+							<Tooltip.Content>Managed by Dockhand</Tooltip.Content>
+						</Tooltip.Root>
 					{:else}
 						<Tooltip.Root>
 							<Tooltip.Trigger>
@@ -1721,11 +1822,11 @@
 									class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 shadow-sm min-w-[5.5rem]"
 								>
 									<ExternalLink class="w-3 h-3" />
-									{m.stacks_source_untracked()}
+									Untracked
 								</span>
 							</Tooltip.Trigger>
-							<Tooltip.Content class="whitespace-nowrap">
-								{m.stacks_source_untracked_tooltip()}
+							<Tooltip.Content>
+								Compose file location unknown. Click the stack name or edit button to locate it.
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
@@ -1743,45 +1844,75 @@
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{:else}
-						<span class="text-xs text-muted-foreground/50 italic">{m.stacks_location_not_set()}</span>
+						<span class="text-xs text-muted-foreground/50 italic">Not set</span>
 					{/if}
 				{:else if column.id === 'containers'}
 					<div class="flex items-center gap-1">
 						{#if getContainerStateCounts(stack).running}
-							<span class="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400" title={m.stacks_container_state_running()}>
-								<Play class="w-3.5 h-3.5" />
-								<span class="text-xs font-medium">{getContainerStateCounts(stack).running}</span>
-							</span>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span class="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+										<Play class="w-3.5 h-3.5" />
+										<span class="text-xs font-medium">{getContainerStateCounts(stack).running}</span>
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content>Running</Tooltip.Content>
+							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).exited}
-							<span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400" title={m.stacks_container_state_exited()}>
-								<Square class="w-3.5 h-3.5" />
-								<span class="text-xs font-medium">{getContainerStateCounts(stack).exited}</span>
-							</span>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400">
+										<Square class="w-3.5 h-3.5" />
+										<span class="text-xs font-medium">{getContainerStateCounts(stack).exited}</span>
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content>Exited</Tooltip.Content>
+							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).paused}
-							<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400" title={m.stacks_container_state_paused()}>
-								<Pause class="w-3.5 h-3.5" />
-								<span class="text-xs font-medium">{getContainerStateCounts(stack).paused}</span>
-							</span>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
+										<Pause class="w-3.5 h-3.5" />
+										<span class="text-xs font-medium">{getContainerStateCounts(stack).paused}</span>
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content>Paused</Tooltip.Content>
+							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).restarting}
-							<span class="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400" title={m.stacks_container_state_restarting()}>
-								<span class="w-3.5 h-3.5 flex items-center justify-center"><RefreshCw class="w-3.5 h-3.5 animate-spin" /></span>
-								<span class="text-xs font-medium">{getContainerStateCounts(stack).restarting}</span>
-							</span>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span class="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400">
+										<span class="w-3.5 h-3.5 flex items-center justify-center"><RefreshCw class="w-3.5 h-3.5 animate-spin" /></span>
+										<span class="text-xs font-medium">{getContainerStateCounts(stack).restarting}</span>
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content>Restarting</Tooltip.Content>
+							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).created}
-							<span class="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400" title={m.stacks_container_state_created()}>
-								<CircleDashed class="w-3.5 h-3.5" />
-								<span class="text-xs font-medium">{getContainerStateCounts(stack).created}</span>
-							</span>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span class="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400">
+										<CircleDashed class="w-3.5 h-3.5" />
+										<span class="text-xs font-medium">{getContainerStateCounts(stack).created}</span>
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content>Created</Tooltip.Content>
+							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).dead}
-							<span class="inline-flex items-center gap-0.5 text-rose-700 dark:text-rose-400" title={m.stacks_container_state_dead()}>
-								<Skull class="w-3.5 h-3.5" />
-								<span class="text-xs font-medium">{getContainerStateCounts(stack).dead}</span>
-							</span>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span class="inline-flex items-center gap-0.5 text-rose-700 dark:text-rose-400">
+										<Skull class="w-3.5 h-3.5" />
+										<span class="text-xs font-medium">{getContainerStateCounts(stack).dead}</span>
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content>Dead</Tooltip.Content>
+							</Tooltip.Root>
 						{/if}
 						{#if stack.containers.length === 0}
 							<span class="text-xs text-muted-foreground">-</span>
@@ -1802,7 +1933,7 @@
 					{@const stats = getStackStats(stack)}
 					<div class="text-right">
 						{#if stats}
-							<span class="text-xs font-mono text-muted-foreground" title="{formatBytes(stats.memoryUsage)} / {formatBytes(stats.memoryLimit)}">{formatBytes(stats.memoryUsage)}<span class="text-muted-foreground/50">/{formatBytes(stats.memoryLimit, 0)}</span></span>
+							<span class="text-xs font-mono text-muted-foreground" title="{formatBytes(stats.memoryUsage)} / {formatBytes(stats.memoryLimit)}">{formatBytesCompact(stats.memoryUsage)}<span class="text-muted-foreground/50">/{formatBytesCompact(stats.memoryLimit, 0)}</span></span>
 						{:else if stack.status === 'running' || stack.status === 'partial' || stack.status === 'restarting'}
 							<span class="text-xs text-muted-foreground/50">...</span>
 						{:else}
@@ -1814,7 +1945,7 @@
 					<div class="text-right whitespace-nowrap">
 						{#if stats}
 							<span class="text-xs font-mono text-muted-foreground" title="↓{formatBytes(stats.networkRx)} received / ↑{formatBytes(stats.networkTx)} sent">
-								<span class="text-2xs text-blue-400">↓</span>{formatBytes(stats.networkRx, 0)} <span class="text-2xs text-orange-400">↑</span>{formatBytes(stats.networkTx, 0)}
+								<span class="text-2xs text-blue-400">↓</span>{formatBytesCompact(stats.networkRx, 0)} <span class="text-2xs text-orange-400">↑</span>{formatBytesCompact(stats.networkTx, 0)}
 							</span>
 						{:else if stack.status === 'running' || stack.status === 'partial' || stack.status === 'restarting'}
 							<span class="text-xs text-muted-foreground/50">...</span>
@@ -1827,7 +1958,7 @@
 					<div class="text-right whitespace-nowrap">
 						{#if stats}
 							<span class="text-xs font-mono text-muted-foreground" title="↓{formatBytes(stats.blockRead)} read / ↑{formatBytes(stats.blockWrite)} written">
-								<span class="text-2xs text-green-400">r</span>{formatBytes(stats.blockRead, 0)} <span class="text-2xs text-yellow-400">w</span>{formatBytes(stats.blockWrite, 0)}
+								<span class="text-2xs text-green-400">r</span>{formatBytesCompact(stats.blockRead, 0)} <span class="text-2xs text-yellow-400">w</span>{formatBytesCompact(stats.blockWrite, 0)}
 							</span>
 						{:else if stack.status === 'running' || stack.status === 'partial' || stack.status === 'restarting'}
 							<span class="text-xs text-muted-foreground/50">...</span>
@@ -1848,11 +1979,7 @@
 					{@const StatusIcon = getStackStatusIcon(displayStatus)}
 					<span class={getStatusClasses(displayStatus)}>
 						<StatusIcon class="w-3 h-3" />
-						{displayStatus === 'running' ? m.stacks_status_running() :
-							displayStatus === 'partial' ? m.stacks_status_partial() :
-							displayStatus === 'stopped' ? m.stacks_status_stopped() :
-							displayStatus === 'created' ? m.stacks_status_created() :
-							displayStatus === 'not deployed' ? m.stacks_status_not_deployed() : displayStatus}
+						{displayStatus}
 					</span>
 				{:else if column.id === 'actions'}
 					<div class="relative flex gap-1 justify-end">
@@ -1869,7 +1996,7 @@
 							<button
 								type="button"
 								onclick={() => openGitModal(source.gitStack)}
-								title={m.stacks_action_edit_git()}
+								title="Edit git stack"
 								class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 							>
 								<Pencil class="grid-action-icon grid-action-edit text-muted-foreground hover:text-purple-500" />
@@ -1882,7 +2009,7 @@
 								{#snippet children()}
 									<button
 										type="button"
-										title={m.common_deploy()}
+										title="Deploy"
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Rocket class="grid-action-icon grid-action-start text-muted-foreground hover:text-violet-500" />
@@ -1899,7 +2026,7 @@
 									{#snippet children()}
 										<button
 											type="button"
-											title={m.stacks_action_sync_git()}
+											title="Sync from Git"
 											class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 										>
 											<RefreshCw class="grid-action-icon grid-action-restart text-muted-foreground hover:text-purple-500" />
@@ -1912,7 +2039,7 @@
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); openGitModal(source.gitStack); }}
-										title={m.stacks_action_edit_git()}
+										title="Edit git stack"
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Pencil class="grid-action-icon grid-action-edit text-muted-foreground hover:text-purple-500" />
@@ -1922,7 +2049,7 @@
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); editStack(stack.name); }}
-										title={m.stacks_action_edit()}
+										title="Edit"
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Pencil class="grid-action-icon grid-action-edit text-muted-foreground hover:text-blue-500" />
@@ -1933,7 +2060,7 @@
 								<button
 									type="button"
 									onclick={(e) => { e.stopPropagation(); viewStackLogs(stack); }}
-									title={m.stacks_action_view_logs()}
+									title="View logs"
 									class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 								>
 									<ScrollText class="grid-action-icon grid-action-logs text-muted-foreground hover:text-blue-500" />
@@ -1960,7 +2087,7 @@
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); startStack(stack.name); }}
-										title={m.common_start()}
+										title="Start"
 										class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 									>
 										<Play class="grid-action-icon grid-action-start text-muted-foreground hover:text-green-500" />
@@ -1973,7 +2100,7 @@
 											{#snippet child({ props })}
 												<button
 													type="button"
-													title={m.common_restart()}
+													title="Restart"
 													{...props}
 													onclick={(e) => { e.stopPropagation(); restartPopoverOpen[stack.name] = !restartPopoverOpen[stack.name]; }}
 													class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer inline-flex items-center"
@@ -1989,13 +2116,13 @@
 											sideOffset={8}
 										>
 											<div class="flex flex-col gap-1.5">
-												<span class="text-xs text-muted-foreground">{m.stacks_restart_stack_title({ name: stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name })}</span>
+												<span class="text-xs text-muted-foreground">Restart stack <strong>{stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name}</strong></span>
 												<div class="flex items-center gap-1.5">
 													<Button size="sm" variant="secondary" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>
-													{m.common_restart()}
+														Restart
 													</Button>
 													<Button size="sm" variant="default" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>
-													{m.stacks_action_recreate()}
+														Recreate (stop & up)
 													</Button>
 												</div>
 											</div>
@@ -2005,10 +2132,10 @@
 								{#if $canAccess('stacks', 'stop')}
 									<ConfirmPopover
 										open={confirmStopName === stack.name}
-										action={m.common_stop()}
-										itemType={m.common_stop()}
+										action="Stop"
+										itemType="stack"
 										itemName={stack.name}
-										title={m.common_stop()}
+										title="Stop"
 										onConfirm={() => stopStack(stack.name)}
 										onOpenChange={(open) => confirmStopName = open ? stack.name : null}
 									>
@@ -2022,10 +2149,10 @@
 						{#if $canAccess('stacks', 'stop') && stack.status !== 'created' && stack.status !== 'not deployed'}
 							<ConfirmPopover
 								open={confirmDownName === stack.name}
-								action={m.common_actions()}
-								itemType={m.stacks_action_down_title()}
+								action="Down"
+								itemType="stack"
 								itemName={stack.name}
-								title={m.stacks_action_down_title()}
+								title="Down (remove containers)"
 								onConfirm={() => downStack(stack.name)}
 								onOpenChange={(open) => confirmDownName = open ? stack.name : null}
 							>
@@ -2035,25 +2162,14 @@
 							</ConfirmPopover>
 						{/if}
 						{#if $canAccess('stacks', 'remove')}
-							<ConfirmPopover
-								open={confirmDeleteName === stack.name}
-								action={m.common_remove()}
-								itemType={m.common_remove()}
-								itemName={stack.name}
-								title={m.common_remove()}
-								onConfirm={() => removeStack(stack.name)}
-								onOpenChange={(open) => { confirmDeleteName = open ? stack.name : null; if (!open) deleteVolumes = false; }}
+							<button
+								type="button"
+								title="Remove"
+								onclick={(e) => { e.stopPropagation(); deleteStackName = stack.name; showDeleteModal = true; }}
+								class="p-0.5 rounded hover:bg-muted transition-colors cursor-pointer"
 							>
-								{#snippet extraContent()}
-									<label class="flex items-center gap-1.5 cursor-pointer">
-										<Checkbox bind:checked={deleteVolumes} />
-										<span class="text-xs text-muted-foreground">{m.stacks_delete_volumes_label()}</span>
-									</label>
-								{/snippet}
-								{#snippet children({ open })}
-									<Trash2 class="grid-action-icon grid-action-delete {open ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}" />
-								{/snippet}
-							</ConfirmPopover>
+								<Trash2 class="grid-action-icon grid-action-delete text-muted-foreground hover:text-destructive" />
+							</button>
 						{/if}
 					</div>
 				{/if}
@@ -2067,7 +2183,11 @@
 								{@const isLoading = containerActionLoading === container.id}
 								<div class="p-3 rounded-lg bg-background border text-xs">
 									<div class="flex items-center gap-2 mb-2">
-										<Box class="w-4 h-4 shrink-0 {container.state === 'running' ? 'text-emerald-500' : 'text-muted-foreground'}" />
+										{#if $appSettings.useSelfhstIcons}
+											<ContainerIcon image={container.image} name={container.service || container.name} class="w-4 h-4" />
+										{:else}
+											<Box class="w-4 h-4 shrink-0 {container.state === 'running' ? 'text-emerald-500' : 'text-muted-foreground'}" />
+										{/if}
 										<span class="font-medium truncate" title={container.name}>{container.service}</span>
 										{#if container.updateAvailable && $appSettings.highlightUpdates}
 											<!-- Update arrow + changelog link read as one pair — keep them tight. -->
@@ -2102,6 +2222,29 @@
 													{/if}
 												{/if}
 											</span>
+										{:else if failedUpdateCheckIds.has(container.id)}
+											<Tooltip.Root>
+												<Tooltip.Trigger>
+													<AlertTriangle class="w-3.5 h-3.5 shrink-0 text-red-500 cursor-help" />
+												</Tooltip.Trigger>
+												<Tooltip.Content side="right" class="w-72 p-3">
+													<div class="space-y-1.5">
+														<p class="font-medium text-sm flex items-center gap-1.5 whitespace-nowrap">
+															<AlertTriangle class="w-4 h-4 text-red-500 shrink-0" />
+															Update check failed
+														</p>
+														<p class="text-muted-foreground text-xs break-words">{failedUpdateCheckErrors.get(container.id) ?? 'Could not query registry'}</p>
+														<p class="text-muted-foreground text-xs">Update status unknown — often a Docker Hub rate limit. Try again later.</p>
+													</div>
+												</Tooltip.Content>
+											</Tooltip.Root>
+										{/if}
+										{#if container.newerVersion}
+											<VersionUpdateBadge
+												newerVersion={container.newerVersion}
+												variant="pill"
+												onclick={() => openVersionModal(container)}
+											/>
 										{/if}
 										<span class="flex-1"></span>
 										{#if container.health}
@@ -2115,14 +2258,7 @@
 												{/if}
 											</span>
 										{/if}
-										<span class={getStatusClasses(container.state)}>
-														{container.state === 'running' ? m.stacks_container_state_running() :
-														container.state === 'exited' ? m.stacks_container_state_exited() :
-														container.state === 'paused' ? m.stacks_container_state_paused() :
-														container.state === 'restarting' ? m.stacks_container_state_restarting() :
-														container.state === 'created' ? m.stacks_container_state_created() :
-														container.state === 'dead' ? m.stacks_container_state_dead() : container.state}
-													</span>
+										<span class={getStatusClasses(container.state)}>{container.state}</span>
 									</div>
 									<div class="text-muted-foreground mb-2 space-y-0.5">
 										<div class="truncate" title={container.image}>{container.image}</div>
@@ -2132,7 +2268,7 @@
 												{formatUptime(container.status)}
 											</span>
 											{#if container.restartCount > 0}
-												<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400" title={m.stacks_restarts_count({ count: container.restartCount, plural: container.restartCount > 1 ? 's' : '' })}>
+												<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400" title="{container.restartCount} restart{container.restartCount > 1 ? 's' : ''}">
 													<RotateCw class="w-2.5 h-2.5" />
 													{container.restartCount}
 												</span>
@@ -2148,7 +2284,7 @@
 											<!-- CPU sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">{m.common_cpu()}</span>
+													<span class="text-muted-foreground">CPU</span>
 													<span class="font-mono {stats?.cpuPercent && stats.cpuPercent > 80 ? 'text-red-500' : stats?.cpuPercent && stats.cpuPercent > 50 ? 'text-yellow-500' : 'text-muted-foreground'}">{stats?.cpuPercent?.toFixed(0) ?? '-'}%</span>
 												</div>
 												{#if history?.cpu && history.cpu.length >= 2}
@@ -2163,8 +2299,8 @@
 											<!-- Memory sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">{m.stacks_label_mem()}</span>
-													<span class="font-mono text-muted-foreground">{stats ? formatBytes(stats.memoryUsage) : '-'}</span>
+													<span class="text-muted-foreground">Mem</span>
+													<span class="font-mono text-muted-foreground">{stats ? formatBytesCompact(stats.memoryUsage) : '-'}</span>
 												</div>
 												{#if history?.mem && history.mem.length >= 2}
 													<svg class="w-full h-4" viewBox="0 0 60 16" preserveAspectRatio="none">
@@ -2178,8 +2314,8 @@
 											<!-- Network I/O sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">{m.stacks_label_net()}</span>
-													<span class="font-mono text-muted-foreground">{stats ? formatBytes(stats.networkRx + stats.networkTx) : '-'}</span>
+													<span class="text-muted-foreground">Net</span>
+													<span class="font-mono text-muted-foreground">{stats ? formatBytesCompact(stats.networkRx + stats.networkTx) : '-'}</span>
 												</div>
 												{#if history?.netRx && history.netRx.length >= 2}
 													<svg class="w-full h-4" viewBox="0 0 60 16" preserveAspectRatio="none">
@@ -2193,8 +2329,8 @@
 											<!-- Disk I/O sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">{m.stacks_label_disk()}</span>
-													<span class="font-mono text-muted-foreground">{stats ? formatBytes(stats.blockRead + stats.blockWrite) : '-'}</span>
+													<span class="text-muted-foreground">Disk</span>
+													<span class="font-mono text-muted-foreground">{stats ? formatBytesCompact(stats.blockRead + stats.blockWrite) : '-'}</span>
 												</div>
 												{#if history?.diskR && history.diskR.length >= 2}
 													<svg class="w-full h-4" viewBox="0 0 60 16" preserveAspectRatio="none">
@@ -2219,7 +2355,7 @@
 													rel="noopener noreferrer"
 													onclick={(e) => e.stopPropagation()}
 													class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-													title={m.stacks_open_url_tooltip({ url: stackParsedUrl.url })}
+													title="Open {stackParsedUrl.url} in new tab"
 												>
 													<Globe class="w-2.5 h-2.5" />
 													<span class="max-w-[120px] truncate">{stackParsedUrl.name || stackParsedUrl.url.replace(/^https?:\/\//, '')}</span>
@@ -2236,7 +2372,7 @@
 													rel="noopener noreferrer"
 													onclick={(e) => e.stopPropagation()}
 													class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-													title={m.stacks_traefik_router_tooltip({ router: t.router, url: t.url })}
+													title="Traefik router {t.router} → {t.url}"
 												>
 													<Globe class="w-2.5 h-2.5" />
 													<span class="max-w-[120px] truncate">{t.url.replace(/^https?:\/\//, '')}</span>
@@ -2251,10 +2387,25 @@
 													rel="noopener noreferrer"
 													onclick={(e) => e.stopPropagation()}
 													class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-													title={m.stacks_pangolin_resource_tooltip({ resource: p.resource, url: p.url })}
+													title="Pangolin resource {p.resource} → {p.url}"
 												>
 													<Globe class="w-2.5 h-2.5" />
 													<span class="max-w-[120px] truncate">{p.displayName ?? p.url.replace(/^https?:\/\//, '')}</span>
+													<ExternalLink class="w-2.5 h-2.5 opacity-60" />
+												</a>
+											{/each}
+											<!-- caddy-docker-proxy fallback URLs (#1390). Same suppression rules. -->
+											{#each ($appSettings.honorProxyLabels ? extractCaddyUrls(container.labels) : []) as c}
+												<a
+													href={c.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													onclick={(e) => e.stopPropagation()}
+													class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+													title="Caddy {c.group}: {c.url}"
+												>
+													<Globe class="w-2.5 h-2.5" />
+													<span class="max-w-[120px] truncate">{c.url.replace(/^https?:\/\//, '')}</span>
 													<ExternalLink class="w-2.5 h-2.5 opacity-60" />
 												</a>
 											{/each}
@@ -2273,7 +2424,7 @@
 														rel="noopener noreferrer"
 														onclick={(e) => e.stopPropagation()}
 														class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded {portUrl ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800'} transition-colors"
-														title={m.stacks_open_url_tooltip({ url })}
+														title="Open {url} in new tab"
 													>
 														<code>{portParsed?.name ?? port.display}</code>
 														<ExternalLink class="w-2.5 h-2.5 {portUrl ? 'opacity-60' : ''}" />
@@ -2297,14 +2448,14 @@
 												</Tooltip.Trigger>
 												<Tooltip.Content class="whitespace-nowrap max-w-none">
 													{#each container.networks as net}
-														<div class="font-mono text-xs">{net.name}: {net.ipAddress || m.stacks_no_ip()}</div>
+														<div class="font-mono text-xs">{net.name}: {net.ipAddress || 'no IP'}</div>
 													{/each}
 												</Tooltip.Content>
 											</Tooltip.Root>
 										{/if}
 										<!-- Volumes -->
 										{#if container.volumeCount > 0}
-											<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title={m.stacks_volumes_count({ count: container.volumeCount, plural: container.volumeCount > 1 ? 's' : '' })}>
+											<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title="{container.volumeCount} volume{container.volumeCount > 1 ? 's' : ''} mounted">
 												<HardDrive class="w-2.5 h-2.5" />
 												{container.volumeCount}
 											</span>
@@ -2314,7 +2465,7 @@
 										<div class="flex gap-1">
 											<button
 												type="button"
-												title={m.containers_action_show_logs()}
+												title="Open logs inline"
 												onclick={(e) => { e.stopPropagation(); showContainerLogs(container); }}
 												class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer {currentLogsContainerId === container.id ? 'bg-muted text-blue-500' : ''}"
 											>
@@ -2322,7 +2473,7 @@
 											</button>
 											<button
 												type="button"
-												title={m.containers_action_open_logs()}
+												title="Open logs in full view"
 												onclick={(e) => { e.stopPropagation(); goto(appendEnvParam(`/logs?container=${container.id}`, envId)); }}
 												class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 											>
@@ -2331,7 +2482,7 @@
 											{#if container.state === 'running' && $canAccess('containers', 'exec')}
 												<button
 													type="button"
-													title={m.containers_action_show_terminal()}
+													title="Open terminal"
 													onclick={(e) => { e.stopPropagation(); goto(appendEnvParam(`/terminal?container=${container.id}`, envId)); }}
 													class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 												>
@@ -2341,7 +2492,7 @@
 											{#if container.state === 'running' && $canAccess('containers', 'files')}
 												<button
 													type="button"
-													title={m.containers_action_browse_files()}
+													title="Browse files"
 													onclick={(e) => { e.stopPropagation(); browseFiles(container.id, container.name); }}
 													class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 												>
@@ -2350,7 +2501,7 @@
 											{/if}
 											<button
 												type="button"
-												title={m.containers_action_view_details()}
+												title="Inspect container"
 												onclick={(e) => { e.stopPropagation(); inspectContainer(container.id, container.name); }}
 												class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 											>
@@ -2374,7 +2525,7 @@
 													{#if $canAccess('containers', 'unpause')}
 														<button
 															type="button"
-															title={m.containers_action_unpause()}
+															title="Unpause"
 															onclick={(e) => unpauseContainer(container.id, e)}
 															class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 														>
@@ -2385,7 +2536,7 @@
 													{#if $canAccess('containers', 'start')}
 														<button
 															type="button"
-															title={m.common_start()}
+															title="Start"
 															onclick={(e) => startContainer(container.id, e)}
 															class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 														>
@@ -2397,10 +2548,10 @@
 													{#if $canAccess('containers', 'restart')}
 														<ConfirmPopover
 															open={confirmRestartContainerId === container.id}
-															action={m.common_restart()}
-															itemType={m.common_restart()}
+															action="Restart"
+															itemType="container"
 															itemName={container.service}
-															title={m.common_restart()}
+															title="Restart"
 															onConfirm={() => restartContainer(container.id)}
 															onOpenChange={(open) => confirmRestartContainerId = open ? container.id : null}
 														>
@@ -2412,10 +2563,10 @@
 													{#if $canAccess('containers', 'pause')}
 														<ConfirmPopover
 															open={confirmPauseContainerId === container.id}
-															action={m.containers_action_pause()}
-															itemType={m.containers_action_pause()}
+															action="Pause"
+															itemType="container"
 															itemName={container.service}
-															title={m.containers_action_pause()}
+															title="Pause"
 															onConfirm={() => pauseContainer(container.id)}
 															onOpenChange={(open) => confirmPauseContainerId = open ? container.id : null}
 														>
@@ -2427,10 +2578,10 @@
 													{#if $canAccess('containers', 'stop')}
 														<ConfirmPopover
 															open={confirmStopContainerId === container.id}
-															action={m.common_stop()}
-															itemType={m.common_stop()}
+															action="Stop"
+															itemType="container"
 															itemName={container.service}
-															title={m.common_stop()}
+															title="Stop"
 															onConfirm={() => stopContainer(container.id)}
 															onOpenChange={(open) => confirmStopContainerId = open ? container.id : null}
 														>
@@ -2444,10 +2595,10 @@
 											{#if $canAccess('containers', 'remove')}
 												<ConfirmPopover
 													open={confirmRemoveContainerId === container.id}
-													action={m.common_remove()}
-													itemType={m.common_remove()}
+													action="Remove"
+													itemType="container"
 													itemName={container.service}
-													title={m.common_remove()}
+													title="Remove"
 													onConfirm={() => removeContainer(container.id)}
 													onOpenChange={(open) => confirmRemoveContainerId = open ? container.id : null}
 												>
@@ -2533,10 +2684,12 @@
 	mode="edit"
 	stackName={editingStackName}
 	readonly={stackModalReadonly}
+	gitInfo={stackModalGitInfo}
 	onClose={() => {
 		showEditModal = false;
 		editingStackName = '';
 		stackModalReadonly = false;
+		stackModalGitInfo = null;
 	}}
 	onSuccess={fetchStacks}
 />
@@ -2558,6 +2711,13 @@
 	bind:open={showImportModal}
 	onClose={() => showImportModal = false}
 	onAdopted={fetchStacks}
+/>
+
+<DeleteStackModal
+	bind:open={showDeleteModal}
+	stackName={deleteStackName}
+	envId={envId ?? null}
+	onConfirm={(opts) => removeStack(deleteStackName, opts)}
 />
 
 <ContainerInspectModal
@@ -2582,6 +2742,12 @@
 	vulnerabilityCriteria={envHasScanning ? envVulnerabilityCriteria : 'never'}
 	onClose={() => { showBatchUpdateModal = false; singleUpdateContainerId = null; singleUpdateContainerName = null; }}
 	onComplete={handleSingleUpdateComplete}
+/>
+
+<VersionUpdateModal
+	bind:container={versionModalContainer}
+	newerVersion={versionModalContainer?.newerVersion ?? null}
+	{envId}
 />
 
 <BatchOperationModal

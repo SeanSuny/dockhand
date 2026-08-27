@@ -4,23 +4,24 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
 	import { TogglePill } from '$lib/components/ui/toggle-pill';
-	import { Loader2, GitBranch, RefreshCw, Webhook, Rocket, RefreshCcw, Copy, Check, XCircle, FolderGit2, Github, Key, KeyRound, Lock, FileText, HelpCircle, GripVertical, X, Download, Hammer, ArrowDownToLine, Zap, FolderOpen, Ban, TriangleAlert } from 'lucide-svelte';
+	import { Loader2, GitBranch, RefreshCw, Webhook, Rocket, RefreshCcw, Copy, Check, XCircle, FolderGit2, Github, Key, KeyRound, Lock, FileText, HelpCircle, GripVertical, X, Download, Hammer, ArrowDownToLine, Zap, FolderOpen, Ban, TriangleAlert, Settings2, Archive } from 'lucide-svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { page } from '$app/stores'; // BETA GATE: backups feature flag
+	import BackupPanel from '../containers/BackupPanel.svelte';
+	import { volumesForStack, type VolumeInfo } from '$lib/utils/mounts';
+	import { fetchBackupExecutions } from '$lib/utils/backup';
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import CronEditor from '$lib/components/cron-editor.svelte';
 	import StackEnvVarsPanel from '$lib/components/StackEnvVarsPanel.svelte';
+	import SecretProviderPicker from '$lib/components/SecretProviderPicker.svelte';
+	import BranchCombobox from './BranchCombobox.svelte';
 	import { type EnvVar, type ValidationResult } from '$lib/components/StackEnvVarsEditor.svelte';
 	import { toast } from 'svelte-sonner';
 	import { focusFirstInput } from '$lib/utils';
 	import { readJobResponse } from '$lib/utils/sse-fetch';
-	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte';
-	import * as m from '$lib/paraglide/messages';
 
-	// Get sidebar state to adjust modal positioning
-	const sidebar = useSidebar();
 
 	// localStorage key for persisted split ratio
 	const STORAGE_KEY_SPLIT = 'dockhand-git-stack-modal-split';
@@ -44,13 +45,14 @@
 		name: string;
 		url: string;
 		branch: string;
-		credential_id: number | null;
+		credentialId: number | null;
 	}
 
 	interface GitStack {
 		id: number;
 		stackName: string;
 		repositoryId: number;
+		branch?: string | null; // Per-stack branch override; null = use repository default
 		environmentId: number | null;
 		composePath: string;
 		envFilePath: string | null;
@@ -86,6 +88,49 @@
 	let formNewRepoBranch = $state('main');
 	let formNewRepoCredentialId = $state<number | null>(null);
 
+	// Tabs: Settings (the deploy form) and Backups (edit mode + feature flag only).
+	let activeTab = $state<'settings' | 'backups'>('settings');
+	// The stack's volumes, loaded lazily when the Backups tab opens (git stacks
+	// don't otherwise need them). Feeds the backup volume picker.
+	let stackVolumes = $state<VolumeInfo[]>([]);
+	let stackVolumesLoaded = $state(false);
+	// Ok/fail run tally shown on the Backups tab (edit mode only).
+	let backupTally = $state<{ ok: number; failed: number }>({ ok: 0, failed: 0 });
+	let backupTallyLoaded = $state(false);
+	const effectiveEnvId = $derived(gitStack?.environmentId ?? environmentId ?? null);
+
+	async function loadBackupTally() {
+		if (backupTallyLoaded || !gitStack) return;
+		backupTallyLoaded = true;
+		try {
+			const p = new URLSearchParams({ target: formStackName, type: 'stack' });
+			if (effectiveEnvId != null) p.set('env', String(effectiveEnvId));
+			const res = await fetch(`/api/backup/configs?${p}`);
+			if (!res.ok) return;
+			const data = await res.json();
+			const cfgs = Array.isArray(data) ? data : data?.id ? [data] : [];
+			if (cfgs.length > 0) {
+				const t = await fetchBackupExecutions(cfgs.map((c: any) => c.id));
+				backupTally = { ok: t.ok, failed: t.failed };
+			}
+		} catch { /* tally is best-effort */ }
+	}
+
+	async function loadStackVolumes() {
+		if (stackVolumesLoaded) return;
+		stackVolumesLoaded = true;
+		try {
+			const url = effectiveEnvId != null ? `/api/containers?env=${effectiveEnvId}` : '/api/containers';
+			const res = await fetch(url);
+			if (res.ok) stackVolumes = volumesForStack(await res.json(), formStackName);
+		} catch { /* picker just shows "no volumes" — backup still defaults to all */ }
+	}
+
+	// Load volumes the first time the Backups tab is opened.
+	$effect(() => {
+		if (activeTab === 'backups') void loadStackVolumes();
+	});
+
 	// Form state - stack deployment config
 	let formStackName = $state('');
 	let formStackNameUserModified = $state(false);
@@ -103,12 +148,33 @@
 	let formError = $state('');
 	let formSaving = $state(false);
 	let showExistsWarning = $state(false);
-	let errors = $state<{ stackName?: string; repository?: string; repoName?: string; repoUrl?: string }>({});
+	let errors = $state<{ stackName?: string; repository?: string; repoName?: string; repoUrl?: string; webhookSecret?: string }>({});
 
-	// Stack name validation: must start with alphanumeric, can contain alphanumeric, hyphens, underscores
-	const STACK_NAME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
+	// Branch selection
+	let formBranch = $state<string | null>(null);
+	let branches = $state<{ name: string; sha: string }[]>([]);
+	let branchesLoading = $state(false);
+	// Monotonic token that guards against a stale branch-enumeration response
+	// overwriting `branches` for a newer repository URL (the $effect below can
+	// fire multiple times as the repo selection changes; a slow response for
+	// repo A must not clobber the branch list belonging to repo B).
+	let branchesFetchSeq = 0;
+
+	// Sentinel select value meaning "no per-stack override — use the repository's
+	// default branch". Contains ':' which is invalid in git refs, so it can never
+	// collide with a real branch name.
+
+	// Stack name validation: Docker Compose requires lowercase; must start with a
+	// letter or number, and contain only lowercase letters, numbers, hyphens, underscores
+	const STACK_NAME_REGEX = /^[a-z0-9][a-z0-9_-]*$/;
 	let copiedWebhookUrl = $state<'ok' | 'error' | null>(null);
 	let copiedWebhookSecret = $state<'ok' | 'error' | null>(null);
+
+	// Secret providers
+	type SecretProviderOption = { id: number; name: string; type: string };
+	let secretProviders = $state<SecretProviderOption[]>([]);
+	let formSecretProviderId = $state<number | null>(null);
+	let injectedSecretKeys = $state<string[]>([]);
 
 	// Environment variables state
 	let formEnvFilePath = $state<string | null>(null);
@@ -161,7 +227,20 @@
 		// Add global mouse event listeners for split dragging
 		window.addEventListener('mousemove', handleMouseMove);
 		window.addEventListener('mouseup', handleMouseUp);
+
+		fetchSecretProviders();
 	});
+
+	async function fetchSecretProviders() {
+		try {
+			const response = await fetch('/api/secret-providers');
+			if (!response.ok) return;
+			const data = await response.json();
+			secretProviders = (data ?? []).map((p: any) => ({ id: p.id, name: p.name, type: p.type }));
+		} catch (e) {
+			console.warn('Failed to load secret providers:', e);
+		}
+	}
 
 	onDestroy(() => {
 		window.removeEventListener('mousemove', handleMouseMove);
@@ -270,6 +349,7 @@
 				);
 				// Set envVars - the panel's $effect will auto-sync rawContent for text view
 				envVars = loadedVars;
+				injectedSecretKeys = data.injectedSecretKeys ?? [];
 			}
 		} catch (e) {
 			console.error('Failed to load env var overrides:', e);
@@ -279,11 +359,11 @@
 	async function populateEnvVars() {
 		// Validate we have repository info
 		if (formRepoMode === 'existing' && !formRepositoryId) {
-			toast.error(m.stacks_git_modal_toast_select_repo_first());
+			toast.error('Please select a repository first');
 			return;
 		}
 		if (formRepoMode === 'new' && !formNewRepoUrl.trim()) {
-			toast.error(m.stacks_git_modal_toast_enter_repo_url_first());
+			toast.error('Please enter a repository URL first');
 			return;
 		}
 
@@ -296,6 +376,8 @@
 
 			if (formRepoMode === 'existing') {
 				body.repositoryId = formRepositoryId;
+				// Send the selected branch so env files are previewed from it (per-stack override)
+				body.branch = formBranch || undefined;
 			} else {
 				body.url = formNewRepoUrl;
 				body.branch = formNewRepoBranch || 'main';
@@ -343,7 +425,7 @@
 			});
 		} catch (e) {
 			console.error('Failed to populate env vars:', e);
-			toast.error(m.stacks_git_modal_toast_load_env_failed());
+			toast.error('Failed to load env variables');
 		} finally {
 			populatingEnvVars = false;
 		}
@@ -351,6 +433,11 @@
 
 	async function resetForm() {
 		// Clear state BEFORE async loads to avoid race conditions
+		activeTab = 'settings';
+		stackVolumes = [];
+		stackVolumesLoaded = false;
+		backupTally = { ok: 0, failed: 0 };
+		backupTallyLoaded = false;
 		formError = '';
 		errors = {};
 		copiedWebhookUrl = null;
@@ -364,6 +451,7 @@
 			formRepoMode = 'existing';
 			formRepositoryId = gitStack.repositoryId;
 			formStackName = gitStack.stackName;
+			if ($page.data.backupsEnabled) void loadBackupTally();
 			formComposePath = gitStack.composePath;
 			formEnvFilePath = gitStack.envFilePath;
 			formAutoUpdate = gitStack.autoUpdate;
@@ -376,6 +464,12 @@
 			formRepullImages = gitStack.repullImages ?? false;
 			formForceRedeploy = gitStack.forceRedeploy ?? false;
 			formDeployNow = false;
+			formSecretProviderId = null;
+
+			// Load secret provider binding
+			loadSecretProviderBindingForStack(gitStack.stackName);
+			// Per-stack branch override; null means "use the repository default"
+			formBranch = gitStack.branch ?? null;
 
 			// Load env files and overrides SYNCHRONOUSLY to avoid race conditions
 			// Wait for all loads to complete before allowing any other effect to run
@@ -405,6 +499,55 @@
 			formRepullImages = false;
 			formForceRedeploy = false;
 			formDeployNow = false;
+			formSecretProviderId = null;
+		}
+	}
+
+	async function loadSecretProviderBindingForStack(stackName: string) {
+		try {
+			const url = environmentId ? `/api/stacks/sources?env=${environmentId}` : '/api/stacks/sources';
+			const response = await fetch(url);
+			if (!response.ok) return;
+			const sourceMap = await response.json();
+			const source = sourceMap?.[stackName];
+			formSecretProviderId = source?.secretProviderId ?? null;
+		} catch (e) {
+			console.warn('Failed to load secret provider binding for git stack:', e);
+		}
+	}
+
+	async function fetchBranches() {
+		const seq = ++branchesFetchSeq;
+		branchesLoading = true;
+		branches = [];
+		try {
+			const body: Record<string, any> = {};
+			if (formRepoMode === 'existing' && formRepositoryId) {
+				body.repositoryId = formRepositoryId;
+			} else if (formRepoMode === 'new' && formNewRepoUrl) {
+				body.url = formNewRepoUrl;
+				body.credentialId = formNewRepoCredentialId;
+			} else {
+				return;
+			}
+			const response = await fetch('/api/git/branches', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+			// A newer fetch (or a repo change) superseded this one — drop the
+			// stale response so it cannot overwrite the new repo's branch list.
+			if (seq !== branchesFetchSeq) return;
+			if (response.ok) {
+				const data = await response.json();
+				if (seq !== branchesFetchSeq) return;
+				branches = data.branches || [];
+			}
+		} catch (e) {
+			if (seq !== branchesFetchSeq) return;
+			console.error('Failed to fetch branches:', e);
+		} finally {
+			if (seq === branchesFetchSeq) branchesLoading = false;
 		}
 	}
 
@@ -414,25 +557,30 @@
 
 		const trimmedStackName = formStackName.trim();
 		if (!trimmedStackName) {
-			errors.stackName = m.stacks_git_modal_error_stack_name_required();
+			errors.stackName = 'Stack name is required';
 			hasErrors = true;
 		} else if (!STACK_NAME_REGEX.test(trimmedStackName)) {
-			errors.stackName = m.stacks_git_modal_error_stack_name_invalid();
+			errors.stackName = 'Stack name must be lowercase, start with a letter or number, and contain only letters, numbers, hyphens, and underscores';
 			hasErrors = true;
 		}
 
 		if (formRepoMode === 'existing' && !formRepositoryId) {
-			errors.repository = m.stacks_git_modal_error_select_repository();
+			errors.repository = 'Please select a repository';
 			hasErrors = true;
 		}
 
 		if (formRepoMode === 'new' && !formNewRepoName.trim()) {
-			errors.repoName = m.stacks_git_modal_error_repo_name_required();
+			errors.repoName = 'Repository name is required';
 			hasErrors = true;
 		}
 
 		if (formRepoMode === 'new' && !formNewRepoUrl.trim()) {
-			errors.repoUrl = m.stacks_git_modal_error_repo_url_required();
+			errors.repoUrl = 'Repository URL is required';
+			hasErrors = true;
+		}
+
+		if (formWebhookEnabled && !formWebhookSecret.trim()) {
+			errors.webhookSecret = 'A webhook secret is required when the webhook is enabled';
 			hasErrors = true;
 		}
 
@@ -485,6 +633,7 @@
 				repullImages: formRepullImages,
 				forceRedeploy: formForceRedeploy,
 				deployNow: deployAfterSave,
+				secretProviderId: formSecretProviderId,
 				envVars: overrideVars.map(v => ({
 					key: v.key.trim(),
 					value: v.value,
@@ -494,6 +643,9 @@
 
 			if (formRepoMode === 'existing') {
 				body.repositoryId = formRepositoryId;
+				// Per-stack branch override — sent on both create and update so the
+				// stack payload is the single source of truth (null = inherit repo default)
+				body.branch = formBranch || null;
 			} else {
 				// Create new repo inline
 				body.repoName = formNewRepoName;
@@ -516,14 +668,15 @@
 			const data = await readJobResponse(response);
 
 			if (!response.ok) {
-				formError = data.error || m.stacks_git_modal_error_save_failed();
+				formError = data.error || 'Failed to save git stack';
 				return;
 			}
 
 			// Check if deployment failed
-			if (data.deployResult && !data.deployResult.success) {
+			const deployResult = data.deployResult as { success?: boolean; error?: string } | undefined;
+			if (deployResult && !deployResult.success) {
 				toast.error('Deployment failed', {
-					description: data.deployResult.error || 'Unknown error'
+					description: deployResult.error || 'Unknown error'
 				});
 				onSaved(); // Still refresh the list to show the new stack
 				onClose(); // Close modal, error shown as toast
@@ -533,11 +686,26 @@
 			onSaved();
 			onClose();
 		} catch (error) {
-			formError = m.stacks_git_modal_error_save_failed();
+			formError = 'Failed to save git stack';
 		} finally {
 			formSaving = false;
 		}
 	}
+
+	// Fetch branches when repository selection changes
+	$effect(() => {
+		if (formRepoMode === 'existing' && formRepositoryId) {
+			void fetchBranches();
+			// A fresh stack inherits the repository's default until a branch is
+			// picked. When editing, the stored per-stack override (set in
+			// resetForm) must be preserved — null means repository default.
+			if (!gitStack) formBranch = null;
+		} else if (formRepoMode === 'new' && formNewRepoUrl) {
+			void fetchBranches();
+		} else {
+			branches = [];
+		}
+	});
 
 	// Auto-populate stack name from selected repo and compose path (only if user hasn't manually edited)
 	$effect(() => {
@@ -572,7 +740,7 @@
 
 <Dialog.Root bind:open onOpenChange={(isOpen) => { if (isOpen) focusFirstInput(); }}>
 	<Dialog.Content
-		class="max-w-none h-[95vh] flex flex-col p-0 gap-0 shadow-xl border-zinc-200 dark:border-zinc-700 {sidebar.state === 'collapsed' ? 'w-[calc(100vw-6rem)] ml-[1.5rem]' : 'w-[calc(100vw-12rem)] ml-[4.5rem]'}"
+		class="max-w-none w-[calc(100vw-4rem)] h-[95vh] flex flex-col p-0 gap-0 shadow-xl border-zinc-200 dark:border-zinc-700"
 		showCloseButton={false}
 	>
 		<Dialog.Header class="px-5 py-3 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
@@ -583,10 +751,10 @@
 					</div>
 					<div>
 						<Dialog.Title class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-							{gitStack ? m.stacks_git_modal_title_edit() : m.stacks_git_modal_title_deploy()}
+							{gitStack ? 'Edit git stack' : 'Deploy from Git'}
 						</Dialog.Title>
 						<Dialog.Description class="text-xs text-zinc-500 dark:text-zinc-400">
-							{gitStack ? m.stacks_git_modal_description_edit() : m.stacks_git_modal_description_deploy()}
+							{gitStack ? 'Update git stack settings' : 'Deploy a compose stack from a Git repository'}
 						</Dialog.Description>
 					</div>
 				</div>
@@ -601,6 +769,41 @@
 			</div>
 		</Dialog.Header>
 
+		<!-- Tabs: Settings (deploy form) + Backups. Backups only in edit mode AND when
+		     the backups feature flag is on (BETA GATE) — a git stack must exist before
+		     it can be backed up, and the feature must be enabled. -->
+		{#if gitStack && $page.data.backupsEnabled}
+			<div class="flex items-center gap-1 border-b border-zinc-200 px-5 dark:border-zinc-700 flex-shrink-0">
+				<button
+					type="button"
+					class="relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors {activeTab === 'settings' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+					onclick={() => (activeTab = 'settings')}
+				>
+					<Settings2 class="h-3.5 w-3.5" /> Settings
+				</button>
+				<button
+					type="button"
+					class="relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors {activeTab === 'backups' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+					onclick={() => (activeTab = 'backups')}
+				>
+					<Archive class="h-3.5 w-3.5" /> Backups
+					{#if backupTally.ok > 0}<span class="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-500"><Check class="w-2.5 h-2.5" />{backupTally.ok}</span>{/if}
+					{#if backupTally.failed > 0}<span class="inline-flex items-center gap-0.5 rounded-full bg-red-500/15 px-1.5 text-[10px] font-semibold text-red-500"><X class="w-2.5 h-2.5" />{backupTally.failed}</span>{/if}
+				</button>
+			</div>
+		{/if}
+
+		{#if activeTab === 'backups' && gitStack && $page.data.backupsEnabled}
+			<div class="min-h-0 flex-1 overflow-auto p-5">
+				<BackupPanel
+					containerName={formStackName}
+					volumes={stackVolumes}
+					type="stack"
+					environmentId={effectiveEnvId ?? undefined}
+					onTally={(t) => (backupTally = t)}
+				/>
+			</div>
+		{:else}
 		<div bind:this={containerRef} class="flex-1 min-h-0 flex {isDraggingSplit ? 'select-none' : ''}">
 			<!-- Left column: Form fields -->
 			<div class="flex-shrink-0 flex flex-col min-w-0 overflow-y-auto" style="width: {splitRatio}%">
@@ -608,7 +811,7 @@
 			<!-- Repository selection -->
 			{#if !gitStack}
 				<div class="space-y-3">
-					<Label>{m.stacks_git_modal_label_repository()}</Label>
+					<Label>Repository</Label>
 					<div class="flex gap-2">
 						<Button
 							variant={formRepoMode === 'existing' ? 'default' : 'outline'}
@@ -616,14 +819,14 @@
 							onclick={() => formRepoMode = 'existing'}
 							disabled={repositories.length === 0}
 						>
-							{m.stacks_git_modal_button_select_existing()}
+							Select existing
 						</Button>
 						<Button
 							variant={formRepoMode === 'new' ? 'default' : 'outline'}
 							size="sm"
 							onclick={() => formRepoMode = 'new'}
 						>
-							{m.stacks_git_modal_button_add_new()}
+							Add new
 						</Button>
 					</div>
 
@@ -646,7 +849,7 @@
 										<span class="text-muted-foreground text-xs truncate hidden sm:inline">({repoPath})</span>
 									</div>
 								{:else}
-									<span class="text-muted-foreground">{m.stacks_git_modal_select_placeholder()}</span>
+									<span class="text-muted-foreground">Select a repository...</span>
 								{/if}
 							</Select.Trigger>
 							<Select.Content>
@@ -674,17 +877,35 @@
 							<p class="text-xs text-destructive">{errors.repository}</p>
 						{:else if repositories.length === 0}
 							<p class="text-xs text-muted-foreground">
-								No repositories configured. Click "{m.stacks_git_modal_button_add_new()}" to add one.
+								No repositories configured. Click "Add new" to add one.
 							</p>
+						{/if}
+						<!-- Branch selection for existing repository -->
+						{#if formRepoMode === 'existing' && selectedRepo}
+							<div class="space-y-2">
+								<Label for="existing-repo-branch">Branch</Label>
+								<BranchCombobox
+									id="existing-repo-branch"
+									value={formBranch ?? ''}
+									branches={branches}
+									defaultBranch={selectedRepo.branch}
+									loading={branchesLoading}
+									placeholder="Repository default ({selectedRepo.branch})"
+									clearLabel="Repository default ({selectedRepo.branch})"
+									onchange={(v) => { formBranch = v; }}
+									onclear={() => { formBranch = null; }}
+								/>
+								<p class="text-xs text-muted-foreground">Branch this stack deploys from. Leave empty to follow the branch configured on the repository ({selectedRepo.branch}).</p>
+							</div>
 						{/if}
 					{:else}
 						<div class="space-y-3 p-3 border rounded-md bg-muted/30">
 							<div class="space-y-2">
-								<Label for="new-repo-name">{m.stacks_git_modal_label_repo_name()}</Label>
+								<Label for="new-repo-name">Repository name</Label>
 								<Input
 									id="new-repo-name"
 									bind:value={formNewRepoName}
-									placeholder={m.stacks_git_modal_placeholder_repo_name()}
+									placeholder="e.g., my-stacks"
 									class={errors.repoName ? 'border-destructive focus-visible:ring-destructive' : ''}
 									oninput={() => errors.repoName = undefined}
 								/>
@@ -693,11 +914,11 @@
 								{/if}
 							</div>
 							<div class="space-y-2">
-								<Label for="new-repo-url">{m.stacks_git_modal_label_repo_url()}</Label>
+								<Label for="new-repo-url">Repository URL</Label>
 								<Input
 									id="new-repo-url"
 									bind:value={formNewRepoUrl}
-									placeholder={m.stacks_git_modal_placeholder_repo_url()}
+									placeholder="https://github.com/user/repo.git"
 									class={errors.repoUrl ? 'border-destructive focus-visible:ring-destructive' : ''}
 									oninput={() => errors.repoUrl = undefined}
 								/>
@@ -705,13 +926,30 @@
 									<p class="text-xs text-destructive">{errors.repoUrl}</p>
 								{/if}
 							</div>
-							<div class="grid grid-cols-2 gap-3">
+							<div class="grid grid-cols-2 items-start gap-3">
 								<div class="space-y-2">
-									<Label for="new-repo-branch">{m.stacks_git_modal_label_branch()}</Label>
-									<Input id="new-repo-branch" bind:value={formNewRepoBranch} placeholder={m.stacks_git_modal_placeholder_branch()} />
+									<Label for="new-repo-branch">Branch</Label>
+									<!-- Free-text, searchable branch picker. Supports both discovered
+									     branches and arbitrary typed names: a new/private repository whose
+									     branch enumeration fails must not force the user onto "main" — they
+									     can type the known branch name instead. The "main" default is
+									     preserved when no branch has been chosen, and a value not returned by
+									     enumeration is never silently reset. Server-side Git ref validation
+									     remains authoritative. -->
+									<BranchCombobox
+										id="new-repo-branch"
+										class="w-full"
+										value={formNewRepoBranch}
+										branches={branches}
+										loading={branchesLoading}
+										placeholder="main"
+										onchange={(v) => { formNewRepoBranch = v; }}
+										onclear={() => { formNewRepoBranch = 'main'; }}
+									/>
+									<p class="text-xs text-muted-foreground">Type a name or pick from the list.</p>
 								</div>
 								<div class="space-y-2">
-									<Label for="new-repo-credential">{m.stacks_git_modal_label_credential()}</Label>
+									<Label for="new-repo-credential">Credential</Label>
 									<Select.Root
 										type="single"
 										value={formNewRepoCredentialId?.toString() ?? 'none'}
@@ -730,7 +968,7 @@
 												<span>{selectedCred.name} ({getAuthLabel(selectedCred.authType)})</span>
 											{:else}
 												<Key class="w-4 h-4 mr-2 text-muted-foreground" />
-												<span>{m.stacks_git_modal_credential_none()}</span>
+												<span>None (public)</span>
 											{/if}
 										</Select.Trigger>
 										<Select.Content>
@@ -756,6 +994,7 @@
 											{/each}
 										</Select.Content>
 									</Select.Root>
+									<p class="text-xs text-muted-foreground">SSH key or token for private repositories.</p>
 								</div>
 							</div>
 						</div>
@@ -765,53 +1004,68 @@
 
 			<!-- Stack configuration -->
 			<div class="space-y-2">
-				<Label for="stack-name">{m.stacks_git_modal_label_stack_name()}</Label>
+				<Label for="stack-name">Stack name</Label>
 				<Input
 					id="stack-name"
 					bind:value={formStackName}
-					placeholder={m.stacks_git_modal_placeholder_stack_name()}
+					placeholder="e.g., my-app"
 					class={errors.stackName ? 'border-destructive focus-visible:ring-destructive' : ''}
 					oninput={() => { errors.stackName = undefined; formStackNameUserModified = true; }}
 				/>
 				{#if errors.stackName}
 					<p class="text-xs text-destructive">{errors.stackName}</p>
 				{:else}
-					<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_stack_name()}</p>
+					<p class="text-xs text-muted-foreground">This will be the name of the deployed stack</p>
 				{/if}
 			</div>
 
 			{#if gitStack && selectedRepo}
 				<div class="space-y-2">
-					<Label>{m.stacks_git_modal_label_repository()}</Label>
-					<div class="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-						<FolderGit2 class="w-3.5 h-3.5 shrink-0" />
+					<Label>Repository</Label>
+					<div class="flex h-9 items-center gap-2 rounded-md border border-input bg-muted/50 px-3 py-1 text-sm text-muted-foreground">
+						<FolderGit2 class="w-4 h-4 shrink-0" />
 						<span class="truncate" title={selectedRepo.url}>{selectedRepo.url}</span>
-						{#if selectedRepo.branch}
-							<Badge variant="outline" class="text-2xs py-0 px-1.5 shrink-0">{selectedRepo.branch}</Badge>
-						{/if}
 					</div>
 				</div>
 			{/if}
 
+			{#if gitStack && selectedRepo}
+				<div class="space-y-2">
+					<Label for="stack-branch">Branch</Label>
+					<BranchCombobox
+						id="stack-branch"
+						value={formBranch ?? ''}
+						branches={branches}
+						defaultBranch={selectedRepo.branch}
+						loading={branchesLoading}
+						placeholder="Repository default ({selectedRepo.branch})"
+						clearLabel="Repository default ({selectedRepo.branch})"
+						onchange={(v) => { formBranch = v; }}
+						onclear={() => { formBranch = null; }}
+					/>
+					<p class="text-xs text-muted-foreground">Branch this stack deploys from. Leave empty to follow the branch configured on the repository ({selectedRepo.branch}).</p>
+				</div>
+			{/if}
+
 			<div class="space-y-2">
-				<Label for="compose-path">{m.stacks_git_modal_label_compose_path()}</Label>
-				<Input id="compose-path" bind:value={formComposePath} placeholder={m.stacks_git_modal_placeholder_compose_path()} />
-				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_compose_path()}</p>
+				<Label for="compose-path">Compose file path</Label>
+				<Input id="compose-path" bind:value={formComposePath} placeholder="compose.yaml" />
+				<p class="text-xs text-muted-foreground">Path to the compose file within the repository</p>
 			</div>
 
 			<!-- Additional env file for variable substitution -->
 			<div class="space-y-2">
 				<div class="flex items-center gap-1.5">
-					<Label for="env-file-path">{m.stacks_git_modal_label_env_file()}</Label>
+					<Label for="env-file-path">Additional env file (optional)</Label>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
 							<HelpCircle class="w-3.5 h-3.5 text-muted-foreground cursor-help" />
 						</Tooltip.Trigger>
 						<Tooltip.Content>
 							<div class="w-80">
-								<p class="text-xs">{m.stacks_git_modal_tooltip_env_file_1()}</p>
-								<p class="text-xs mt-2">{m.stacks_git_modal_tooltip_env_file_2()}</p>
-								<p class="text-xs mt-2">{m.stacks_git_modal_tooltip_env_file_3()}</p>
+								<p class="text-xs">A <code class="bg-muted px-1 rounded">.env</code> file in the compose directory is always loaded automatically, if present.</p>
+								<p class="text-xs mt-2">Use this field for an additional env file with a non-standard name (e.g. <code class="bg-muted px-1 rounded">.env.production</code>). Its values override the default <code class="bg-muted px-1 rounded">.env</code>.</p>
+								<p class="text-xs mt-2">Overrides from the environment variables editor on the right always take highest precedence.</p>
 							</div>
 						</Tooltip.Content>
 					</Tooltip.Root>
@@ -821,22 +1075,22 @@
 						bind:value={formEnvFilePath}
 						placeholder=""
 					/>
-				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_env_file()}</p>
+				<p class="text-xs text-muted-foreground">Additional env file to pass to Docker Compose</p>
 			</div>
 
 			<!-- Context directory -->
 			<div class="space-y-2">
 				<div class="flex items-center gap-1.5">
-					<Label for="context-dir">{m.stacks_git_modal_label_context_dir()}</Label>
+					<Label for="context-dir">Context directory (optional)</Label>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
 							<HelpCircle class="w-3.5 h-3.5 text-muted-foreground cursor-help" />
 						</Tooltip.Trigger>
 						<Tooltip.Content>
 							<div class="w-80">
-								<p class="text-xs">{m.stacks_git_modal_tooltip_context_dir_1()}</p>
-								<p class="text-xs mt-2">{m.stacks_git_modal_tooltip_context_dir_2()}</p>
-								<p class="text-xs mt-2">{m.stacks_git_modal_tooltip_context_dir_3()}</p>
+								<p class="text-xs">Working directory for Docker Compose, relative to the repository root. All files in this directory will be available for volume mounts and build contexts.</p>
+								<p class="text-xs mt-2">Use <code class="bg-muted px-1 rounded">.</code> for the repository root when your compose file references files in sibling directories.</p>
+								<p class="text-xs mt-2">Defaults to the compose file's parent directory.</p>
 							</div>
 						</Tooltip.Content>
 					</Tooltip.Root>
@@ -845,9 +1099,9 @@
 					id="context-dir"
 					value={formContextDir ?? ''}
 					oninput={(e) => { const v = (e.target as HTMLInputElement).value; formContextDir = v.trim() || null; }}
-					placeholder={m.stacks_git_modal_placeholder_context_dir()}
+					placeholder="Defaults to compose file's directory"
 				/>
-				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_context_dir()}</p>
+				<p class="text-xs text-muted-foreground">Relative to repository root, e.g. <code class="text-xs bg-muted px-1 rounded">.</code> for root</p>
 			</div>
 
 			<!-- Auto-update section -->
@@ -855,7 +1109,7 @@
 			<div class="flex items-center gap-3">
 				<div class="flex items-center gap-2 flex-1">
 					<RefreshCw class="w-4 h-4 text-muted-foreground" />
-					<Label class="text-sm font-normal">{m.stacks_git_modal_label_enable_scheduled_sync()}</Label>
+					<Label class="text-sm font-normal">Enable scheduled sync</Label>
 				</div>
 				<TogglePill bind:checked={formAutoUpdate} />
 			</div>
@@ -875,9 +1129,12 @@
 			<div class="flex items-center gap-3">
 				<div class="flex items-center gap-2 flex-1">
 					<Webhook class="w-4 h-4 text-muted-foreground" />
-					<Label class="text-sm font-normal">{m.stacks_git_modal_label_enable_webhook()}</Label>
+					<Label class="text-sm font-normal">Enable webhook</Label>
 				</div>
-				<TogglePill bind:checked={formWebhookEnabled} />
+				<TogglePill
+					bind:checked={formWebhookEnabled}
+					onchange={() => { if (formWebhookEnabled && !formWebhookSecret) formWebhookSecret = generateWebhookSecret(); }}
+				/>
 			</div>
 				<p class="text-xs text-muted-foreground">
 					Receive push events from your Git provider to trigger sync and redeploy.
@@ -885,7 +1142,7 @@
 				{#if formWebhookEnabled}
 					{#if gitStack}
 						<div class="space-y-2">
-							<Label>{m.stacks_git_modal_label_webhook_url()}</Label>
+							<Label>Webhook URL</Label>
 							<div class="flex gap-2">
 								<Input
 									value={getWebhookUrl(gitStack.id)}
@@ -896,14 +1153,14 @@
 									variant="outline"
 									size="sm"
 									onclick={() => copyWebhookField(getWebhookUrl(gitStack.id), 'url')}
-									title={m.stacks_git_modal_button_copy_url()}
+									title="Copy URL"
 								>
 									{#if copiedWebhookUrl === 'error'}
 										<Tooltip.Root open>
 											<Tooltip.Trigger>
 												<XCircle class="w-4 h-4 text-red-500" />
 											</Tooltip.Trigger>
-											<Tooltip.Content>{m.stacks_git_modal_tooltip_copy_requires_https()}</Tooltip.Content>
+											<Tooltip.Content>Copy requires HTTPS</Tooltip.Content>
 										</Tooltip.Root>
 									{:else if copiedWebhookUrl === 'ok'}
 										<Check class="w-4 h-4 text-green-500" />
@@ -915,27 +1172,28 @@
 						</div>
 					{/if}
 					<div class="space-y-2">
-						<Label for="webhook-secret">{m.stacks_git_modal_label_webhook_secret()}</Label>
+						<Label for="webhook-secret">Webhook secret</Label>
 						<div class="flex gap-2">
 							<Input
 								id="webhook-secret"
 								bind:value={formWebhookSecret}
-								placeholder={m.stacks_git_modal_placeholder_webhook_secret()}
-								class="font-mono text-xs"
+								placeholder="Required - generate or paste a secret"
+								class="font-mono text-xs {errors.webhookSecret ? 'border-destructive focus-visible:ring-destructive' : ''}"
+								oninput={() => errors.webhookSecret = undefined}
 							/>
 							{#if gitStack && formWebhookSecret}
 								<Button
 									variant="outline"
 									size="sm"
 									onclick={() => copyWebhookField(formWebhookSecret, 'secret')}
-									title={m.stacks_git_modal_button_copy_secret()}
+									title="Copy secret"
 								>
 									{#if copiedWebhookSecret === 'error'}
 										<Tooltip.Root open>
 											<Tooltip.Trigger>
 												<XCircle class="w-4 h-4 text-red-500" />
 											</Tooltip.Trigger>
-											<Tooltip.Content>{m.stacks_git_modal_tooltip_copy_requires_https()}</Tooltip.Content>
+											<Tooltip.Content>Copy requires HTTPS</Tooltip.Content>
 										</Tooltip.Root>
 									{:else if copiedWebhookSecret === 'ok'}
 										<Check class="w-4 h-4 text-green-500" />
@@ -954,17 +1212,20 @@
 										<Key class="w-4 h-4" />
 									</Button>
 								</Tooltip.Trigger>
-								<Tooltip.Content>{m.stacks_git_modal_button_generate_secret()}</Tooltip.Content>
+								<Tooltip.Content>Generate secret</Tooltip.Content>
 							</Tooltip.Root>
 						</div>
+						{#if errors.webhookSecret}
+							<p class="text-xs text-destructive">{errors.webhookSecret}</p>
+						{/if}
 					</div>
 					{#if !gitStack}
 						<p class="text-xs text-muted-foreground">
-							{m.stacks_git_modal_hint_webhook_url_after_create()}
+							The webhook URL will be available after creating the stack.
 						</p>
 					{:else}
 						<p class="text-xs text-muted-foreground">
-							{m.stacks_git_modal_hint_webhook_configure()}
+							Configure this URL in your Git provider. Secret is used for signature verification.
 						</p>
 					{/if}
 				{/if}
@@ -972,11 +1233,11 @@
 
 			<!-- Deploy options section -->
 			<div class="space-y-3 p-3 bg-muted/50 rounded-md">
-				<p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{m.stacks_git_modal_section_deploy_options()}</p>
+				<p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deploy options</p>
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2 flex-1">
 						<Hammer class="w-4 h-4 text-muted-foreground" />
-						<Label class="text-sm font-normal">{m.stacks_git_modal_label_build_on_deploy()}</Label>
+						<Label class="text-sm font-normal">Build images on deploy</Label>
 					</div>
 					<TogglePill bind:checked={formBuildOnDeploy} />
 				</div>
@@ -987,7 +1248,7 @@
 				<div class="flex items-center gap-3 ml-6">
 					<div class="flex items-center gap-2 flex-1">
 						<Ban class="w-4 h-4 text-muted-foreground" />
-						<Label class="text-sm font-normal">{m.stacks_git_modal_label_disable_build_cache()}</Label>
+						<Label class="text-sm font-normal">Disable build cache</Label>
 					</div>
 					<TogglePill bind:checked={formNoBuildCache} />
 				</div>
@@ -998,7 +1259,7 @@
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2 flex-1">
 						<ArrowDownToLine class="w-4 h-4 text-muted-foreground" />
-						<Label class="text-sm font-normal">{m.stacks_git_modal_label_repull_images()}</Label>
+						<Label class="text-sm font-normal">Re-pull images</Label>
 					</div>
 					<TogglePill bind:checked={formRepullImages} />
 				</div>
@@ -1008,7 +1269,7 @@
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2 flex-1">
 						<Zap class="w-4 h-4 text-muted-foreground" />
-						<Label class="text-sm font-normal">{m.stacks_git_modal_label_force_redeploy()}</Label>
+						<Label class="text-sm font-normal">Force redeployment</Label>
 					</div>
 					<TogglePill bind:checked={formForceRedeploy} />
 				</div>
@@ -1024,8 +1285,8 @@
 						<div class="flex items-center gap-2 flex-1">
 							<Rocket class="w-4 h-4 text-muted-foreground" />
 							<div class="flex-1">
-								<Label class="text-sm font-normal">{m.stacks_git_modal_label_deploy_now()}</Label>
-								<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_deploy_now()}</p>
+								<Label class="text-sm font-normal">Deploy now</Label>
+								<p class="text-xs text-muted-foreground">Clone and deploy the stack immediately</p>
 							</div>
 						</div>
 						<TogglePill bind:checked={formDeployNow} />
@@ -1054,8 +1315,16 @@
 
 			<!-- Right column: Environment Variables -->
 			<div class="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-800/50">
+				<SecretProviderPicker
+					bind:secretProviderId={formSecretProviderId}
+					bind:envVars
+					providers={secretProviders}
+				/>
 				<StackEnvVarsPanel
 					bind:variables={envVars}
+					injectedSecretKeys={gitStack !== null ? injectedSecretKeys : []}
+					providerType={secretProviders.find((p) => p.id === formSecretProviderId)?.type ?? null}
+					providerName={secretProviders.find((p) => p.id === formSecretProviderId)?.name ?? null}
 					placeholder={{ key: 'MY_VAR', value: 'value' }}
 					infoText="Override variables from your repository env files. Non-secrets are saved to <code class='bg-muted px-1 rounded'>.env.dockhand</code> in the stack directory. Secrets are stored in the database and injected via shell environment at deploy time.<br/><br/>Variables are available for <strong>compose file interpolation</strong> using <code class='bg-muted px-1 rounded'>${'{VAR_NAME}'}</code> syntax. They are not automatically injected into containers — use <code class='bg-muted px-1 rounded'>environment:</code> or reference <code class='bg-muted px-1 rounded'>.env.dockhand</code> in <code class='bg-muted px-1 rounded'>env_file:</code> to pass them through."
 					existingSecretKeys={gitStack !== null ? existingSecretKeys : new Set()}
@@ -1074,10 +1343,10 @@
 								>
 									{#if populatingEnvVars}
 										<Loader2 class="w-3.5 h-3.5 mr-1 animate-spin" />
-										{m.stacks_git_modal_button_populate_loading()}
+										Loading...
 									{:else}
 										<Download class="w-3.5 h-3.5" />
-										{m.stacks_git_modal_button_populate()}
+										Populate
 									{/if}
 								</Button>
 								<Tooltip.Root>
@@ -1086,7 +1355,7 @@
 									</Tooltip.Trigger>
 									<Tooltip.Content>
 										<div class="w-64">
-											<p class="text-xs">{m.stacks_git_modal_tooltip_populate()}</p>
+											<p class="text-xs">Clone the repository and load environment variables from the <code class="bg-muted px-1 rounded">.env</code> file (in compose directory) and additional env file (if specified), so you can see what you can override.</p>
 										</div>
 									</Tooltip.Content>
 								</Tooltip.Root>
@@ -1096,48 +1365,53 @@
 				</StackEnvVarsPanel>
 			</div>
 		</div>
+		{/if}
 
 		<Dialog.Footer class="px-5 py-2.5 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
-			<Button variant="outline" onclick={onClose}>{m.common_cancel()}</Button>
-			{#if gitStack}
-				<Button variant="outline" onclick={() => saveGitStack(true)} disabled={formSaving}>
-					{#if formSaving}
-						<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-						Deploying...
-					{:else}
-						<Rocket class="w-4 h-4" />
-						{m.stacks_git_modal_button_save_and_deploy()}
-					{/if}
-				</Button>
-				<Button onclick={() => saveGitStack(false)} disabled={formSaving}>
-					{#if formSaving}
-						<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-						Saving...
-					{:else}
-						{m.stacks_git_modal_button_save_changes()}
-					{/if}
-				</Button>
-			{:else}
-				<Button onclick={() => saveGitStack(formDeployNow)} disabled={formSaving}>
-					{#if formSaving}
-						<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-						{formDeployNow ? m.common_deploy() + '...' : 'Creating...'}
-					{:else}
-						{formDeployNow ? m.common_deploy() : m.common_create()}
-					{/if}
-				</Button>
+			<Button variant="outline" onclick={onClose}>{activeTab === 'backups' ? 'Close' : 'Cancel'}</Button>
+			<!-- The deploy-form save buttons belong to the Settings tab. On the Backups
+			     tab the backup panel manages its own saving, so only Close is shown. -->
+			{#if activeTab !== 'backups'}
+				{#if gitStack}
+					<Button variant="outline" onclick={() => saveGitStack(true)} disabled={formSaving}>
+						{#if formSaving}
+							<Loader2 class="w-4 h-4 mr-1 animate-spin" />
+							Deploying...
+						{:else}
+							<Rocket class="w-4 h-4" />
+							Save and deploy
+						{/if}
+					</Button>
+					<Button onclick={() => saveGitStack(false)} disabled={formSaving}>
+						{#if formSaving}
+							<Loader2 class="w-4 h-4 mr-1 animate-spin" />
+							Saving...
+						{:else}
+							Save changes
+						{/if}
+					</Button>
+				{:else}
+					<Button onclick={() => saveGitStack(formDeployNow)} disabled={formSaving}>
+						{#if formSaving}
+							<Loader2 class="w-4 h-4 mr-1 animate-spin" />
+							{formDeployNow ? 'Deploying...' : 'Creating...'}
+						{:else}
+							{formDeployNow ? 'Deploy' : 'Create'}
+						{/if}
+					</Button>
+				{/if}
 			{/if}
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
 
-<!-- {m.stacks_git_modal_exists_title()} warning dialog -->
+<!-- Stack already exists warning dialog -->
 <Dialog.Root bind:open={showExistsWarning}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<TriangleAlert class="w-5 h-5 text-amber-500" />
-				{m.stacks_git_modal_exists_title()}
+				Stack already exists
 			</Dialog.Title>
 			<Dialog.Description>
 				A stack named "{formStackName}" already exists. Please choose a different name.

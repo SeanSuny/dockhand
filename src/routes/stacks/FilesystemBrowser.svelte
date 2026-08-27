@@ -321,7 +321,7 @@
 					>
 						<ArrowUp class="w-4 h-4" />
 					</button>
-					<code class="text-xs bg-muted px-2 py-1 rounded truncate flex-1">{currentPath || '/'}</code>
+					<code class="text-xs bg-muted px-2 py-1 rounded truncate flex-1 min-w-0">{currentPath || '/'}</code>
 					{#if creatingFolder}
 						<div class="flex items-center gap-1">
 							<Input
@@ -368,6 +368,7 @@
 							size="sm"
 							onclick={handleScan}
 							disabled={scanning || !currentPath}
+							class="shrink-0 gap-1.5 whitespace-nowrap"
 						>
 							{#if scanning}
 								<Loader2 class="w-4 h-4 animate-spin" />

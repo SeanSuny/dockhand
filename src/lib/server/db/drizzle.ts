@@ -655,6 +655,11 @@ async function initializeDatabase() {
 		if (verbose) logStep('Opening SQLite database...');
 		rawClient = new Database(dbPath);
 
+		// Enforce foreign keys — better-sqlite3 defaults this OFF, which made every
+		// ON DELETE CASCADE in the schema (backup_configs → environments/destinations,
+		// etc.) dead code, leaving dangling rows + ghost schedules after a delete
+		// (audit #12). Must be set per-connection, before any statements run.
+		rawClient.pragma('foreign_keys = ON');
 		// Enable WAL mode for better performance and concurrency
 		rawClient.pragma('journal_mode = WAL');
 		// Synchronous NORMAL is a good balance between safety and speed
@@ -755,7 +760,7 @@ async function seedDatabase(): Promise<void> {
 	// Create system roles if not exist
 	const adminPermissions = JSON.stringify({
 		containers: ['view', 'create', 'start', 'stop', 'restart', 'remove', 'exec', 'logs', 'inspect'],
-		images: ['view', 'pull', 'push', 'remove', 'build', 'inspect'],
+		images: ['view', 'pull', 'load', 'push', 'remove', 'build', 'inspect'],
 		volumes: ['view', 'create', 'remove', 'inspect'],
 		networks: ['view', 'create', 'remove', 'inspect', 'connect', 'disconnect'],
 		stacks: ['view', 'create', 'start', 'stop', 'remove', 'edit'],
@@ -770,7 +775,8 @@ async function seedDatabase(): Promise<void> {
 		audit_logs: ['view'],
 		activity: ['view'],
 		schedules: ['view', 'edit', 'run'],
-		templates: ['view', 'deploy', 'manage']
+		templates: ['view', 'deploy', 'manage'],
+		secrets: ['view', 'create', 'edit', 'delete']
 	});
 
 	const operatorPermissions = JSON.stringify({
@@ -790,7 +796,8 @@ async function seedDatabase(): Promise<void> {
 		audit_logs: [],
 		activity: ['view'],
 		schedules: ['view', 'edit', 'run'],
-		templates: ['view', 'deploy']
+		templates: ['view', 'deploy'],
+		secrets: ['view']
 	});
 
 	const viewerPermissions = JSON.stringify({
@@ -810,7 +817,8 @@ async function seedDatabase(): Promise<void> {
 		audit_logs: [],
 		activity: ['view'],
 		schedules: ['view'],
-		templates: ['view']
+		templates: ['view'],
+		secrets: [],
 	});
 
 	// Seed template sources if table is empty
@@ -915,7 +923,9 @@ export const userRoles = schemaProxy.userRoles;
 export const gitCredentials = schemaProxy.gitCredentials;
 export const gitRepositories = schemaProxy.gitRepositories;
 export const gitStacks = schemaProxy.gitStacks;
+export const secretProviders = schemaProxy.secretProviders;
 export const stackSources = schemaProxy.stackSources;
+export const containerIconOverrides = schemaProxy.containerIconOverrides;
 export const vulnerabilityScans = schemaProxy.vulnerabilityScans;
 export const auditLogs = schemaProxy.auditLogs;
 export const containerEvents = schemaProxy.containerEvents;
@@ -924,6 +934,8 @@ export const scheduleExecutions = schemaProxy.scheduleExecutions;
 export const stackEnvironmentVariables = schemaProxy.stackEnvironmentVariables;
 export const pendingContainerUpdates = schemaProxy.pendingContainerUpdates;
 export const apiTokens = schemaProxy.apiTokens;
+export const backupDestinations = schemaProxy.backupDestinations;
+export const backupConfigs = schemaProxy.backupConfigs;
 
 // Re-export types from SQLite schema (they're compatible with PostgreSQL)
 export type {
@@ -961,6 +973,8 @@ export type {
 	NewGitRepository,
 	GitStack,
 	NewGitStack,
+	SecretProviderRow,
+	NewSecretProviderRow,
 	StackSource,
 	NewStackSource,
 	VulnerabilityScan,
@@ -984,7 +998,11 @@ export type {
 	PendingContainerUpdate,
 	NewPendingContainerUpdate,
 	ApiToken,
-	NewApiToken
+	NewApiToken,
+	BackupDestination,
+	NewBackupDestination,
+	BackupConfig,
+	NewBackupConfig
 } from './schema/index.js';
 
 export { eq, and, or, desc, asc, like, sql, inArray, isNull, isNotNull } from 'drizzle-orm';

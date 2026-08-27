@@ -2,13 +2,14 @@ import { json } from '@sveltejs/kit';
 import { join } from 'path';
 import { existsSync, rmSync, renameSync } from 'fs';
 import type { RequestHandler } from './$types';
-import { getEnvironment, updateEnvironment, deleteEnvironment, getEnvironmentPublicIps, setEnvironmentPublicIp, deleteEnvironmentPublicIp, deleteEnvUpdateCheckSettings, deleteImagePruneSettings, getGitStacksForEnvironmentOnly, deleteGitStack } from '$lib/server/db';
+import { getEnvironment, updateEnvironment, deleteEnvironment, getEnvironmentPublicIps, setEnvironmentPublicIp, deleteEnvironmentPublicIp, deleteEnvUpdateCheckSettings, deleteImagePruneSettings, getGitStacksForEnvironmentOnly, deleteGitStack, getBackupConfigs } from '$lib/server/db';
 import { clearDockerClientCache } from '$lib/server/docker';
 import { deleteGitStackFiles, getGitReposDir } from '$lib/server/git';
 import { getStacksDir } from '$lib/server/stacks';
 import { authorize } from '$lib/server/authorize';
 import { auditEnvironment } from '$lib/server/audit';
 import { refreshSubprocessEnvironments } from '$lib/server/subprocess-manager';
+import { resetHostDetection, detectHostDataDir } from '$lib/server/host-path';
 import { serializeLabels, parseLabels, MAX_LABELS } from '$lib/utils/label-colors';
 import { cleanPem } from '$lib/utils/pem';
 import { validateEnvName } from '$lib/utils/env-name';
@@ -17,6 +18,15 @@ import { closeEdgeConnection } from '$lib/server/hawser';
 import { computeAuditDiff } from '$lib/utils/diff';
 import { deleteEnvironmentIcon } from '$lib/server/env-icons';
 
+/**
+ * @openapi
+ * summary: Get a single environment by id, including its parsed labels and public IP
+ * path: id:integer! Environment id (from GET /api/environments)
+ * resp-200: {id:integer!, name:string!, connectionType:string!, labels:array<string>, publicIp:string}
+ * resp-403: Permission denied (RBAC 'environments:view' missing)
+ * resp-404: Environment not found
+ * resp-500: Unexpected error while loading the environment
+ */
 export const GET: RequestHandler = async ({ params, cookies }) => {
 	const auth = await authorize(cookies);
 	if (auth.authEnabled && !await auth.can('environments', 'view')) {
@@ -47,6 +57,19 @@ export const GET: RequestHandler = async ({ params, cookies }) => {
 	}
 };
 
+/**
+ * @openapi
+ * summary: Update an environment; renaming also renames its on-disk stacks/git-repos directories
+ * path: id:integer! Environment id (from GET /api/environments)
+ * body: {name:string, host:string, port:integer, protocol:string, tlsCa:string, tlsCert:string, tlsKey:string, tlsSkipVerify:boolean, icon:string, socketPath:string, collectActivity:boolean, collectMetrics:boolean, highlightChanges:boolean, labels:string, connectionType:string, hawserToken:string, publicIp:string}
+ * body-example: {"name":"hhdocker03","collectMetrics":true}
+ * resp-200: {id:integer!, name:string!, connectionType:string!, labels:array<string>, publicIp:string}
+ * resp-400: Invalid new name (rename validation)
+ * resp-403: Permission denied (RBAC 'environments:edit' missing)
+ * resp-404: Environment not found
+ * resp-409: Rename target directory already exists, or the on-disk rename failed (e.g. EXDEV across filesystems)
+ * resp-500: Unexpected error while updating the environment
+ */
 export const PUT: RequestHandler = async (event) => {
 	const { params, request, cookies } = event;
 	const auth = await authorize(cookies);
@@ -155,6 +178,11 @@ export const PUT: RequestHandler = async (event) => {
 			return json({ error: 'Environment not found' }, { status: 404 });
 		}
 
+		// Re-run host detection: editing an env (e.g. pointing it at a socket proxy)
+		// lets a socketless deployment reach Docker without a restart (#1203).
+		resetHostDetection();
+		void detectHostDataDir();
+
 		// Notify event collectors if collectActivity or collectMetrics setting changed
 		if (data.collectActivity !== undefined || data.collectMetrics !== undefined) {
 			refreshSubprocessEnvironments();
@@ -189,6 +217,16 @@ export const PUT: RequestHandler = async (event) => {
 	}
 };
 
+/**
+ * @openapi
+ * summary: Delete an environment and all its associated git stacks, schedules, icons, and on-disk directories
+ * path: id:integer! Environment id (from GET /api/environments)
+ * resp-200: {success:boolean!}
+ * resp-400: Invalid environment id, or the environment could not be deleted
+ * resp-403: Permission denied (RBAC 'environments:delete' missing)
+ * resp-404: Environment not found
+ * resp-500: Environment name is empty/whitespace (refuses to delete to avoid an unsafe directory cleanup), or an unexpected error
+ */
 export const DELETE: RequestHandler = async (event) => {
 	const { params, cookies } = event;
 	const auth = await authorize(cookies);
@@ -252,6 +290,18 @@ export const DELETE: RequestHandler = async (event) => {
 		// Clean up image prune settings and unregister schedule
 		await deleteImagePruneSettings(id);
 		unregisterSchedule(id, 'image_prune');
+
+		// Unregister backup config schedules for this environment (audit #10).
+		// The config rows themselves cascade-delete with the environment, but the
+		// in-memory croner jobs would otherwise stay registered as orphans.
+		try {
+			const envBackupConfigs = await getBackupConfigs({ environmentId: id });
+			for (const config of envBackupConfigs) {
+				unregisterSchedule(config.id, 'backup');
+			}
+		} catch (err) {
+			console.error(`Failed to unregister backup schedules for environment "${env.name}":`, err);
+		}
 
 		// Clean up stack directory for this environment
 		// Safety: only delete subdirectory named after the env, never the parent

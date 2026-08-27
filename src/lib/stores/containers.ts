@@ -4,6 +4,7 @@ import type { ContainerInfo, ContainerStats } from '$lib/types';
 import { appendEnvParam, clearStaleEnvironment, environments } from '$lib/stores/environment';
 import { appSettings } from '$lib/stores/settings';
 import { toast } from 'svelte-sonner';
+import type { NewerVersion } from '$lib/types';
 
 export interface AutoUpdateSetting {
 	enabled: boolean;
@@ -25,6 +26,12 @@ export interface ContainerStoreState {
 	pendingUpdateIds: string[];
 	/** Container names for pending updates, keyed by ID */
 	pendingUpdateNames: Map<string, string>;
+	/** Container IDs whose last update check failed (e.g. registry rate-limited) */
+	failedUpdateIds: string[];
+	/** Update-check error message keyed by container ID (for tooltip) */
+	failedUpdateErrors: Map<string, string>;
+	/** Newer VERSION tag (semver) suggestions from the last check, keyed by container ID. Advisory. */
+	newerVersions: Map<string, NewerVersion>;
 	/** Whether the current environment has vulnerability scanning */
 	envHasScanning: boolean;
 	/** Environment-level vulnerability criteria */
@@ -42,6 +49,9 @@ const INITIAL_STATE: ContainerStoreState = {
 	autoUpdateSettings: new Map(),
 	pendingUpdateIds: [],
 	pendingUpdateNames: new Map(),
+	failedUpdateIds: [],
+	failedUpdateErrors: new Map(),
+	newerVersions: new Map(),
 	envHasScanning: false,
 	envVulnerabilityCriteria: 'never',
 	loading: true,
@@ -284,14 +294,20 @@ function createContainerStore() {
 			const response = await fetch(appendEnvParam('/api/containers/pending-updates', envId));
 			if (!response.ok) return;
 			const data = await response.json();
-			if (data.pendingUpdates && data.pendingUpdates.length > 0) {
-				patch({
-					pendingUpdateIds: data.pendingUpdates.map((u: any) => u.containerId),
-					pendingUpdateNames: new Map(
-						data.pendingUpdates.map((u: any) => [u.containerId, u.containerName])
-					)
-				});
-			}
+			// A persisted row can carry a digest update, a newer-version (semver)
+			// suggestion, or both. Split them: only hasImageUpdate rows drive the amber
+			// "update available" state; newerVersion rows drive the Tag badge. Always
+			// patch (even on an empty list) so a cleared server state clears the store -
+			// otherwise stale badges/counters linger after the last update is applied.
+			const rows: any[] = data.pendingUpdates ?? [];
+			const withImageUpdate = rows.filter((u) => u.hasImageUpdate);
+			patch({
+				pendingUpdateIds: withImageUpdate.map((u) => u.containerId),
+				pendingUpdateNames: new Map(withImageUpdate.map((u) => [u.containerId, u.containerName])),
+				newerVersions: new Map(
+					rows.filter((u) => u.newerVersion).map((u) => [u.containerId, u.newerVersion as NewerVersion])
+				)
+			});
 		} catch {
 			// Ignore errors - background load
 		}
@@ -344,6 +360,16 @@ function createContainerStore() {
 		/** Update pending update IDs and names directly (from check-updates action) */
 		setPendingUpdates(ids: string[], names: Map<string, string>) {
 			patch({ pendingUpdateIds: ids, pendingUpdateNames: names });
+		},
+
+		/** Record which containers' last update check failed, with error text (#1255) */
+		setFailedUpdates(ids: string[], errors: Map<string, string>) {
+			patch({ failedUpdateIds: ids, failedUpdateErrors: errors });
+		},
+
+		/** Record newer-version-tag (semver) suggestions from the last check. Session-only, advisory. */
+		setNewerVersions(map: Map<string, NewerVersion>) {
+			patch({ newerVersions: map });
 		},
 
 		/** Patch arbitrary fields */

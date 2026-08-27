@@ -35,6 +35,12 @@ import { authorize } from '$lib/server/authorize';
 import { refreshSystemJobs } from '$lib/server/scheduler';
 import { sendToEventSubprocess, sendToMetricsSubprocess } from '$lib/server/subprocess-manager';
 import { DEFAULT_GRYPE_IMAGE, DEFAULT_TRIVY_IMAGE } from '$lib/server/scanner';
+import { DEFAULT_HELPER_IMAGE } from '$lib/server/backups/restic';
+
+// The real engine default (version-pinned, `-baseline`-aware). NOT a hardcoded
+// `:latest` — that would advertise a floating tag the backup engine never uses and,
+// if the user saved it, pin them to a helper that never re-pulls (see restic.ts).
+const DEFAULT_BACKUP_IMAGE = DEFAULT_HELPER_IMAGE;
 
 export type TimeFormat = '12h' | '24h';
 export type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'DD.MM.YYYY';
@@ -83,6 +89,8 @@ export interface GeneralSettings {
 	compactPorts: boolean;
 	// Show exposed (internal) ports
 	showExposedPorts: boolean;
+	// Show the deployed git commit hash in the stack source badge
+	showGitCommitHash: boolean;
 	// Log timestamp formatting
 	formatLogTimestamps: boolean;
 	// External stack paths
@@ -96,6 +104,8 @@ export interface GeneralSettings {
 	defaultComposeTemplate: string;
 	// Label filter mode
 	labelFilterMode: 'any' | 'all';
+	// Backup image
+	defaultBackupImage: string;
 	// Whether to surface URLs inferred from reverse-proxy labels — currently
 	// Traefik (traefik.http.routers.*) and Pangolin
 	// (pangolin.{public,private}-resources.*).
@@ -104,10 +114,14 @@ export interface GeneralSettings {
 	// Whether to surface a "view changelog" link next to the update badge.
 	// Resolved client-side from OCI labels / GHCR image names; no server hit.
 	showImageChangelogLinks: boolean;
+	// Show selfh.st app logos as container icons (opt-in; off by default).
+	useSelfhstIcons: boolean;
 	// Show the "What's New" modal after an upgrade (#1235)
 	showWhatsNew: boolean;
 	// Whether spinning icons (animate-spin etc.) are animated (#1169)
 	animateIcons: boolean;
+	// Vertical indentation guides in the code editor (#1410)
+	editorIndentGuides: boolean;
 	// Skip Dockhand's scanner images (grype, trivy) during 'prune all unused' (#625)
 	protectScannerImages: boolean;
 	// Scanner Advanced settings (#1219). Empty = use auto-detection.
@@ -135,6 +149,7 @@ const DEFAULT_SETTINGS: Omit<GeneralSettings, 'scheduleRetentionDays' | 'eventRe
 	metricsCollectionInterval: 30000,
 	compactPorts: false,
 	showExposedPorts: false,
+	showGitCommitHash: false,
 	formatLogTimestamps: false,
 	lightTheme: 'default',
 	darkTheme: 'default',
@@ -150,8 +165,10 @@ const DEFAULT_SETTINGS: Omit<GeneralSettings, 'scheduleRetentionDays' | 'eventRe
 	labelFilterMode: 'any' as const,
 	honorProxyLabels: true,
 	showImageChangelogLinks: true,
+	useSelfhstIcons: false,
 	showWhatsNew: true,
 	animateIcons: true,
+	editorIndentGuides: false,
 	protectScannerImages: true,
 	defaultScannerNetworkMode: '',
 	defaultScannerDns: [],
@@ -172,7 +189,8 @@ services:
 # networks:
 #   default:
 #     driver: bridge
-`
+`,
+	defaultBackupImage: DEFAULT_BACKUP_IMAGE
 };
 
 const VALID_LIGHT_THEMES = ['default', 'catppuccin', 'rose-pine', 'nord', 'solarized', 'gruvbox', 'alucard', 'github', 'material', 'atom-one'];
@@ -202,6 +220,12 @@ function parseScannerDnsStorage(raw: string | null | undefined): string[] {
 	return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+/**
+ * @openapi
+ * summary: Get global (instance-wide) general settings
+ * resp-401: Not authenticated
+ * resp-500: Failed to load settings
+ */
 export const GET: RequestHandler = async ({ cookies }) => {
 	const auth = await authorize(cookies);
 	// UI preferences (time format, date format) should be available to all authenticated users
@@ -247,6 +271,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			editorFont,
 			compactPorts,
 			showExposedPorts,
+			showGitCommitHash,
 			formatLogTimestamps,
 			externalStackPaths,
 			primaryStackLocation,
@@ -254,10 +279,13 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			defaultTrivyImage,
 			defaultComposeTemplate,
 			labelFilterMode,
+			defaultBackupImage,
 			honorProxyLabels,
 			showImageChangelogLinks,
+			useSelfhstIcons,
 			showWhatsNew,
 			animateIcons,
+			editorIndentGuides,
 			protectScannerImages,
 			defaultScannerNetworkMode,
 			defaultScannerDnsRaw
@@ -295,6 +323,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			getSetting('theme_editor_font'),
 			getSetting('compact_ports'),
 			getSetting('show_exposed_ports'),
+			getSetting('show_git_commit_hash'),
 			getSetting('format_log_timestamps'),
 			getExternalStackPaths(),
 			getPrimaryStackLocation(),
@@ -302,10 +331,13 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			getSetting('default_trivy_image'),
 			getSetting('default_compose_template'),
 			getSetting('label_filter_mode'),
+			getSetting('default_backup_image'),
 			getSetting('honor_proxy_labels'),
 			getSetting('show_image_changelog_links'),
+			getSetting('use_selfhst_icons'),
 			getSetting('show_whats_new'),
 			getSetting('animate_icons'),
+			getSetting('editor_indent_guides'),
 			getSetting('protect_scanner_images'),
 			getSetting('default_scanner_network_mode'),
 			getSetting('default_scanner_dns')
@@ -347,6 +379,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			terminalFont: terminalFont ?? DEFAULT_SETTINGS.terminalFont,
 			editorFont: editorFont ?? DEFAULT_SETTINGS.editorFont,
 			compactPorts: compactPorts ?? DEFAULT_SETTINGS.compactPorts,
+			showGitCommitHash: showGitCommitHash ?? DEFAULT_SETTINGS.showGitCommitHash,
 			showExposedPorts: showExposedPorts ?? DEFAULT_SETTINGS.showExposedPorts,
 			formatLogTimestamps: formatLogTimestamps ?? DEFAULT_SETTINGS.formatLogTimestamps,
 			externalStackPaths,
@@ -355,10 +388,13 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			defaultTrivyImage: defaultTrivyImage ?? DEFAULT_TRIVY_IMAGE,
 			defaultComposeTemplate: defaultComposeTemplate ?? DEFAULT_SETTINGS.defaultComposeTemplate,
 			labelFilterMode: labelFilterMode ?? DEFAULT_SETTINGS.labelFilterMode,
+			defaultBackupImage: defaultBackupImage ?? DEFAULT_BACKUP_IMAGE,
 			honorProxyLabels: honorProxyLabels ?? DEFAULT_SETTINGS.honorProxyLabels,
 			showImageChangelogLinks: showImageChangelogLinks ?? DEFAULT_SETTINGS.showImageChangelogLinks,
+			useSelfhstIcons: useSelfhstIcons ?? DEFAULT_SETTINGS.useSelfhstIcons,
 			showWhatsNew: showWhatsNew ?? DEFAULT_SETTINGS.showWhatsNew,
 			animateIcons: animateIcons ?? DEFAULT_SETTINGS.animateIcons,
+			editorIndentGuides: editorIndentGuides ?? DEFAULT_SETTINGS.editorIndentGuides,
 			protectScannerImages: protectScannerImages ?? DEFAULT_SETTINGS.protectScannerImages,
 			defaultScannerNetworkMode: defaultScannerNetworkMode ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
 			defaultScannerDns: parseScannerDnsStorage(defaultScannerDnsRaw)
@@ -371,6 +407,14 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	}
 };
 
+/**
+ * @openapi
+ * summary: Update global general settings (all fields optional; only supplied keys are written)
+ * description: A large flat settings bag - theme/fonts, scanner defaults, cleanup schedules, event/metrics collection, editor options (e.g. editorIndentGuides), and more.
+ * body: {animateIcons:boolean, editorIndentGuides:boolean, coloredActionButtons:boolean, lightTheme:string, darkTheme:string, defaultTimezone:string, logBufferSizeKb:integer, externalStackPaths:string}
+ * resp-403: Permission denied (needs settings:edit)
+ * resp-500: Failed to save settings
+ */
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	const auth = await authorize(cookies);
 	if (auth.authEnabled && !await auth.can('settings', 'edit')) {
@@ -379,7 +423,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	try {
 		const body = await request.json();
-		const { locale, confirmDestructive, showStoppedContainers, highlightUpdates, coloredActionButtons, actionIconSize, timeFormat, dateFormat, downloadFormat, defaultGrypeArgs, defaultTrivyArgs, scheduleRetentionDays, eventRetentionDays, scheduleCleanupCron, eventCleanupCron, scheduleCleanupEnabled, eventCleanupEnabled, scannerCleanupCron, scannerCleanupEnabled, logBufferSizeKb, logMaxLines, defaultTimezone, eventCollectionMode, eventPollInterval, metricsCollectionInterval, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, compactPorts, showExposedPorts, formatLogTimestamps, externalStackPaths, primaryStackLocation, defaultGrypeImage, defaultTrivyImage, defaultComposeTemplate, labelFilterMode, honorProxyLabels, showImageChangelogLinks, showWhatsNew, animateIcons, protectScannerImages, defaultScannerNetworkMode, defaultScannerDns } = body;
+		const { locale, confirmDestructive, showStoppedContainers, highlightUpdates, coloredActionButtons, actionIconSize, timeFormat, dateFormat, downloadFormat, defaultGrypeArgs, defaultTrivyArgs, scheduleRetentionDays, eventRetentionDays, scheduleCleanupCron, eventCleanupCron, scheduleCleanupEnabled, eventCleanupEnabled, scannerCleanupCron, scannerCleanupEnabled, logBufferSizeKb, logMaxLines, defaultTimezone, eventCollectionMode, eventPollInterval, metricsCollectionInterval, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, compactPorts, showExposedPorts, showGitCommitHash, formatLogTimestamps, externalStackPaths, primaryStackLocation, defaultGrypeImage, defaultTrivyImage, defaultComposeTemplate, labelFilterMode, defaultBackupImage, honorProxyLabels, showImageChangelogLinks, useSelfhstIcons, showWhatsNew, animateIcons, editorIndentGuides, protectScannerImages, defaultScannerNetworkMode, defaultScannerDns } = body;
 
 		if (locale !== undefined && typeof locale === 'string') {
 			await setSetting('locale', locale);
@@ -493,6 +537,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		if (editorFont !== undefined && VALID_EDITOR_FONTS.includes(editorFont)) {
 			await setSetting('theme_editor_font', editorFont);
 		}
+		if (showGitCommitHash !== undefined) {
+			await setSetting('show_git_commit_hash', showGitCommitHash);
+		}
 		if (compactPorts !== undefined) {
 			await setSetting('compact_ports', compactPorts);
 		}
@@ -528,17 +575,26 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		if (labelFilterMode !== undefined && (labelFilterMode === 'any' || labelFilterMode === 'all')) {
 			await setSetting('label_filter_mode', labelFilterMode);
 		}
+		if (defaultBackupImage !== undefined && typeof defaultBackupImage === 'string') {
+			await setSetting('default_backup_image', defaultBackupImage);
+		}
 		if (honorProxyLabels !== undefined && typeof honorProxyLabels === 'boolean') {
 			await setSetting('honor_proxy_labels', honorProxyLabels);
 		}
 		if (showImageChangelogLinks !== undefined && typeof showImageChangelogLinks === 'boolean') {
 			await setSetting('show_image_changelog_links', showImageChangelogLinks);
 		}
+		if (useSelfhstIcons !== undefined && typeof useSelfhstIcons === 'boolean') {
+			await setSetting('use_selfhst_icons', useSelfhstIcons);
+		}
 		if (showWhatsNew !== undefined && typeof showWhatsNew === 'boolean') {
 			await setSetting('show_whats_new', showWhatsNew);
 		}
 		if (animateIcons !== undefined && typeof animateIcons === 'boolean') {
 			await setSetting('animate_icons', animateIcons);
+		}
+		if (editorIndentGuides !== undefined && typeof editorIndentGuides === 'boolean') {
+			await setSetting('editor_indent_guides', editorIndentGuides);
 		}
 		if (protectScannerImages !== undefined && typeof protectScannerImages === 'boolean') {
 			await setSetting('protect_scanner_images', protectScannerImages);
@@ -594,6 +650,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			editorFontVal,
 			compactPortsVal,
 			showExposedPortsVal,
+			showGitCommitHashVal,
 			formatLogTimestampsVal,
 			externalStackPathsVal,
 			primaryStackLocationVal,
@@ -601,10 +658,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			defaultTrivyImageVal,
 			defaultComposeTemplateVal,
 			labelFilterModeVal,
+			defaultBackupImageVal,
 			honorProxyLabelsVal,
 			showImageChangelogLinksVal,
+			useSelfhstIconsVal,
 			showWhatsNewVal,
 			animateIconsVal,
+			editorIndentGuidesVal,
 			protectScannerImagesVal,
 			defaultScannerNetworkModeVal,
 			defaultScannerDnsRawVal
@@ -643,6 +703,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			getSetting('theme_editor_font'),
 			getSetting('compact_ports'),
 			getSetting('show_exposed_ports'),
+			getSetting('show_git_commit_hash'),
 			getSetting('format_log_timestamps'),
 			getExternalStackPaths(),
 			getPrimaryStackLocation(),
@@ -650,10 +711,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			getSetting('default_trivy_image'),
 			getSetting('default_compose_template'),
 			getSetting('label_filter_mode'),
+			getSetting('default_backup_image'),
 			getSetting('honor_proxy_labels'),
 			getSetting('show_image_changelog_links'),
+			getSetting('use_selfhst_icons'),
 			getSetting('show_whats_new'),
 			getSetting('animate_icons'),
+			getSetting('editor_indent_guides'),
 			getSetting('protect_scanner_images'),
 			getSetting('default_scanner_network_mode'),
 			getSetting('default_scanner_dns')
@@ -696,6 +760,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			editorFont: editorFontVal ?? DEFAULT_SETTINGS.editorFont,
 			compactPorts: compactPortsVal ?? DEFAULT_SETTINGS.compactPorts,
 			showExposedPorts: showExposedPortsVal ?? DEFAULT_SETTINGS.showExposedPorts,
+			showGitCommitHash: showGitCommitHashVal ?? DEFAULT_SETTINGS.showGitCommitHash,
 			formatLogTimestamps: formatLogTimestampsVal ?? DEFAULT_SETTINGS.formatLogTimestamps,
 			externalStackPaths: externalStackPathsVal,
 			primaryStackLocation: primaryStackLocationVal,
@@ -703,11 +768,14 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			defaultTrivyImage: defaultTrivyImageVal ?? DEFAULT_TRIVY_IMAGE,
 			defaultComposeTemplate: defaultComposeTemplateVal ?? DEFAULT_SETTINGS.defaultComposeTemplate,
 			labelFilterMode: labelFilterModeVal ?? DEFAULT_SETTINGS.labelFilterMode,
+			defaultBackupImage: defaultBackupImageVal ?? DEFAULT_BACKUP_IMAGE,
 			honorProxyLabels: honorProxyLabelsVal ?? DEFAULT_SETTINGS.honorProxyLabels,
 			protectScannerImages: protectScannerImagesVal ?? DEFAULT_SETTINGS.protectScannerImages,
 			showImageChangelogLinks: showImageChangelogLinksVal ?? DEFAULT_SETTINGS.showImageChangelogLinks,
+			useSelfhstIcons: useSelfhstIconsVal ?? DEFAULT_SETTINGS.useSelfhstIcons,
 			showWhatsNew: showWhatsNewVal ?? DEFAULT_SETTINGS.showWhatsNew,
 			animateIcons: animateIconsVal ?? DEFAULT_SETTINGS.animateIcons,
+			editorIndentGuides: editorIndentGuidesVal ?? DEFAULT_SETTINGS.editorIndentGuides,
 			defaultScannerNetworkMode: defaultScannerNetworkModeVal ?? DEFAULT_SETTINGS.defaultScannerNetworkMode,
 			defaultScannerDns: parseScannerDnsStorage(defaultScannerDnsRawVal)
 		};

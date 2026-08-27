@@ -20,6 +20,7 @@ import { redirect } from '@sveltejs/kit';
 import { extractLocaleFromRequest, setLocale, getLocale, getTextDirection } from '$lib/paraglide/runtime';
 import { startRssTracker, stopRssTracker, rssBeforeOp, rssAfterOp } from '$lib/server/rss-tracker';
 import { getClientIp } from '$lib/server/client-ip';
+import { BACKUPS_ENABLED, API_DOCS_ENABLED } from '$lib/server/features';
 // Side-effect import: installs globalThis.__authenticateWsUpgrade and
 // globalThis.__canAccessEnvForUser used by the raw WS upgrade handlers in
 // server.js / vite.config.ts to authenticate /api/containers/*/exec.
@@ -145,9 +146,12 @@ if (!initialized) {
 		setServerStartTime(); // Track when server started
 		initDatabase();
 
-		// Migrate plain text credentials to encrypted storage
-		// This also handles key rotation if ENCRYPTION_KEY env var differs from key file
-		migrateCredentials().catch(err => {
+		// Migrate plain text credentials to encrypted storage.
+		// This also handles key rotation if ENCRYPTION_KEY env var differs from the
+		// key file. Rotation flips the in-memory key while re-encrypting rows, so
+		// anything that decrypts credentials (the scheduler's backups, subprocesses)
+		// must not run until this settles — gate them on this promise below.
+		const credentialsReady = migrateCredentials().catch(err => {
 			console.error('[Startup] Failed to migrate credentials:', err);
 		});
 
@@ -167,15 +171,19 @@ if (!initialized) {
 		}).catch(err => {
 			console.error('[Startup] Failed to detect host data directory:', err);
 		});
-		// Cleanup orphaned scanner containers from previous runs (non-blocking)
+		// Cleanup orphaned scanner containers from previous runs (non-blocking).
 		cleanupOrphanedScannerContainers().catch(err => {
 			console.error('Failed to cleanup orphaned scanner containers:', err);
 		});
-		// Start background subprocesses for metrics and event collection (worker thread)
-		startSubprocesses().catch(err => {
-			console.error('Failed to start background subprocesses:', err);
+		// Start background subprocesses and the scheduler only AFTER credential
+		// migration/rotation has settled, so a scheduled backup can't decrypt a
+		// destination password mid-rotation (new key against old-key ciphertext).
+		credentialsReady.then(() => {
+			startSubprocesses().catch(err => {
+				console.error('Failed to start background subprocesses:', err);
+			});
+			startScheduler(); // Start unified scheduler for auto-updates and git syncs (async)
 		});
-		startScheduler(); // Start unified scheduler for auto-updates and git syncs (async)
 		startRssTracker(); // Start RSS memory tracking (no-op unless MEMORY_MONITOR=true)
 
 		// Check license expiry on startup and then daily (with HMR guard)
@@ -261,7 +269,8 @@ const PUBLIC_PATHS = [
 	'/api/changelog',
 	'/api/dependencies',
 	'/api/health',
-	'/api/settings/theme'
+	'/api/settings/theme',
+	'/api/docs'
 ];
 
 // Check if path is public
@@ -302,6 +311,28 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Skip auth for static assets
 	if (isStaticAsset(event.url.pathname)) {
 		return resolveWithLocale(event, resolve);
+	}
+
+	// BETA GATE — REMOVE WHEN BACKUPS GOES GA (see $lib/server/features.ts).
+	// When FEAT_BACKUPS_ENABLED is off, the backup page and every /api/backup/*
+	// endpoint 404 as if they don't exist. Single chokepoint so no endpoint can
+	// leak; delete this block to remove the gate.
+	if (!BACKUPS_ENABLED) {
+		const p = event.url.pathname;
+		if (p === '/backups' || p.startsWith('/backups/') || p.startsWith('/api/backup/')) {
+			return new Response('Not found', { status: 404 });
+		}
+	}
+
+	// API docs gate (see $lib/server/features.ts). Enforced HERE, not in the
+	// docs +page.server load, because the app runs ssr=false so a page load
+	// never fires on a cold server render. Single chokepoint covers the spec
+	// endpoint and the Scalar viewer.
+	if (!API_DOCS_ENABLED) {
+		const p = event.url.pathname.replace(/\/$/, '');
+		if (p === '/api/docs' || p === '/api/docs/ui') {
+			return new Response('Not found', { status: 404 });
+		}
 	}
 
 	const httpBefore = rssBeforeOp();

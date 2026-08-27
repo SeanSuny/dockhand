@@ -285,6 +285,19 @@ export const gitCredentials = pgTable('git_credentials', {
 	updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
 });
 
+// Pluggable secret providers (1Password, Infisical, HashiCorp Vault, ...).
+// `type` selects the backend; `config` is an encrypted JSON blob whose shape is
+// provider-specific (see src/lib/server/secretproviders/shared.ts). Mirrors the
+// notification_settings type+config pattern.
+export const secretProviders = pgTable('secret_providers', {
+	id: serial('id').primaryKey(),
+	type: text('type').notNull(),
+	name: text('name').notNull().unique(),
+	config: text('config').notNull(),
+	createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
+});
+
 export const gitRepositories = pgTable('git_repositories', {
 	id: serial('id').primaryKey(),
 	name: text('name').notNull().unique(),
@@ -311,6 +324,7 @@ export const gitStacks = pgTable('git_stacks', {
 	stackName: text('stack_name').notNull(),
 	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
 	repositoryId: integer('repository_id').notNull().references(() => gitRepositories.id, { onDelete: 'cascade' }),
+	branch: text('branch'), // Per-stack branch override; null = use repository default
 	composePath: text('compose_path').default('docker-compose.yml'), // Reverted to original value (#1110)
 	envFilePath: text('env_file_path'), // Path to .env file in repository (e.g., ".env", "config/.env.prod")
 	autoUpdate: boolean('auto_update').default(false),
@@ -343,10 +357,32 @@ export const stackSources = pgTable('stack_sources', {
 	gitStackId: integer('git_stack_id').references(() => gitStacks.id, { onDelete: 'set null' }),
 	composePath: text('compose_path'), // Custom path to compose file (for stacks with non-default location)
 	envPath: text('env_path'), // Custom path to .env file (for stacks with non-default location)
+	secretProviderId: integer('secret_provider_id').references(() => secretProviders.id, { onDelete: 'set null' }),
+	// Names (no values) of secret keys injected from the bound provider on the last
+	// deploy, so container inspect can mask them without a live provider call.
+	injectedSecretKeys: text('injected_secret_keys'),
+	// Per-stack icon: a lucide name ('server'), 'selfhst:<ref>', or 'custom:<file>'.
+	// Null -> UI falls back to a generic icon.
+	icon: text('icon'),
 	createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
 }, (table) => ({
 	stackSourceEnvUnique: unique().on(table.stackName, table.environmentId)
+}));
+
+// Per-container icon override, keyed by (containerName, environmentId). Containers have
+// no DB row of their own and are recreated with a new id but a stable name, so the name
+// is the durable key. Absent row -> automatic image/name icon matching applies.
+export const containerIconOverrides = pgTable('container_icon_overrides', {
+	id: serial('id').primaryKey(),
+	containerName: text('container_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	// A lucide name ('server'), 'selfhst:<ref>', or 'custom:<file>'. Same shape as stack icons.
+	icon: text('icon').notNull(),
+	createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
+}, (table) => ({
+	containerIconEnvUnique: unique().on(table.containerName, table.environmentId)
 }));
 
 export const stackEnvironmentVariables = pgTable('stack_environment_variables', {
@@ -447,7 +483,7 @@ export const scheduleExecutions = pgTable('schedule_executions', {
 	completedAt: timestamp('completed_at', { mode: 'string' }),
 	duration: integer('duration'), // milliseconds
 	// Result
-	status: text('status').notNull(), // 'queued' | 'running' | 'success' | 'failed' | 'skipped'
+	status: text('status').notNull(), // 'queued' | 'running' | 'success' | 'warning' | 'failed' | 'skipped'
 	errorMessage: text('error_message'),
 	// Details
 	details: text('details'), // JSON with execution details
@@ -467,11 +503,63 @@ export const pendingContainerUpdates = pgTable('pending_container_updates', {
 	containerId: text('container_id').notNull(),
 	containerName: text('container_name').notNull(),
 	currentImage: text('current_image').notNull(),
+	// True when a digest image update is pending (the classic amber icon). Defaults
+	// true so pre-existing rows keep behaving exactly as before.
+	hasImageUpdate: boolean('has_image_update').notNull().default(true),
+	// A newer VERSION tag (semver) for a pinned image, as JSON {tag,bump,skipped}.
+	// Null when there's no semver suggestion. Advisory - never auto-applied.
+	newerVersion: text('newer_version'),
 	checkedAt: timestamp('checked_at', { mode: 'string' }).defaultNow(),
 	createdAt: timestamp('created_at', { mode: 'string' }).defaultNow()
 }, (table) => ({
 	envContainerUnique: unique().on(table.environmentId, table.containerId)
 }));
+
+// =============================================================================
+// BACKUP DESTINATIONS TABLE
+// =============================================================================
+
+export const backupDestinations = pgTable('backup_destinations', {
+	id: serial('id').primaryKey(),
+	name: text('name').notNull().unique(),
+	repository: text('repository').notNull(),
+	password: text('password').notNull(),
+	envVars: text('env_vars'),
+	flags: text('flags'),
+	hostPath: text('host_path'),
+	cacert: text('cacert'),
+	tlsClientCert: text('tls_client_cert'),
+	policies: text('policies'),
+	lastTestAt: timestamp('last_test_at', { mode: 'string' }),
+	lastTestStatus: text('last_test_status'),
+	lastTestError: text('last_test_error'),
+	createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
+});
+
+// =============================================================================
+// BACKUP CONFIGS TABLE
+// =============================================================================
+
+export const backupConfigs = pgTable('backup_configs', {
+	id: serial('id').primaryKey(),
+	type: text('type').notNull().default('container'),
+	targetName: text('target_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	destinationId: integer('destination_id').notNull().references(() => backupDestinations.id, { onDelete: 'cascade' }),
+	enabled: boolean('enabled').default(true),
+	allVolumes: boolean('all_volumes').default(true),
+	selectedVolumes: text('selected_volumes'),
+	stopBeforeBackup: boolean('stop_before_backup').default(false),
+	schedule: text('schedule'),
+	retention: text('retention'),
+	options: text('options'),
+	tags: text('tags'),
+	lastBackupAt: timestamp('last_backup_at', { mode: 'string' }),
+	lastBackupStatus: text('last_backup_status'),
+	createdAt: timestamp('created_at', { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
+});
 
 // =============================================================================
 // API TOKENS TABLE

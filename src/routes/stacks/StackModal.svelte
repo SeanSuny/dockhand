@@ -7,15 +7,25 @@
 	import CodeEditor, { type VariableMarker } from '$lib/components/CodeEditor.svelte';
 	import StackEnvVarsPanel from '$lib/components/StackEnvVarsPanel.svelte';
 	import { type EnvVar, type ValidationResult } from '$lib/components/StackEnvVarsEditor.svelte';
-	import { Layers, Save, Play, Code, GitGraph, Loader2, AlertCircle, X, Sun, Moon, TriangleAlert, GripVertical, FolderOpen, Copy, Check, XCircle, MapPin, ArrowRight, ArrowDown, Info, Box, FolderSync } from 'lucide-svelte';
+	import SecretProviderPicker from '$lib/components/SecretProviderPicker.svelte';
+	import { SELECTOR_VARS } from '$lib/utils/bulk-selector';
+	import { classifyMarker, resolvedRefVarNames } from '$lib/utils/invault-markers';
+	import { applyQuickFix, findingKey } from '$lib/utils/compose-quick-fix';
+	import { Layers, Save, Play, Code, GitGraph, GitBranch, GitCommitHorizontal, Github, Loader2, AlertCircle, X, Sun, Moon, TriangleAlert, GripVertical, FolderOpen, Copy, Check, XCircle, MapPin, ArrowRight, ArrowDown, Info, Box, FolderSync, Archive, ListChecks } from 'lucide-svelte';
+	import ComposeValidatePanel from './ComposeValidatePanel.svelte';
+	import BackupPanel from '../containers/BackupPanel.svelte';
+	import { volumesForStack, type VolumeInfo } from '$lib/utils/mounts';
+	import { fetchBackupExecutions } from '$lib/utils/backup';
 	import type { Component } from 'svelte';
 	import FilesystemBrowser from './FilesystemBrowser.svelte';
+	import IconPickerModal from './IconPickerModal.svelte';
+	import StackIcon from '$lib/components/StackIcon.svelte';
 	import PathBarItem from './PathBarItem.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import * as Select from '$lib/components/ui/select';
 	import { Badge } from '$lib/components/ui/badge';
 	import { currentEnvironment, appendEnvParam } from '$lib/stores/environment';
 	import { appSettings } from '$lib/stores/settings';
+	import { page } from '$app/stores'; // BETA GATE: backups feature flag
 	import { focusFirstInput } from '$lib/utils';
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import * as Alert from '$lib/components/ui/alert';
@@ -23,11 +33,7 @@
 	import { readJobResponse } from '$lib/utils/sse-fetch';
 	import { toast } from 'svelte-sonner';
 	import ComposeGraphViewer from './ComposeGraphViewer.svelte';
-	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte';
-	import * as m from '$lib/paraglide/messages';
 
-	// Get sidebar state to adjust modal positioning
-	const sidebar = useSidebar();
 
 	// localStorage key for persisted split ratio
 	const STORAGE_KEY_SPLIT = 'dockhand-stack-modal-split';
@@ -39,15 +45,74 @@
 		initialCompose?: string; // Pre-fill compose content (for library deploy)
 		initialStackName?: string; // Pre-fill stack name (for library deploy)
 		readonly?: boolean; // View compose content without allowing local changes
+		gitInfo?: { commit?: string; url?: string; branch?: string } | null; // Git provenance for read-only git stacks
 		onClose: () => void;
 		onSuccess: () => void; // Called after create or save
 	}
 
-	let { open = $bindable(), mode: propMode, stackName: propStackName = '', initialCompose, initialStackName, readonly = false, onClose, onSuccess }: Props = $props();
+	let { open = $bindable(), mode: propMode, stackName: propStackName = '', initialCompose, initialStackName, readonly = false, gitInfo = null, onClose, onSuccess }: Props = $props();
+
+	let gitCommitCopied = $state<'ok' | 'error' | null>(null);
+	let gitUrlCopied = $state<'ok' | 'error' | null>(null);
 
 	// Local effective state - can transition from create → edit after failed deploy
 	let mode = $state(propMode);
 	let stackName = $state(propStackName);
+	let formIcon = $state<string | null>(null);
+	let showIconPicker = $state(false);
+	// Create mode has no stack to POST to yet - stash the pending upload data URL and
+	// send it once the stack is created (see persistPendingIcon after handleCreate).
+	let pendingUploadImage = $state<string | null>(null);
+
+	// The picker value is one of: '' (clear), 'upload:<dataUrl>' (custom upload), or a
+	// lucide name / 'selfhst:<ref>'. In edit mode it persists immediately via the /icon
+	// endpoint; in create mode it is held locally until the stack exists.
+	async function onIconSelect(value: string) {
+		if (mode !== 'edit' || !stackName) {
+			// Create mode: hold locally, persist after the stack is created.
+			if (!value) {
+				formIcon = null;
+				pendingUploadImage = null;
+			} else if (value.startsWith('upload:')) {
+				pendingUploadImage = value.slice('upload:'.length);
+				formIcon = 'custom:stack';
+			} else {
+				pendingUploadImage = null;
+				formIcon = value;
+			}
+			return;
+		}
+		const envId = $currentEnvironment?.id ?? null;
+		const target = appendEnvParam(`/api/stacks/${encodeURIComponent(stackName)}/icon`, envId);
+		try {
+			if (!value) {
+				await fetch(target, { method: 'DELETE' });
+				formIcon = null;
+			} else if (value.startsWith('upload:')) {
+				const image = value.slice('upload:'.length);
+				const res = await fetch(target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) });
+				if (res.ok) formIcon = (await res.json()).icon;
+			} else {
+				const res = await fetch(target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ icon: value }) });
+				if (res.ok) formIcon = (await res.json()).icon;
+			}
+			onSuccess?.();
+		} catch (e) {
+			console.error('Failed to set stack icon:', e);
+		}
+	}
+
+	// After a stack is created, persist the icon picked in create mode to the new stack.
+	async function persistPendingIcon(name: string, envId: number | null) {
+		if (!formIcon) return;
+		const target = appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/icon`, envId);
+		const body = pendingUploadImage ? { image: pendingUploadImage } : { icon: formIcon };
+		try {
+			await fetch(target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		} catch (e) {
+			console.error('Failed to set stack icon:', e);
+		}
+	}
 
 	// Form state
 	let newStackName = $state('');
@@ -58,15 +123,51 @@
 	let loadError = $state<string | null>(null);
 	let errors = $state<{ stackName?: string; compose?: string }>({});
 	let composeContent = $state('');
-	let activeTab = $state<'editor' | 'graph'>('editor');
+	let activeTab = $state<'editor' | 'graph' | 'backups'>('editor');
+	let backupCount = $state(0);
+	let backupTally = $state<{ ok: number; failed: number }>({ ok: 0, failed: 0 });
 	let showConfirmClose = $state(false);
 	let editorTheme = $state<'light' | 'dark'>('dark');
+	// Ref to the embedded backup panel so close can check its inline form for unsaved edits.
+	let backupPanelRef = $state<BackupPanel | undefined>(undefined);
+
+	// Secret providers
+	type SecretProviderOption = { id: number; name: string; type: string };
+	let secretProviders = $state<SecretProviderOption[]>([]);
+	let formSecretProviderId = $state<number | null>(null);
+	// Provider-injected key NAMES from the last deploy (banner)
+	let injectedSecretKeys = $state<string[]>([]);
+	// Provider type/name for the injected-secrets banner in the env panel.
+	const selectedProviderType = $derived(
+		secretProviders.find((p) => p.id === formSecretProviderId)?.type ?? null
+	);
+	const selectedProviderName = $derived(
+		secretProviders.find((p) => p.id === formSecretProviderId)?.name ?? null
+	);
+	// Live probe of the bound provider: key NAMES currently present (bulk + resolved
+	// inline refs). Drives the editor's green IN VAULT marker. Empty when no provider
+	// is bound or the probe failed; probeError holds the reason on failure.
+	let providerKeySet = $state<Set<string>>(new Set());
+	let probeError = $state<string | null>(null);
+	let probeSeq = 0;
 
 	// Environment variables state
 	let envVars = $state<EnvVar[]>([]);
 	let rawEnvContent = $state(''); // Raw .env file content (comments preserved)
 	let envValidation = $state<ValidationResult | null>(null);
 	let validating = $state(false);
+
+	// SELECTOR_VARS (OP_ENVIRONMENT_ID / DOCKHAND_SECRET_SELECTOR) are consumed by the
+	// secret provider, not the compose file, so they only count as "used" when a
+	// provider is bound to the stack.
+	const effectiveValidation = $derived.by<ValidationResult | null>(() => {
+		if (!envValidation || formSecretProviderId === null) return envValidation;
+		if (!envValidation.unused.some((v) => SELECTOR_VARS.includes(v))) return envValidation;
+		return {
+			...envValidation,
+			unused: envValidation.unused.filter((v) => !SELECTOR_VARS.includes(v))
+		};
+	});
 	let existingSecretKeys = $state<Set<string>>(new Set());
 	let hadExistingDbVars = $state(false); // Track if DB had any vars on load (for proper cleanup)
 
@@ -103,10 +204,157 @@
 	let composePathCopied = $state<'ok' | 'error' | null>(null);
 	let envPathCopied = $state<'ok' | 'error' | null>(null);
 	let composeContentCopied = $state<'ok' | 'error' | null>(null);
+
+	// --- Compose Validate (side panel) ------------------------------------------
+	let validatePanelOpen = $state(false);
+	let validateLoading = $state(false);
+	let validateError = $state<string | null>(null);
+	let validateActiveLine = $state<number | null>(null);
+	let validateReport = $state<import('./ComposeValidatePanel.svelte').ValidateReport | null>(null);
+	// Monotonic token: only the newest validate response is allowed to write the report,
+	// so a slow silent re-validate can't overwrite a newer one (fix-spam race).
+	let validateSeq = 0;
+	// Findings mapped to editor lint markers (only those with a line).
+	const validateMarkers = $derived(
+		(validateReport?.findings ?? [])
+			.filter((f) => typeof f.line === 'number')
+			.map((f) => ({ line: f.line!, severity: f.severity, ruleId: f.ruleId, message: f.message }))
+	);
+
+	async function runComposeValidate(opts: { silent?: boolean } = {}) {
+		if (!composeContent.trim()) return;
+		// Silent re-validate (after a quick fix) keeps the current list visible so the
+		// panel doesn't collapse to a spinner and lose the scroll position.
+		if (!opts.silent) validateLoading = true;
+		validateError = null;
+		validatePanelOpen = true;
+		const seq = ++validateSeq;
+		try {
+			const envId = $currentEnvironment?.id ?? null;
+			const name = (mode === 'edit' ? stackName : newStackName) || 'stack';
+			// Send the editor's current env vars (incl. secrets) so `docker compose config`
+			// resolves ${VAR} the same way a deploy will, instead of flagging "VAR not set".
+			const validateEnvVars: Record<string, string> = {};
+			for (const v of envVars) {
+				const k = v.key.trim();
+				if (k) validateEnvVars[k] = v.value ?? '';
+			}
+			const res = await fetch(
+				appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/validate`, envId),
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+							compose: composeContent,
+							envVars: validateEnvVars,
+							// Only an EDIT of an existing stack has "own" containers to exclude from
+							// collision checks. A NEW stack with a name that clashes with a running
+							// stack must still be flagged, so never self-exclude in create mode.
+							existing: mode === 'edit'
+						})
+				}
+			);
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				throw new Error(body.error || `Validation failed (${res.status})`);
+			}
+			const fresh = await res.json();
+			// Stale response (a newer validate started meanwhile): drop it entirely.
+			if (seq !== validateSeq) return;
+			// On a silent re-validate, only swap the report if the finding set actually
+			// changed. When a fix succeeded the optimistic list already matches the fresh
+			// one, so keeping the same object avoids re-rendering (and the flash) of the
+			// surviving boxes.
+			if (opts.silent && validateReport && sameFindingSet(validateReport.findings, fresh.findings)) {
+				// no-op: current (optimistic) report is already correct
+			} else {
+				validateReport = fresh;
+			}
+		} catch (e) {
+			if (seq !== validateSeq) return; // superseded - don't clobber a newer report
+			validateError = e instanceof Error ? e.message : 'Validation failed';
+			validateReport = null;
+		} finally {
+			if (seq === validateSeq) validateLoading = false;
+		}
+	}
+
+	// Two finding lists are "the same" set (order-independent) by their stable keys.
+	function sameFindingSet(
+		a: { ruleId: string; line?: number; message: string }[],
+		b: { ruleId: string; line?: number; message: string }[]
+	): boolean {
+		if (a.length !== b.length) return false;
+		const bag = new Map<string, number>();
+		for (const f of a) bag.set(findingKey(f), (bag.get(findingKey(f)) ?? 0) + 1);
+		for (const f of b) {
+			const k = findingKey(f);
+			const n = bag.get(k);
+			if (!n) return false;
+			bag.set(k, n - 1);
+		}
+		return true;
+	}
+
+	// Remove a finding from the current report immediately (optimistic), so its box
+	// animates out without waiting for the round-trip.
+	function dropFinding(target: { ruleId: string; line?: number; message: string }) {
+		if (!validateReport) return;
+		const targetKey = findingKey(target);
+		const remaining = validateReport.findings.filter((f) => findingKey(f) !== targetKey);
+		const counts = { error: 0, warn: 0, info: 0 };
+		for (const f of remaining) counts[f.severity]++;
+		validateReport = { findings: remaining, counts };
+	}
+
+	// Closing the panel clears the findings so the editor markers disappear too
+	// (validateMarkers is derived from validateReport).
+	function closeValidatePanel() {
+		validatePanelOpen = false;
+		validateReport = null;
+		validateError = null;
+		validateActiveLine = null;
+	}
+
+	// Clicking a gutter marker opens the panel, highlights that line's finding, and
+	// scrolls the panel to it (the editor->panel direction).
+	function openValidateAtLine(line: number) {
+		if (validateReport) validatePanelOpen = true;
+		validateActiveLine = line;
+		validatePanelRef?.scrollToFinding?.(line);
+	}
+
+	// Clicking a finding in the panel jumps the editor to its line (panel stays open).
+	function jumpToComposeLine(line: number) {
+		codeEditorRef?.scrollToLine?.(line);
+		validateActiveLine = line;
+	}
+
+	// Apply a quick fix from the panel: rewrite the compose in place, drop the fixed
+	// finding's box immediately (it animates out), then re-validate silently so the list
+	// stays put - no spinner, no scroll reset.
+	function applyValidateFix(finding: {
+		ruleId: string;
+		line?: number;
+		message: string;
+		fix?: import('$lib/utils/compose-quick-fix').QuickFix;
+	}) {
+		if (!finding.fix) return;
+		const next = applyQuickFix(composeContent, finding.fix);
+		if (next === composeContent) return; // stale fix (text moved) - re-validate re-anchors
+		composeContent = next;
+		// The reactive editor sync suppresses onchange, so mark dirty ourselves.
+		isDirty = true;
+		validateActiveLine = null;
+		dropFinding(finding); // optimistic: the box animates out now
+		runComposeValidate({ silent: true }); // reconcile against the daemon without a flash
+	}
 	let needsFileLocation = $state(false);
 
 	// Container info for untracked stacks
 	let stackContainers = $state<{ name: string; state: string; image: string }[]>([]);
+	// Volumes/binds of this stack's containers, for the backup panel picker.
+	let stackVolumes = $state<VolumeInfo[]>([]);
 
 	// Derived: has user customized the compose path from auto-computed default?
 	const isComposePathCustom = $derived(
@@ -131,15 +379,15 @@
 		if (mode !== 'create') return undefined;
 		// Show hint when user selected a directory but hasn't entered stack name yet
 		if (browsedBaseDirectory && !workingComposePath) {
-			return m.stacks_modal_hint_will_create_in({ directory: browsedBaseDirectory });
+			return `Will create in ${browsedBaseDirectory}/`;
 		}
 		if (!workingComposePath) return undefined;
 		switch (pathSource) {
 			case 'browsed':
 			case 'custom':
-				return m.stacks_modal_hint_custom_location();
+				return 'Custom location';
 			case 'default':
-				return m.stacks_modal_hint_default_location();
+				return 'Using default location';
 			default:
 				return undefined;
 		}
@@ -177,7 +425,7 @@
 		// For tracked stacks, allow both files and directories
 		const isUntracked = needsFileLocation;
 		fileBrowserConfig = {
-			title: isUntracked ? m.stacks_modal_browse_select_compose() : m.stacks_modal_browse_select_compose_or_dir(),
+			title: isUntracked ? 'Select compose file' : 'Select compose file or directory',
 			selectFilter: /\.ya?ml$/,
 			selectMode: isUntracked ? 'file' : 'file_or_directory',
 			onSelect: handleComposeSelect
@@ -187,7 +435,7 @@
 
 	function openEnvBrowser() {
 		fileBrowserConfig = {
-			title: m.stacks_modal_browse_select_env(),
+			title: 'Select environment file or directory',
 			selectFilter: /\.env($|\.)/,  // matches .env, .env.local, app.env, etc.
 			selectMode: 'file_or_directory',
 			onSelect: handleEnvSelect
@@ -198,7 +446,7 @@
 	function openChangeLocationBrowser() {
 		const displayName = mode === 'edit' ? stackName : newStackName;
 		fileBrowserConfig = {
-			title: m.stacks_modal_browse_relocate({ name: displayName }),
+			title: `Relocate ${displayName}`,
 			icon: FolderSync,
 			selectMode: 'directory',
 			onSelect: handleChangeLocation
@@ -295,7 +543,7 @@
 
 			if (!response.ok) {
 				const data = await response.json();
-				throw new Error((typeof data.error === 'string' ? data.error : data.message) || m.stacks_modal_error_move_files_title());
+				throw new Error((typeof data.error === 'string' ? data.error : data.message) || 'Failed to move files');
 			}
 
 			const result = await response.json();
@@ -322,8 +570,8 @@
 
 		} catch (e: any) {
 			operationError = {
-				title: m.stacks_modal_error_move_files_title(),
-				message: e.message || m.stacks_modal_error_move_files_message()
+				title: 'Failed to move files',
+				message: e.message || 'An error occurred while moving files'
 			};
 		} finally {
 			movingLocation = false;
@@ -553,6 +801,7 @@
 
 	// CodeEditor reference for explicit marker updates
 	let codeEditorRef: CodeEditor | null = $state(null);
+	let validatePanelRef: ComposeValidatePanel | null = $state(null);
 
 	// ComposeGraphViewer reference for resize on panel toggle
 	let graphViewerRef: ComposeGraphViewer | null = $state(null);
@@ -590,12 +839,14 @@
 
 		const markers: VariableMarker[] = [];
 
-		// Add missing required variables
+		// Add missing required variables - but a var the bound provider currently has
+		// (live probe) is 'invault' (green), not 'missing' (red). A failed probe forces
+		// MISSING so we never show a false green.
 		for (const name of envValidation.missing) {
 			const env = envVarMap.get(name);
 			markers.push({
 				name,
-				type: 'missing',
+				type: classifyMarker(name, true, providerKeySet, probeError !== null),
 				value: env?.value,
 				isSecret: env?.isSecret
 			});
@@ -635,12 +886,78 @@
 		debouncedValidate();
 	}
 
-	// Debounced validation to avoid too many API calls while typing
+	// Debounced validation to avoid too many API calls while typing. The live
+	// provider probe rides the same cadence so it doesn't hammer the provider.
 	function debouncedValidate() {
 		if (validateTimer) clearTimeout(validateTimer);
 		validateTimer = setTimeout(() => {
 			validateEnvVars();
+			runProbe();
 		}, 1000);
+	}
+
+	// op://... inline references in the current env vars, mapped var -> ref, so a
+	// resolved ref (the provider returns ref STRINGS) maps back to its var name.
+	function inlineRefPairs(): { varName: string; ref: string }[] {
+		const pairs: { varName: string; ref: string }[] = [];
+		for (const v of envVars) {
+			const key = v.key.trim();
+			const val = (v.value ?? '').trim();
+			if (key && val.startsWith('op://')) pairs.push({ varName: key, ref: val });
+		}
+		return pairs;
+	}
+
+	// Live-probe the bound provider for which required keys exist RIGHT NOW. Only
+	// key NAMES cross the wire. Guardrails: a provider must be selected; on any
+	// failure the key set is emptied and probeError is set (-> everything MISSING,
+	// never a false green). Guarded by probeSeq to drop stale responses.
+	async function runProbe() {
+		if (formSecretProviderId === null) {
+			providerKeySet = new Set();
+			probeError = null;
+			return;
+		}
+		const selector = (() => {
+			for (const name of SELECTOR_VARS) {
+				const hit = envVars.find((v) => v.key.trim() === name);
+				if (hit && hit.value.trim()) return hit.value.trim();
+			}
+			return undefined;
+		})();
+		const refPairs = inlineRefPairs();
+		if (!selector && refPairs.length === 0) {
+			providerKeySet = new Set();
+			probeError = null;
+			updateEditorMarkers();
+			return;
+		}
+		const seq = ++probeSeq;
+		try {
+			const response = await fetch(`/api/secret-providers/${formSecretProviderId}/probe`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ selector, refs: refPairs.map((p) => p.ref) })
+			});
+			if (seq !== probeSeq) return; // a newer probe superseded this one
+			const data = await response.json();
+			if (!response.ok || !data.ok) {
+				providerKeySet = new Set();
+				probeError = data.error || `Provider check failed (${response.status})`;
+			} else {
+				const names = [
+					...(data.bulkKeys ?? []),
+					...resolvedRefVarNames(refPairs, data.resolvedRefs ?? [])
+				];
+				providerKeySet = new Set(names);
+				probeError = null;
+			}
+		} catch (e) {
+			if (seq !== probeSeq) return;
+			providerKeySet = new Set();
+			probeError = e instanceof Error ? e.message : 'Provider check failed';
+		}
+		updateEditorMarkers();
 	}
 
 	// Explicitly push markers to the editor (immediate=true since this is called after validation)
@@ -655,7 +972,7 @@
 	}
 
 	// Display title
-	const displayName = $derived(mode === 'edit' ? stackName : (newStackName || m.stacks_modal_default_new_stack()));
+	const displayName = $derived(mode === 'edit' ? stackName : (newStackName || 'New stack'));
 
 	onMount(() => {
 		// Load saved editor theme, or fall back to app theme / system preference
@@ -684,7 +1001,20 @@
 		// Add global mouse event listeners for split dragging
 		window.addEventListener('mousemove', handleMouseMove);
 		window.addEventListener('mouseup', handleMouseUp);
+
+		fetchSecretProviders();
 	});
+
+	async function fetchSecretProviders() {
+		try {
+			const response = await fetch('/api/secret-providers');
+			if (!response.ok) return;
+			const data = await response.json();
+			secretProviders = (data ?? []).map((p: any) => ({ id: p.id, name: p.name, type: p.type }));
+		} catch (e) {
+			console.warn('Failed to load secret providers:', e);
+		}
+	}
 
 	onDestroy(() => {
 		window.removeEventListener('mousemove', handleMouseMove);
@@ -697,11 +1027,33 @@
 		isDraggingSplit = true;
 	}
 
+	// Validate side-panel width (px), drag-resizable, persisted.
+	const STORAGE_KEY_VALIDATE_W = 'dockhand-validate-panel-width';
+	let validatePanelWidth = $state(
+		typeof localStorage !== 'undefined'
+			? Math.max(320, Number(localStorage.getItem(STORAGE_KEY_VALIDATE_W)) || 320)
+			: 320
+	);
+	let isDraggingValidate = $state(false);
+	let editorRowRef = $state<HTMLDivElement | null>(null);
+	function startValidateDrag(e: MouseEvent) {
+		e.preventDefault();
+		isDraggingValidate = true;
+	}
+
 	function handleMouseMove(e: MouseEvent) {
 		if (isDraggingSplit && containerRef) {
 			const rect = containerRef.getBoundingClientRect();
 			const newRatio = ((e.clientX - rect.left) / rect.width) * 100;
 			splitRatio = Math.max(30, Math.min(80, newRatio));
+		}
+		if (isDraggingValidate && editorRowRef) {
+			const rect = editorRowRef.getBoundingClientRect();
+			// panel is on the right: width = distance from cursor to the row's right edge.
+			const w = rect.right - e.clientX;
+			// Floor at 320px: below that the header's title + count chips + re-check button
+			// no longer fit on one line and start clipping.
+			validatePanelWidth = Math.max(320, Math.min(560, w));
 		}
 	}
 
@@ -710,6 +1062,20 @@
 			isDraggingSplit = false;
 			// Save split ratio
 			localStorage.setItem(STORAGE_KEY_SPLIT, splitRatio.toString());
+		}
+		if (isDraggingValidate) {
+			isDraggingValidate = false;
+			localStorage.setItem(STORAGE_KEY_VALIDATE_W, String(validatePanelWidth));
+		}
+	}
+
+	// Populate the backup picker's volume/bind list from this stack's containers'
+	// mounts. Runs for BOTH the managed (internal) load path and the
+	// needs-file-location path, so an internal stack's backup panel is never empty.
+	async function loadStackVolumes(envId: number | null) {
+		const contRes = await fetch(appendEnvParam('/api/containers', envId));
+		if (contRes.ok) {
+			stackVolumes = volumesForStack(await contRes.json(), stackName);
 		}
 	}
 
@@ -741,6 +1107,22 @@
 					loadError = null;
 					loading = false; // Important: stop loading spinner
 
+					// Fetch backup schedule count (BETA GATE: only when backups enabled)
+					if ($page.data.backupsEnabled) try {
+						const bp = new URLSearchParams({ target: stackName, type: 'stack' });
+						if (envId) bp.set('env', String(envId));
+						const bRes = await fetch(`/api/backup/configs?${bp}`);
+						if (bRes.ok) {
+							const bData = await bRes.json();
+							const cfgs = Array.isArray(bData) ? bData : bData?.id ? [bData] : [];
+							backupCount = cfgs.length;
+							if (cfgs.length > 0) {
+								const t = await fetchBackupExecutions(cfgs.map((c: any) => c.id));
+								backupTally = { ok: t.ok, failed: t.failed };
+							}
+						}
+					} catch {}
+
 					// Fetch containers for this stack to show what's running
 					try {
 						const stacksRes = await fetch(appendEnvParam('/api/stacks', envId));
@@ -755,12 +1137,16 @@
 								}));
 							}
 						}
+
+						// Volumes/binds for the backup picker — derived from this stack's
+						// containers' mounts (same normalizer used by the other backup surfaces).
+						await loadStackVolumes(envId);
 					} catch (e) {
 						console.error('Failed to fetch stack containers:', e);
 					}
 					return;
 				}
-				throw new Error((typeof data.error === 'string' ? data.error : data.message) || m.stacks_modal_error_load_compose());
+				throw new Error((typeof data.error === 'string' ? data.error : data.message) || 'Failed to load compose file');
 			}
 
 			composeContent = data.content;
@@ -770,6 +1156,26 @@
 			// Track original paths for detecting changes
 			originalComposePath = data.composePath || null;
 			originalEnvPath = data.envPath || null;
+
+			// Load secret provider binding
+			try {
+				const sourcesRes = await fetch(appendEnvParam('/api/stacks/sources', envId));
+				if (sourcesRes.ok) {
+					const sourceMap = await sourcesRes.json();
+					const source = sourceMap?.[stackName];
+					formSecretProviderId = source?.secretProviderId ?? null;
+					formIcon = source?.icon ?? null;
+				}
+			} catch (e) {
+				console.warn('Failed to load stack source for secret provider binding:', e);
+			}
+
+			// Volumes/binds for the backup picker (managed/internal stack path).
+			try {
+				await loadStackVolumes(envId);
+			} catch (e) {
+				console.error('Failed to load stack volumes:', e);
+			}
 
 			// Load both env endpoints in parallel, then process results together
 			const [envResponse, rawEnvResponse] = await Promise.all([
@@ -786,6 +1192,8 @@
 				existingSecretKeys = new Set(
 					loadedVars.filter(v => v.isSecret && v.key.trim()).map(v => v.key.trim())
 				);
+				// Provider-injected key names from the last deploy (banner)
+				injectedSecretKeys = envData.injectedSecretKeys ?? [];
 			}
 
 			// Process raw .env file content
@@ -852,16 +1260,16 @@
 		let hasErrors = false;
 
 		if (!newStackName.trim()) {
-			errors.stackName = m.stacks_modal_error_stack_name_required();
+			errors.stackName = 'Stack name is required';
 			hasErrors = true;
 		} else if (!/^[a-z0-9][a-z0-9_-]*$/.test(newStackName.trim())) {
-			errors.stackName = m.stacks_modal_error_stack_name_invalid();
+			errors.stackName = 'Must be lowercase, start with a letter or number, and only contain letters, numbers, hyphens, and underscores';
 			hasErrors = true;
 		}
 
 		const content = composeContent || defaultCompose;
 		if (!content.trim()) {
-			errors.compose = m.stacks_modal_error_compose_required();
+			errors.compose = 'Compose file content is required';
 			hasErrors = true;
 		}
 
@@ -921,6 +1329,8 @@
 				requestBody.envPath = envPathToSave;
 			}
 
+			requestBody.secretProviderId = formSecretProviderId;
+
 			// Create the stack
 			response = await fetch(appendEnvParam('/api/stacks', envId), {
 				method: 'POST',
@@ -932,19 +1342,21 @@
 			const data = start ? await readJobResponse(response) : await response.json();
 
 			if (!response.ok && !data.success) {
-				throw new Error((typeof data.error === 'string' ? data.error : data.message) || m.stacks_modal_error_create_title());
+				throw new Error((typeof data.error === 'string' ? data.error : data.message) || 'Failed to create stack');
 			}
 			if (data.success === false) {
-				throw new Error(data.error || m.stacks_modal_error_create_title());
+				throw new Error(data.error || 'Failed to create stack');
 			}
 
-			toast.success(m.stacks_modal_toast_created({ name: newStackName.trim() }));
+			await persistPendingIcon(newStackName.trim(), envId);
+
+			toast.success(`Created stack "${newStackName.trim()}"`);
 			onSuccess();
 			handleClose();
 		} catch (e: any) {
 			operationError = {
-				title: m.stacks_modal_error_create_title(),
-				message: e.message || m.stacks_modal_error_create_message(),
+				title: 'Failed to create stack',
+				message: e.message || 'An error occurred while creating the stack',
 				details: e.details
 			};
 			// Only transition to edit mode if the stack was actually persisted (response was ok
@@ -965,13 +1377,13 @@
 
 		// Validate compose content (unless file location is needed and we have a path)
 		if (!composeContent.trim() && !workingComposePath.trim()) {
-			errors.compose = m.stacks_modal_error_compose_path_required();
+			errors.compose = 'Compose file content or path is required';
 			return;
 		}
 
 		// If file location is needed, require a compose path
 		if (needsFileLocation && !workingComposePath.trim()) {
-			errors.compose = m.stacks_modal_error_compose_location_required();
+			errors.compose = 'Please select a compose file location';
 			return;
 		}
 
@@ -1052,6 +1464,8 @@
 				requestBody.moveFromDir = moveFromDir;
 			}
 
+			requestBody.secretProviderId = formSecretProviderId;
+
 			// Save env files BEFORE compose to ensure deploy reads fresh values
 			// Save raw content to .env file (non-secrets only, comments preserved)
 			const rawEnvResponse = await fetch(
@@ -1064,8 +1478,8 @@
 			);
 
 			if (!rawEnvResponse.ok) {
-				const rawEnvError = await rawEnvResponse.json().catch(() => ({ error: m.stacks_modal_error_save_env_message() }));
-				throw new Error((typeof rawEnvError.error === 'string' ? rawEnvError.error : rawEnvError.message) || m.stacks_modal_error_save_env_message());
+				const rawEnvError = await rawEnvResponse.json().catch(() => ({ error: 'Failed to save environment file' }));
+				throw new Error((typeof rawEnvError.error === 'string' ? rawEnvError.error : rawEnvError.message) || 'Failed to save environment file');
 			}
 
 			// Save only secrets to DB (non-secrets are in the .env file written above)
@@ -1111,14 +1525,14 @@
 			const data = restart ? await readJobResponse(response) : await response.json();
 
 			if (!response.ok && !data.success) {
-				throw new Error((typeof data.error === 'string' ? data.error : data.message) || m.stacks_modal_error_save_compose());
+				throw new Error((typeof data.error === 'string' ? data.error : data.message) || 'Failed to save compose file');
 			}
 			if (data.success === false) {
-				throw new Error(data.error || m.stacks_modal_error_save_compose());
+				throw new Error(data.error || 'Failed to save compose file');
 			}
 
 			isDirty = false; // Reset dirty flag after successful save
-			toast.success(restart ? m.stacks_modal_toast_applied() : m.stacks_modal_toast_saved());
+			toast.success(restart ? 'Stack applied' : 'Stack saved');
 			onSuccess();
 
 			if (!restart) {
@@ -1129,8 +1543,8 @@
 			}
 		} catch (e: any) {
 			operationError = {
-				title: restart ? m.stacks_modal_error_apply_title() : m.stacks_modal_error_save_title(),
-				message: e.message || (restart ? m.stacks_modal_error_apply_message() : m.stacks_modal_error_save_message()),
+				title: restart ? 'Failed to apply stack' : 'Failed to save stack',
+				message: e.message || (restart ? 'An error occurred while applying the stack' : 'An error occurred while saving the stack'),
 				details: e.details
 			};
 		} finally {
@@ -1152,7 +1566,7 @@
 	}
 
 	function tryClose() {
-		if (isDirty) {
+		if (isDirty || backupPanelRef?.isDirty()) {
 			showConfirmClose = true;
 		} else {
 			handleClose();
@@ -1174,6 +1588,8 @@
 		loadError = null;
 		rawEnvContent = '';
 		errors = {};
+		formIcon = null;
+		pendingUploadImage = null;
 		composeContent = '';
 		envVars = [];
 		envValidation = null;
@@ -1220,10 +1636,19 @@
 			// Reset mode to prop values on each open
 			mode = propMode;
 			stackName = propStackName;
+			// Clear any compose-validate panel state from a previous open (the modal is
+			// persistently mounted, so $state survives close/reopen - even across envs).
+			validatePanelOpen = false;
+			validateReport = null;
+			validateError = null;
+			validateLoading = false;
+			validateActiveLine = null;
+			validateSeq++;
 			if (mode === 'edit' && stackName) {
 				loadComposeFile().then(() => {
 					// Auto-validate after loading
 					validateEnvVars();
+					runProbe();
 				});
 			} else if (mode === 'create') {
 				// Set default compose content for create mode (library templates override default)
@@ -1235,6 +1660,7 @@
 				loading = false;
 				// Auto-validate default compose
 				validateEnvVars();
+				runProbe();
 			}
 		} else if (!open) {
 			hasInitialized = false; // Reset when modal closes
@@ -1250,6 +1676,7 @@
 		// Debounce to avoid too many API calls while typing
 		const timeout = setTimeout(() => {
 			validateEnvVars();
+			runProbe();
 		}, 800);
 
 		return () => clearTimeout(timeout);
@@ -1328,8 +1755,9 @@
 		if (isOpen) {
 			focusFirstInput();
 		} else {
-			// Prevent closing if there are unsaved changes - show confirmation instead
-			if (isDirty) {
+			// Prevent closing if there are unsaved changes (stack edits OR a half-edited
+			// backup schedule in the embedded panel) - show confirmation instead
+			if (isDirty || backupPanelRef?.isDirty()) {
 				// Re-open the dialog and show confirmation
 				open = true;
 				showConfirmClose = true;
@@ -1341,84 +1769,101 @@
 	}}
 >
 	<Dialog.Content
-		class="max-w-none h-[95vh] flex flex-col p-0 gap-0 shadow-xl border-zinc-200 dark:border-zinc-700 {sidebar.state === 'collapsed' ? 'w-[calc(100vw-6rem)] ml-[1.5rem]' : 'w-[calc(100vw-12rem)] ml-[4.5rem]'}"
+		class="max-w-none w-[calc(100vw-4rem)] h-[95vh] flex flex-col p-0 gap-0 shadow-xl border-zinc-200 dark:border-zinc-700"
 		showCloseButton={false}
 	>
 		<Dialog.Header class="px-5 py-3 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2">
-						<div class="p-1.5 rounded-md bg-zinc-200 dark:bg-zinc-700">
-							<Layers class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-						</div>
+						{#if !readonly}
+							<button
+								type="button"
+								title="Change stack icon"
+								onclick={() => (showIconPicker = true)}
+								class="p-1.5 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:ring-2 hover:ring-primary transition-shadow"
+							>
+								{#if pendingUploadImage}
+									<img src={pendingUploadImage} alt="" class="w-4 h-4 rounded object-cover" />
+								{:else if formIcon}
+									<StackIcon icon={formIcon} {stackName} envId={$currentEnvironment?.id ?? null} class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+								{:else}
+									<Layers class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+								{/if}
+							</button>
+						{:else}
+							<div class="p-1.5 rounded-md bg-zinc-200 dark:bg-zinc-700">
+								<Layers class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+							</div>
+						{/if}
 						<div>
 							<Dialog.Title class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
 								{#if mode === 'create'}
-									{m.stacks_modal_title_create()}
+									Create compose stack
 								{:else}
 									{stackName}
 								{/if}
 								{#if $currentEnvironment}
-									<span class="font-medium">{m.stacks_modal_label_on()} <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
+									<span class="font-semibold">on <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
 								{/if}
 							</Dialog.Title>
 							<Dialog.Description class="text-xs text-zinc-500 dark:text-zinc-400">
 								{#if mode === 'create'}
-								{m.stacks_modal_desc_create()}
-							{:else if readonly}
-								{m.stacks_modal_desc_readonly()}
+									Create a new Docker Compose stack
+								{:else if readonly}
+									View compose file and dependency graph
 								{:else}
-									{m.stacks_modal_desc_edit()}
+									Edit compose file and environment variables
 								{/if}
 							</Dialog.Description>
 						</div>
 					</div>
 				</div>
 
-				<div class="flex items-center gap-2">
-					<!-- View toggle -->
-					<div class="flex items-center gap-0.5 bg-zinc-200 dark:bg-zinc-700 rounded-md p-0.5">
-						<button
-							class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors {activeTab === 'editor' ? 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}"
-							onclick={() => activeTab = 'editor'}
-						>
-							<Code class="w-3.5 h-3.5" />
-							{m.stacks_modal_tab_editor()}
-						</button>
-						<button
-							class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors {activeTab === 'graph' ? 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}"
-							onclick={() => activeTab = 'graph'}
-						>
-							<GitGraph class="w-3.5 h-3.5" />
-							{m.stacks_modal_tab_graph()}
-						</button>
-					</div>
-
-					<!-- Theme toggle (only in editor mode) -->
-					{#if activeTab === 'editor'}
-						<button
-							onclick={toggleEditorTheme}
-							class="p-1.5 rounded-md text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-							title={editorTheme === 'light' ? m.stacks_modal_tooltip_dark_theme() : m.stacks_modal_tooltip_light_theme()}
-						>
-							{#if editorTheme === 'light'}
-								<Moon class="w-4 h-4" />
-							{:else}
-								<Sun class="w-4 h-4" />
-							{/if}
-						</button>
-					{/if}
-
-					<!-- Close button -->
-					<button
-						onclick={tryClose}
-						class="p-1.5 rounded-md text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-					>
-						<X class="w-4 h-4" />
-					</button>
-				</div>
+				<!-- Close button -->
+				<button
+					onclick={tryClose}
+					class="p-1.5 rounded-md text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+				>
+					<X class="w-4 h-4" />
+				</button>
 			</div>
 		</Dialog.Header>
+
+		<!-- View tabs — left-aligned underline bar under the header, matched to
+		     GitStackModal for a consistent look across the stack modals. -->
+		<div class="flex items-center gap-1 border-b border-zinc-200 px-5 dark:border-zinc-700 flex-shrink-0">
+			<button
+				type="button"
+				class="relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors {activeTab === 'editor' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+				onclick={() => activeTab = 'editor'}
+			>
+				<Code class="h-3.5 w-3.5" /> Editor
+			</button>
+			<button
+				type="button"
+				class="relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors {activeTab === 'graph' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+				onclick={() => activeTab = 'graph'}
+			>
+				<GitGraph class="h-3.5 w-3.5" /> Graph
+			</button>
+			<!-- BETA GATE: Backups tab hidden unless FEAT_BACKUPS_ENABLED (see features.ts).
+			     Also hidden for UNTRACKED stacks: with no known compose file the backup
+			     would be incomplete (can't redeploy at restore), so the backend refuses
+			     it (assertStackBackupable) — don't offer it in the UI either. -->
+			{#if mode === 'edit' && $page.data.backupsEnabled && !needsFileLocation}
+				<button
+					type="button"
+					class="relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors {activeTab === 'backups' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+					onclick={() => activeTab = 'backups'}
+				>
+					<Archive class="h-3.5 w-3.5" /> Backups
+					{#if backupCount > 0}<span class="bg-primary/15 text-primary text-[10px] px-1.5 rounded-full font-medium">{backupCount}</span>{/if}
+					{#if backupTally.ok > 0}<span class="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-500"><Check class="w-2.5 h-2.5" />{backupTally.ok}</span>{/if}
+					{#if backupTally.failed > 0}<span class="inline-flex items-center gap-0.5 rounded-full bg-red-500/15 px-1.5 text-[10px] font-semibold text-red-500"><X class="w-2.5 h-2.5" />{backupTally.failed}</span>{/if}
+				</button>
+			{/if}
+		</div>
 
 		<div class="flex-1 overflow-hidden flex flex-col min-h-0">
 			{#if errors.compose}
@@ -1432,7 +1877,7 @@
 				<div class="flex-1 flex items-center justify-center">
 					<div class="flex items-center gap-3 text-zinc-400 dark:text-zinc-500">
 						<Loader2 class="w-5 h-5 animate-spin" />
-						<span>{m.stacks_modal_loading_compose()}</span>
+						<span>Loading compose file...</span>
 					</div>
 				</div>
 			{:else}
@@ -1441,11 +1886,11 @@
 					<div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
 						<div class="flex gap-4 items-start">
 							<div class="flex-1 max-w-xs space-y-1">
-								<Label for="stack-name">{m.stacks_modal_label_stack_name()}</Label>
+								<Label for="stack-name">Stack name</Label>
 								<Input
 									id="stack-name"
 									bind:value={newStackName}
-									placeholder={m.stacks_modal_placeholder_stack_name()}
+									placeholder="my-stack"
 									class={errors.stackName ? 'border-destructive focus-visible:ring-destructive' : ''}
 									oninput={() => errors.stackName = undefined}
 								/>
@@ -1464,11 +1909,11 @@
 							<AlertCircle class="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
 							<div class="flex-1 min-w-0">
 								<p class="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-									<span class="font-medium text-amber-800 dark:text-amber-300">{m.stacks_modal_state_untracked()}</span> — {m.stacks_modal_hint_untracked()}
+									<span class="font-medium text-amber-800 dark:text-amber-300">Untracked stack</span> — this stack is running in Docker but Dockhand doesn't know where its compose file is stored on disk. Browse to locate the file to start editing and managing it.
 								</p>
 								{#if stackContainers.length > 0}
 									<div class="text-xs text-zinc-500 dark:text-zinc-400">
-										<span class="font-medium text-zinc-700 dark:text-zinc-300">{m.stacks_modal_label_running_containers()}</span>
+										<span class="font-medium text-zinc-700 dark:text-zinc-300">Running containers:</span>
 										<div class="mt-1.5 flex flex-wrap gap-1.5">
 											{#each stackContainers as container}
 												<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs {container.state === 'running' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}">
@@ -1488,18 +1933,51 @@
 				<div bind:this={containerRef} class="flex-1 min-h-0 flex flex-col {isDraggingSplit ? 'select-none' : ''}">
 					{#if activeTab === 'editor'}
 						<!-- Path bars row -->
-						<div class="flex border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/30">
+						<div class="flex items-center border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/30">
+							{#if readonly}
+								<span class="ml-4 flex shrink-0 items-center gap-1 rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-2xs font-medium text-purple-600 dark:text-purple-400" title="This is a Git-managed stack — Dockhand shows its compose read-only; edit it in the repository.">
+									<GitBranch class="h-3 w-3" /> Git · read-only
+								</span>
+								{#if gitInfo && (gitInfo.commit || gitInfo.url || gitInfo.branch)}
+									<div class="ml-3 flex min-w-0 items-center gap-3 text-2xs text-muted-foreground">
+										{#if gitInfo.commit}
+											<span class="flex shrink-0 items-center gap-1">
+												<GitCommitHorizontal class="h-3.5 w-3.5 shrink-0 opacity-70" />
+												<code class="font-mono">{gitInfo.commit}</code>
+												<button type="button" class="rounded p-0.5 hover:bg-muted transition-colors" title="Copy commit hash" onclick={() => copyText(gitInfo.commit ?? null, (v) => gitCommitCopied = v)}>
+													{#if gitCommitCopied === 'ok'}<Check class="h-3 w-3 text-green-500" />{:else}<Copy class="h-3 w-3" />{/if}
+												</button>
+											</span>
+										{/if}
+										{#if gitInfo.url}
+											<span class="flex min-w-0 items-center gap-1">
+												<Github class="h-3.5 w-3.5 shrink-0 opacity-70" />
+												<span class="truncate">{gitInfo.url}</span>
+												<button type="button" class="rounded p-0.5 hover:bg-muted transition-colors shrink-0" title="Copy repository URL" onclick={() => copyText(gitInfo.url ?? null, (v) => gitUrlCopied = v)}>
+													{#if gitUrlCopied === 'ok'}<Check class="h-3 w-3 text-green-500" />{:else}<Copy class="h-3 w-3" />{/if}
+												</button>
+											</span>
+										{/if}
+										{#if gitInfo.branch}
+											<span class="flex shrink-0 items-center gap-1">
+												<GitBranch class="h-3.5 w-3.5 shrink-0 opacity-70" />
+												<span>{gitInfo.branch}</span>
+											</span>
+										{/if}
+									</div>
+								{/if}
+							{/if}
 							<!-- Compose path -->
 							<div class="flex-shrink-0 px-4 py-2" style="width: {splitRatio}%">
 								<PathBarItem
-									label={m.stacks_modal_label_compose_file()}
+									label="Compose file"
 									path={workingComposePath || null}
-									placeholder={m.stacks_modal_placeholder_compose_path()}
+									placeholder="/path/to/compose.yaml"
 									copied={composePathCopied}
 									onCopy={() => copyText(workingComposePath, (v) => composePathCopied = v)}
-								onBrowse={readonly ? undefined : openComposeBrowser}
-								onChangeLocation={mode === 'edit' && !needsFileLocation && !readonly ? openChangeLocationBrowser : undefined}
-								defaultText={mode === 'create' ? m.stacks_modal_default_enter_stack_name() : m.stacks_modal_default_not_specified()}
+									onBrowse={readonly ? undefined : openComposeBrowser}
+									onChangeLocation={mode === 'edit' && !needsFileLocation && !readonly ? openChangeLocationBrowser : undefined}
+									defaultText={mode === 'create' ? 'Enter stack name above' : 'Not specified'}
 									sourceHint={pathSourceHint}
 								/>
 							</div>
@@ -1508,22 +1986,36 @@
 							<!-- Env path -->
 							<div class="flex-1 min-w-0 px-4 py-2 bg-zinc-100/50 dark:bg-zinc-800/50">
 								<PathBarItem
-									label={m.stacks_modal_label_env_file()}
+									label="Env file"
 									path={displayEnvPath || null}
 									selectedPath={workingEnvPath || suggestedEnvPath || ''}
-									placeholder={m.stacks_modal_placeholder_env_path()}
+									placeholder="/path/to/.env (optional)"
 									copied={envPathCopied}
 									onCopy={() => copyText(displayEnvPath, (v) => envPathCopied = v)}
 									onBrowse={readonly ? undefined : openEnvBrowser}
 									isEditable={!readonly}
 									isCustom={!!workingEnvPath}
-									defaultText={mode === 'create' ? m.stacks_modal_default_enter_stack_name() : m.stacks_modal_default_not_specified()}
+									defaultText={mode === 'create' ? 'Enter stack name above' : 'Not specified'}
 									isSuggested={isEnvPathSuggested}
 									onPathChange={(value) => {
 										workingEnvPath = value;
 										isDirty = true;
 									}}
 								/>
+							</div>
+							<!-- Theme toggle -->
+							<div class="flex items-center px-2 shrink-0">
+								<button
+									onclick={toggleEditorTheme}
+									class="p-1 rounded text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+									title={editorTheme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+								>
+									{#if editorTheme === 'light'}
+										<Moon class="w-3.5 h-3.5" />
+									{:else}
+										<Sun class="w-3.5 h-3.5" />
+									{/if}
+								</button>
 							</div>
 						</div>
 						<!-- Editor panels row -->
@@ -1535,33 +2027,48 @@
 										{#if readonly && needsFileLocation && !composeContent}
 											<div class="h-full rounded-md border border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/30 flex flex-col items-center justify-center text-center px-8">
 												<GitGraph class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" />
-											<h3 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{m.stacks_modal_empty_compose_not_available()}</h3>
-											<p class="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-												{m.stacks_modal_empty_deploy_first_hint()}
-											</p>
+												<h3 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Compose file not available</h3>
+												<p class="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+													Deploy or sync this Git stack first so Dockhand has a local copy of its compose file.
+												</p>
 											</div>
 										{:else if needsFileLocation && !composeContent}
 											<!-- Empty state for untracked stacks -->
 											<div class="h-full rounded-md border border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/30 flex flex-col items-center justify-center text-center px-8">
 												<FolderOpen class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" />
-												<h3 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{m.stacks_modal_empty_no_compose_selected()}</h3>
+												<h3 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">No compose file selected</h3>
 												<p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4 max-w-sm">
-													{m.stacks_modal_empty_browse_compose_hint()}
+													Browse to locate the compose file for this stack. The editor will load the file contents once selected.
 												</p>
 												<Button variant="outline" size="sm" onclick={openComposeBrowser}>
 													<FolderOpen class="w-4 h-4" />
-													{m.stacks_modal_button_browse_compose()}
+													Browse for compose file
 												</Button>
 												<!-- Info box explaining what happens -->
 												<div class="mt-6 max-w-md flex items-start gap-2.5 text-xs bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-2.5 text-left">
 													<Info class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-													<span><span class="font-medium text-amber-600 dark:text-amber-400">{m.stacks_modal_hint_what_happens_title()}</span> <span class="text-zinc-600 dark:text-zinc-400">{m.stacks_modal_hint_what_happens_desc()}</span></span>
+													<span><span class="font-medium text-amber-600 dark:text-amber-400">What happens when you select a file:</span> <span class="text-zinc-600 dark:text-zinc-400">Dockhand will track this compose file, letting you edit, start, and stop the stack from the UI. Your files stay in their current location.</span></span>
 												</div>
 											</div>
 										{:else}
 											<div class="h-full flex flex-col">
-												<!-- Copy button row -->
-												<div class="flex justify-end mb-1">
+												<!-- Copy + Validate button row -->
+												<div class="flex justify-end items-center gap-1 mb-1">
+													<Button
+														variant="ghost"
+														size="sm"
+														class="h-6 px-2 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+														onclick={runComposeValidate}
+														disabled={!composeContent}
+														title="Check this compose for problems before deploy"
+													>
+														{#if validateLoading}
+															<Loader2 class="w-3 h-3 animate-spin" />
+														{:else}
+															<ListChecks class="w-3 h-3" />
+														{/if}
+														Validate
+													</Button>
 													<Button
 														variant="ghost"
 														size="sm"
@@ -1574,28 +2081,59 @@
 																<Tooltip.Trigger>
 																	<XCircle class="w-3 h-3 text-red-500" />
 																</Tooltip.Trigger>
-																<Tooltip.Content>{m.stacks_modal_tooltip_copy_https_required()}</Tooltip.Content>
+																<Tooltip.Content>Copy requires HTTPS</Tooltip.Content>
 															</Tooltip.Root>
-															{m.common_failed()}
+															Failed
 														{:else if composeContentCopied === 'ok'}
 															<Check class="w-3 h-3 text-green-500" />
-															{m.stacks_modal_button_copied()}
+															Copied
 														{:else}
 															<Copy class="w-3 h-3" />
-															{m.stacks_modal_button_copy()}
+															Copy
 														{/if}
 													</Button>
 												</div>
-												<CodeEditor
-													bind:this={codeEditorRef}
-													value={composeContent}
-													language="yaml"
-													{readonly}
-													theme={editorTheme}
-													onchange={readonly ? undefined : handleComposeChange}
-													variableMarkers={variableMarkers}
-													class="flex-1 rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-700"
-												/>
+												<div bind:this={editorRowRef} class="flex-1 min-h-0 flex">
+													<CodeEditor
+														bind:this={codeEditorRef}
+														value={composeContent}
+														language="yaml"
+														{readonly}
+														theme={editorTheme}
+														onchange={readonly ? undefined : handleComposeChange}
+														variableMarkers={variableMarkers}
+														lintMarkers={validateMarkers}
+														onLintClick={openValidateAtLine}
+														class="flex-1 min-w-0 rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-700"
+													/>
+													{#if validatePanelOpen}
+														<!-- Resize handle -->
+														<div
+															class="w-1 mx-1 flex-shrink-0 rounded bg-zinc-200 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors flex items-center justify-center group {isDraggingValidate ? 'bg-blue-500 dark:bg-blue-400' : ''}"
+															onmousedown={startValidateDrag}
+															role="separator"
+															aria-orientation="vertical"
+															tabindex="0"
+														>
+															<div class="w-4 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity {isDraggingValidate ? 'opacity-100' : ''}">
+																<GripVertical class="w-3 h-3 text-white" />
+															</div>
+														</div>
+														<div class="shrink-0 min-h-0" style="width: {validatePanelWidth}px">
+															<ComposeValidatePanel
+																bind:this={validatePanelRef}
+																report={validateReport}
+																loading={validateLoading}
+																error={validateError}
+																activeLine={validateActiveLine}
+																onClose={closeValidatePanel}
+																onJumpToLine={jumpToComposeLine}
+																onRevalidate={runComposeValidate}
+																onApplyFix={applyValidateFix}
+															/>
+														</div>
+													{/if}
+												</div>
 											</div>
 										{/if}
 									</div>
@@ -1615,16 +2153,27 @@
 							</div>
 							<!-- Environment variables panel -->
 							<div class="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-800/50">
+								<SecretProviderPicker
+									bind:secretProviderId={formSecretProviderId}
+									bind:envVars
+									providers={secretProviders}
+									onchange={() => { markDirty(); debouncedValidate(); }}
+								/>
 								<StackEnvVarsPanel
 									bind:this={envVarsPanelRef}
 									bind:variables={envVars}
 									bind:rawContent={rawEnvContent}
-									validation={envValidation}
+									validation={effectiveValidation}
 									existingSecretKeys={mode === 'edit' ? existingSecretKeys : new Set()}
+									injectedSecretKeys={mode === 'edit' ? injectedSecretKeys : []}
+									providerType={selectedProviderType}
+									providerName={selectedProviderName}
+									{probeError}
+									{providerKeySet}
 									{readonly}
 									onchange={() => { markDirty(); debouncedValidate(); }}
 									theme={editorTheme}
-									infoText={m.stacks_modal_env_info_text()}
+									infoText="These variables will be written to a .env file in the stack directory and passed to the compose command."
 								/>
 							</div>
 						</div>
@@ -1637,6 +2186,17 @@
 							onContentChange={readonly ? undefined : handleGraphContentChange}
 							{readonly}
 						/>
+					{:else if activeTab === 'backups' && !needsFileLocation}
+						<!-- Backups tab (never for untracked stacks — see the tab gate above) -->
+						<div class="h-full flex-1 overflow-auto p-4">
+							<BackupPanel
+								bind:this={backupPanelRef}
+								containerName={stackName}
+								volumes={stackVolumes}
+								type="stack"
+								onTally={(t) => (backupTally = t)}
+							/>
+						</div>
 					{/if}
 				</div>
 			{/if}
@@ -1645,42 +2205,42 @@
 		<!-- Footer -->
 		<div class="px-5 py-2.5 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between flex-shrink-0">
 			<div class="text-xs text-zinc-500 dark:text-zinc-400">
-			{#if readonly}
-				{m.stacks_modal_state_readonly()}
-			{:else if isDirty}
-				<span class="text-amber-600 dark:text-amber-500">{m.stacks_modal_state_unsaved_changes()}</span>
+				{#if readonly}
+					Read-only
+				{:else if isDirty}
+					<span class="text-amber-600 dark:text-amber-500">Unsaved changes</span>
 				{:else}
-					{m.stacks_modal_state_no_changes()}
+					No changes
 				{/if}
 			</div>
 
 			<div class="flex items-center gap-2">
-			{#if readonly}
-				<Button onclick={tryClose}>{m.common_close()}</Button>
-			{:else}
-				<Button variant="outline" onclick={tryClose} disabled={saving}>
-					{m.stacks_modal_button_cancel()}
-				</Button>
-			{/if}
+				{#if readonly}
+					<Button onclick={tryClose}>Close</Button>
+				{:else}
+					<Button variant="outline" onclick={tryClose} disabled={saving}>
+						Cancel
+					</Button>
+				{/if}
 
 				{#if !readonly && mode === 'create'}
 					<!-- Create mode buttons -->
 					<Button variant="outline" onclick={() => handleCreate(false)} disabled={saving}>
 						{#if saving}
 							<Loader2 class="w-4 h-4 animate-spin" />
-							{m.stacks_modal_button_creating()}
+							Creating...
 						{:else}
 							<Save class="w-4 h-4" />
-							{m.common_create()}
+							Create
 						{/if}
 					</Button>
 					<Button onclick={() => handleCreate(true)} disabled={saving}>
 						{#if saving}
 							<Loader2 class="w-4 h-4 animate-spin" />
-							{m.stacks_modal_button_starting()}
+							Starting...
 						{:else}
 							<Play class="w-4 h-4" />
-							{m.stacks_modal_button_create_and_start()}
+							Create & Start
 						{/if}
 					</Button>
 				{:else if !readonly}
@@ -1688,19 +2248,19 @@
 					<Button variant="outline" class="w-24" onclick={() => handleSave(false)} disabled={saving || loading || (needsFileLocation && !workingComposePath.trim())}>
 						{#if saving && !savingWithRestart}
 							<Loader2 class="w-4 h-4 animate-spin" />
-							{m.stacks_modal_button_saving()}
+							Saving...
 						{:else}
 							<Save class="w-4 h-4" />
-							{m.stacks_modal_button_save()}
+							Save
 						{/if}
 					</Button>
 					<Button class="w-36" onclick={() => handleSave(true)} disabled={saving || loading || (needsFileLocation && !workingComposePath.trim())}>
 						{#if saving && savingWithRestart}
 							<Loader2 class="w-4 h-4 animate-spin" />
-							{m.stacks_modal_button_deploying()}
+							Deploying...
 						{:else}
 							<Play class="w-4 h-4" />
-							{m.stacks_modal_button_save_and_redeploy()}
+							Save & redeploy
 						{/if}
 					</Button>
 				{/if}
@@ -1709,21 +2269,23 @@
 	</Dialog.Content>
 </Dialog.Root>
 
+<IconPickerModal bind:open={showIconPicker} value={formIcon} onselect={onIconSelect} title="Choose a stack icon" />
+
 <!-- Unsaved changes confirmation dialog -->
 <Dialog.Root bind:open={showConfirmClose}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>{m.stacks_modal_dialog_unsaved_title()}</Dialog.Title>
+			<Dialog.Title>Unsaved changes</Dialog.Title>
 			<Dialog.Description>
-				{m.stacks_modal_dialog_unsaved_desc()}
+				You have unsaved changes. Are you sure you want to close without saving?
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="flex justify-end gap-1.5 mt-4">
 			<Button variant="outline" size="sm" onclick={() => showConfirmClose = false}>
-				{m.stacks_modal_button_continue_editing()}
+				Continue editing
 			</Button>
 			<Button variant="destructive" size="sm" onclick={discardAndClose}>
-				{m.stacks_modal_button_discard_changes()}
+				Discard changes
 			</Button>
 		</div>
 	</Dialog.Content>
@@ -1733,9 +2295,9 @@
 <Dialog.Root bind:open={showPathChangeConfirm}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>{m.stacks_modal_dialog_move_files_title()}</Dialog.Title>
+			<Dialog.Title>Move stack files?</Dialog.Title>
 			<Dialog.Description>
-				{m.stacks_modal_dialog_move_files_desc({ isAre: pathChangeFileCount === 1 ? 'is' : 'are', count: pathChangeFileCount, plural: pathChangeFileCount === 1 ? '' : 's' })}
+				You've changed the stack location. There {pathChangeFileCount === 1 ? 'is' : 'are'} {pathChangeFileCount} file{pathChangeFileCount === 1 ? '' : 's'} in the old location that can be moved to the new location.
 			</Dialog.Description>
 		</Dialog.Header>
 		{#if pathChangeOldDir}
@@ -1747,18 +2309,18 @@
 			</div>
 		{/if}
 		<p class="text-sm text-muted-foreground">
-			{m.stacks_modal_dialog_move_files_question()}
+			Would you like to move all files to the new location, or leave them in place?
 		</p>
 		<div class="flex justify-end gap-1.5 mt-4">
 			<Button variant="outline" size="sm" onclick={() => showPathChangeConfirm = false}>
-				{m.stacks_modal_button_cancel()}
+				Cancel
 			</Button>
 			<Button variant="secondary" size="sm" onclick={confirmPathChangeKeepFiles}>
-				{m.stacks_modal_button_leave_files()}
+				Leave files
 			</Button>
 			<Button variant="default" size="sm" onclick={confirmPathChangeAndMove}>
 				<ArrowRight class="w-3.5 h-3.5" />
-				{m.stacks_modal_button_move_files()}
+				Move files
 			</Button>
 		</div>
 	</Dialog.Content>
@@ -1768,21 +2330,21 @@
 <Dialog.Root bind:open={showBrowseConfirm}>
 	<Dialog.Content class="max-w-lg">
 		<Dialog.Header>
-			<Dialog.Title>{m.stacks_modal_dialog_replace_content_title()}</Dialog.Title>
+			<Dialog.Title>Replace editor content?</Dialog.Title>
 			<Dialog.Description>
-				{m.stacks_modal_dialog_replace_content_desc()}
+				Loading a different compose file will replace the current editor content.
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="my-3 space-y-2 text-sm">
 			<div class="flex items-start gap-2 text-muted-foreground">
-				<span class="text-xs font-medium text-zinc-500 shrink-0 pt-0.5">{m.stacks_modal_label_current()}</span>
+				<span class="text-xs font-medium text-zinc-500 shrink-0 pt-0.5">Current:</span>
 				<code class="text-xs font-mono bg-muted px-1.5 py-0.5 rounded break-all">
 					{workingComposePath || '(unsaved)'}
 				</code>
 			</div>
 			<div class="flex items-start gap-2">
 				<ArrowRight class="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-				<span class="text-xs font-medium text-zinc-500 shrink-0 pt-0.5">{m.stacks_modal_label_new()}</span>
+				<span class="text-xs font-medium text-zinc-500 shrink-0 pt-0.5">New:</span>
 				<code class="text-xs font-mono bg-muted px-1.5 py-0.5 rounded break-all">
 					{pendingBrowsePath}
 				</code>
@@ -1790,10 +2352,10 @@
 		</div>
 		<div class="flex justify-end gap-1.5 mt-4">
 			<Button variant="outline" size="sm" onclick={cancelBrowseConfirm}>
-				{m.stacks_modal_button_cancel()}
+				Cancel
 			</Button>
 			<Button variant="default" size="sm" onclick={confirmBrowseAndLoad}>
-				{m.stacks_modal_button_replace_content()}
+				Replace content
 			</Button>
 		</div>
 	</Dialog.Content>
@@ -1805,15 +2367,15 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<FolderSync class="w-5 h-5" />
-				{m.stacks_modal_dialog_relocate_title()}
+				Relocate stack?
 			</Dialog.Title>
 			<Dialog.Description>
-				{m.stacks_modal_dialog_relocate_desc({ count: changeLocationFileCount, plural: changeLocationFileCount === 1 ? '' : 's' })}
+				All {changeLocationFileCount} file{changeLocationFileCount === 1 ? '' : 's'} in the stack folder will be moved.
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="my-3 space-y-1 text-sm">
 			<div class="flex items-start gap-2 text-muted-foreground">
-				<span class="text-xs font-medium text-zinc-500 shrink-0 w-10">{m.stacks_modal_label_from()}</span>
+				<span class="text-xs font-medium text-zinc-500 shrink-0 w-10">From</span>
 				<code class="text-xs font-mono bg-muted px-1.5 py-0.5 rounded break-all">
 					{changeLocationOldDir}
 				</code>
@@ -1822,7 +2384,7 @@
 				<ArrowDown class="w-4 h-4 text-amber-500" />
 			</div>
 			<div class="flex items-start gap-2">
-				<span class="text-xs font-medium text-zinc-500 shrink-0 w-10">{m.stacks_modal_label_to()}</span>
+				<span class="text-xs font-medium text-zinc-500 shrink-0 w-10">To</span>
 				<code class="text-xs font-mono bg-muted px-1.5 py-0.5 rounded break-all">
 					{pendingNewLocation}
 				</code>
@@ -1830,15 +2392,15 @@
 		</div>
 		<div class="flex justify-end gap-1.5 mt-4">
 			<Button variant="outline" size="sm" onclick={cancelChangeLocation} disabled={movingLocation}>
-				{m.stacks_modal_button_cancel()}
+				Cancel
 			</Button>
 			<Button variant="default" size="sm" onclick={confirmChangeLocation} disabled={movingLocation}>
 				{#if movingLocation}
 					<Loader2 class="w-3.5 h-3.5 animate-spin" />
-					{m.stacks_modal_button_moving()}
+					Moving...
 				{:else}
 					<FolderSync class="w-3.5 h-3.5" />
-					{m.stacks_modal_button_move_files()}
+					Move files
 				{/if}
 			</Button>
 		</div>
@@ -1851,15 +2413,15 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<TriangleAlert class="w-5 h-5 text-amber-500" />
-				{m.stacks_modal_dialog_exists_title()}
+				Stack already exists
 			</Dialog.Title>
 			<Dialog.Description>
-				{m.stacks_modal_dialog_exists_desc({ name: newStackName })}
+				A stack named "{newStackName}" already exists. Please choose a different name.
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="flex justify-end mt-4">
 			<Button size="sm" onclick={() => showExistsWarning = false}>
-				{m.stacks_modal_button_ok()}
+				OK
 			</Button>
 		</div>
 	</Dialog.Content>

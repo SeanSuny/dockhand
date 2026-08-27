@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { authorize } from '$lib/server/authorize';
-import { getOwnDockerHost } from '$lib/server/host-path';
+import { getOwnDockerHost, getAutoDetectedDockerHost } from '$lib/server/host-path';
 import { unixSocketRequest } from '$lib/server/docker';
 import type { RequestHandler } from './$types';
 
 /** Fetch from the local Docker directly. Supports TCP and Unix socket. */
 function localDockerFetch(path: string): Promise<Response> {
-	const dockerHost = process.env.DOCKER_HOST || getOwnDockerHost();
+	const dockerHost = process.env.DOCKER_HOST || getOwnDockerHost() || getAutoDetectedDockerHost();
 	if (dockerHost?.startsWith('tcp://')) {
 		return fetch(dockerHost.replace('tcp://', 'http://') + path);
 	}
@@ -60,6 +60,15 @@ function stripDockerLogHeaders(raw: Uint8Array): string {
 
 /**
  * Poll updater container logs and status for progress tracking.
+ */
+/**
+ * @openapi
+ * summary: Poll the self-update sidecar container's logs and exit state for progress tracking
+ * query: id:string! Updater container id (from POST /api/self-update)
+ * resp-200: {logs:string!, status:string!, exitCode:integer}
+ * resp-400: Container ID is required
+ * resp-403: Admin access required
+ * resp-500: Failed to inspect the updater container, or failed to fetch its progress
  */
 export const GET: RequestHandler = async ({ url, cookies }) => {
 	const auth = await authorize(cookies);

@@ -42,9 +42,11 @@ import {
 	type OidcConfig
 } from './db';
 import { Client as LdapClient } from 'ldapts';
+import { escapeLdapFilterValue } from './ldap-filter';
 import { isEnterprise } from './license';
 import { secureRandomBytes } from './crypto-fallback';
 import { invalidateTokenCacheForUser } from './token-cache';
+import { oidcDiscoveryUrls, fetchOidcDiscovery } from '$lib/utils/oidc-discovery-url';
 
 // Session cookie name
 const SESSION_COOKIE_NAME = 'dockhand_session';
@@ -66,7 +68,9 @@ const EMPTY_PERMISSIONS: Permissions = {
 	license: [],
 	audit_logs: [],
 	activity: [],
-	schedules: []
+	schedules: [],
+	secrets: [],
+	backups: []
 };
 
 /**
@@ -360,7 +364,9 @@ export async function getUserPermissionsById(userId: number): Promise<Permission
 		license: [],
 		audit_logs: [],
 		activity: [],
-		schedules: []
+		schedules: [],
+		secrets: [],
+		backups: []
 	};
 
 	for (const ur of userRoles) {
@@ -441,7 +447,9 @@ export async function getUserPermissionsForEnvironment(userId: number, environme
 		license: [],
 		audit_logs: [],
 		activity: [],
-		schedules: []
+		schedules: [],
+		secrets: [],
+		backups: []
 	};
 
 	for (const ur of userRoles) {
@@ -603,14 +611,6 @@ export async function authenticateLdap(
  * Escape special characters in an LDAP filter value (RFC 4515).
  * Prevents LDAP injection via wildcards or control characters.
  */
-function escapeLdapFilterValue(value: string): string {
-	return value
-		.replace(/\\/g, '\\5c')
-		.replace(/\*/g, '\\2a')
-		.replace(/\(/g, '\\28')
-		.replace(/\)/g, '\\29')
-		.replace(/\0/g, '\\00');
-}
 
 /**
  * Try authentication against a specific LDAP configuration
@@ -814,18 +814,24 @@ async function checkLdapGroupMembership(
 		let searchBase: string;
 		let groupFilter: string;
 
+		// A DN placed in a search FILTER must be escaped per RFC 4515 - an AD DN with an
+		// escaped comma (CN=Surname\, Name,...) otherwise makes ldapts read `\,` as an
+		// invalid `\XX` hex filter-escape and throw ("Invalid escaped hex character").
+		// The searchBase stays the RAW DN (RFC 4514) - only filter VALUES are escaped.
+		const userDnFilterValue = escapeLdapFilterValue(userDn);
+		const groupCnFilterValue = escapeLdapFilterValue(groupDnOrName);
 		if (config.groupFilter) {
 			// User provided custom filter - use group DN directly when it's a full DN
 			// to avoid searching all groups under groupBaseDn
 			searchBase = isFullDn ? groupDnOrName : (config.groupBaseDn || groupDnOrName);
 			groupFilter = config.groupFilter
-				.replace('{{username}}', userDn)
-				.replace('{{user_dn}}', userDn)
-				.replace('{{group}}', groupDnOrName);
+				.replace('{{username}}', userDnFilterValue)
+				.replace('{{user_dn}}', userDnFilterValue)
+				.replace('{{group}}', groupCnFilterValue);
 		} else if (isFullDn) {
 			// Full DN provided - search directly at that DN
 			searchBase = groupDnOrName;
-			groupFilter = `(member=${userDn})`;
+			groupFilter = `(member=${userDnFilterValue})`;
 		} else {
 			// Just a group name - search in groupBaseDn
 			if (!config.groupBaseDn) {
@@ -833,7 +839,7 @@ async function checkLdapGroupMembership(
 				return false;
 			}
 			searchBase = config.groupBaseDn;
-			groupFilter = `(&(cn=${groupDnOrName})(member=${userDn}))`;
+			groupFilter = `(&(cn=${groupCnFilterValue})(member=${userDnFilterValue}))`;
 		}
 
 		const { searchEntries } = await client.search(searchBase, {
@@ -931,9 +937,15 @@ function parseMfaData(mfaSecret: string | null | undefined): MfaData | null {
 export async function generateMfaSetup(userId: number): Promise<{
 	secret: string;
 	qrDataUrl: string;
-} | null> {
+} | { alreadyEnabled: true } | null> {
 	const user = await getUser(userId);
 	if (!user) return null;
+
+	// Never regenerate over a LIVE enrolment. Overwriting the stored secret + clearing
+	// backupCodes while mfaEnabled stays true locks the account out for good (#1399): the
+	// authenticator holds the old secret, no backup code can match, and login keeps demanding
+	// a code. To re-enrol, the user must disable MFA first (DELETE), then set it up fresh.
+	if (user.mfaEnabled) return { alreadyEnabled: true };
 
 	// Build issuer name with hostname (same as license matching)
 	const hostname = process.env.DOCKHAND_HOSTNAME || os.hostname();
@@ -1217,14 +1229,9 @@ async function getOidcDiscovery(issuerUrl: string): Promise<OidcDiscoveryDocumen
 		return cached.document;
 	}
 
-	const wellKnownUrl = issuerUrl.endsWith('/')
-		? `${issuerUrl}.well-known/openid-configuration`
-		: `${issuerUrl}/.well-known/openid-configuration`;
-
-	const response = await fetch(wellKnownUrl);
-	if (!response.ok) {
-		throw new Error(`Failed to fetch OIDC discovery document: ${response.statusText}`);
-	}
+	// Try the canonical (no trailing slash) discovery URL first, then the trailing-slash
+	// variant some providers require (FortiAuthenticator 404s the canonical one, #1368).
+	const response = await fetchOidcDiscovery(oidcDiscoveryUrls(issuerUrl), (url) => fetch(url));
 
 	const document = await response.json() as OidcDiscoveryDocument;
 

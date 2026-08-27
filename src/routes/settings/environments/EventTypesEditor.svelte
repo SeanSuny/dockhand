@@ -7,10 +7,11 @@
 		Layers,
 		Shield,
 		HardDrive,
+		Archive,
 		ChevronDown,
 		ChevronRight
 	} from 'lucide-svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { page } from '$app/stores'; // BETA GATE: backups feature flag
 
 	interface EventType {
 		id: string;
@@ -48,73 +49,84 @@
 	const NOTIFICATION_EVENT_GROUPS: EventGroup[] = [
 		{
 			id: 'container',
-			label: m.settings_env_event_group_container(),
+			label: 'Container events',
 			icon: Box,
 			events: [
-				{ id: 'container_started', label: m.settings_env_event_container_started(), description: m.settings_env_event_container_started_desc() },
-				{ id: 'container_stopped', label: m.settings_env_event_container_stopped(), description: m.settings_env_event_container_stopped_desc() },
-				{ id: 'container_restarted', label: m.settings_env_event_container_restarted(), description: m.settings_env_event_container_restarted_desc() },
-				{ id: 'container_exited', label: m.settings_env_event_container_exited(), description: m.settings_env_event_container_exited_desc() },
-				{ id: 'container_unhealthy', label: m.settings_env_event_container_unhealthy(), description: m.settings_env_event_container_unhealthy_desc() },
-				{ id: 'container_healthy', label: m.settings_env_event_container_healthy(), description: m.settings_env_event_container_healthy_desc() },
-				{ id: 'container_oom', label: m.settings_env_event_container_oom(), description: m.settings_env_event_container_oom_desc() },
-				{ id: 'container_updated', label: m.settings_env_event_container_updated(), description: m.settings_env_event_container_updated_desc() }
+				{ id: 'container_started', label: 'Container started', description: 'When a container starts running' },
+				{ id: 'container_stopped', label: 'Container stopped', description: 'When a container is stopped' },
+				{ id: 'container_restarted', label: 'Container restarted', description: 'When a container restarts' },
+				{ id: 'container_exited', label: 'Container exited', description: 'When a container exits unexpectedly' },
+				{ id: 'container_unhealthy', label: 'Container unhealthy', description: 'When a container health check fails' },
+				{ id: 'container_healthy', label: 'Container healthy', description: 'When a container health check recovers' },
+				{ id: 'container_oom', label: 'Container OOM killed', description: 'When a container is killed due to out of memory' },
+				{ id: 'container_updated', label: 'Container updated', description: 'When a container image is updated' }
 			]
 		},
 		{
 			id: 'auto_update',
-			label: m.settings_env_event_group_auto_update(),
+			label: 'Auto-update events',
 			icon: RefreshCw,
 			events: [
-				{ id: 'auto_update_success', label: m.settings_env_event_auto_update_success(), description: m.settings_env_event_auto_update_success_desc() },
-				{ id: 'auto_update_failed', label: m.settings_env_event_auto_update_failed(), description: m.settings_env_event_auto_update_failed_desc() },
-				{ id: 'auto_update_blocked', label: m.settings_env_event_auto_update_blocked(), description: m.settings_env_event_auto_update_blocked_desc() },
-				{ id: 'updates_detected', label: m.settings_env_event_updates_detected(), description: m.settings_env_event_updates_detected_desc() },
-				{ id: 'batch_update_success', label: m.settings_env_event_batch_update_success(), description: m.settings_env_event_batch_update_success_desc() }
+				{ id: 'auto_update_success', label: 'Update succeeded', description: 'Container successfully updated to new image' },
+				{ id: 'auto_update_failed', label: 'Update failed', description: 'Container auto-update failed' },
+				{ id: 'auto_update_blocked', label: 'Update blocked', description: 'Update blocked due to vulnerability criteria' },
+				{ id: 'updates_detected', label: 'Updates detected', description: 'Container image updates are available' },
+				{ id: 'batch_update_success', label: 'Batch update completed', description: 'Scheduled container updates completed' }
 			]
 		},
 		{
 			id: 'git_stack',
-			label: m.settings_env_event_group_git_stack(),
+			label: 'Git stack events',
 			icon: GitBranch,
 			events: [
-				{ id: 'git_sync_success', label: m.settings_env_event_git_sync_success(), description: m.settings_env_event_git_sync_success_desc() },
-				{ id: 'git_sync_failed', label: m.settings_env_event_git_sync_failed(), description: m.settings_env_event_git_sync_failed_desc() },
-				{ id: 'git_sync_skipped', label: m.settings_env_event_git_sync_skipped(), description: m.settings_env_event_git_sync_skipped_desc() }
+				{ id: 'git_sync_success', label: 'Git sync succeeded', description: 'Git stack synced and deployed successfully' },
+				{ id: 'git_sync_failed', label: 'Git sync failed', description: 'Git stack sync or deploy failed' },
+				{ id: 'git_sync_skipped', label: 'Git sync skipped', description: 'Git stack sync skipped (no changes)' }
 			]
 		},
 		{
 			id: 'stack',
-			label: m.settings_env_event_group_stack(),
+			label: 'Stack events',
 			icon: Layers,
 			events: [
-				{ id: 'stack_started', label: m.settings_env_event_stack_started(), description: m.settings_env_event_stack_started_desc() },
-				{ id: 'stack_stopped', label: m.settings_env_event_stack_stopped(), description: m.settings_env_event_stack_stopped_desc() },
-				{ id: 'stack_deployed', label: m.settings_env_event_stack_deployed(), description: m.settings_env_event_stack_deployed_desc() },
-				{ id: 'stack_deploy_failed', label: m.settings_env_event_stack_deploy_failed(), description: m.settings_env_event_stack_deploy_failed_desc() }
+				{ id: 'stack_started', label: 'Stack started', description: 'When a compose stack starts' },
+				{ id: 'stack_stopped', label: 'Stack stopped', description: 'When a compose stack stops' },
+				{ id: 'stack_deployed', label: 'Stack deployed', description: 'Stack deployed (new or update)' },
+				{ id: 'stack_deploy_failed', label: 'Stack deploy failed', description: 'Stack deployment failed' }
 			]
 		},
 		{
 			id: 'security',
-			label: m.settings_env_event_group_security(),
+			label: 'Security events',
 			icon: Shield,
 			events: [
-				{ id: 'vulnerability_critical', label: m.settings_env_event_vulnerability_critical(), description: m.settings_env_event_vulnerability_critical_desc() },
-				{ id: 'vulnerability_high', label: m.settings_env_event_vulnerability_high(), description: m.settings_env_event_vulnerability_high_desc() },
-				{ id: 'vulnerability_any', label: m.settings_env_event_vulnerability_any(), description: m.settings_env_event_vulnerability_any_desc() }
+				{ id: 'vulnerability_critical', label: 'Critical vulns found', description: 'Critical vulnerabilities found in image scan' },
+				{ id: 'vulnerability_high', label: 'High vulns found', description: 'High severity vulnerabilities found' },
+				{ id: 'vulnerability_any', label: 'Any vulns found', description: 'Any vulnerabilities found (medium/low)' }
+			]
+		},
+		{
+			id: 'backup',
+			label: 'Backup events',
+			icon: Archive,
+			events: [
+				{ id: 'backup_success', label: 'Backup succeeded', description: 'Backup completed successfully' },
+				{ id: 'backup_failed', label: 'Backup failed', description: 'Backup failed' },
+				{ id: 'restore_success', label: 'Restore succeeded', description: 'Restore completed successfully' },
+				{ id: 'restore_failed', label: 'Restore failed', description: 'Restore failed' }
 			]
 		},
 		{
 			id: 'system',
-			label: m.settings_env_event_group_system(),
+			label: 'System events',
 			icon: HardDrive,
 			events: [
-				{ id: 'image_pulled', label: m.settings_env_event_image_pulled(), description: m.settings_env_event_image_pulled_desc() },
-				{ id: 'image_prune_success', label: m.settings_env_event_image_prune_success(), description: m.settings_env_event_image_prune_success_desc() },
-				{ id: 'image_prune_failed', label: m.settings_env_event_image_prune_failed(), description: m.settings_env_event_image_prune_failed_desc() },
-				{ id: 'environment_offline', label: m.settings_env_event_environment_offline(), description: m.settings_env_event_environment_offline_desc() },
-				{ id: 'environment_online', label: m.settings_env_event_environment_online(), description: m.settings_env_event_environment_online_desc() },
-				{ id: 'disk_space_warning', label: m.settings_env_event_disk_space_warning(), description: m.settings_env_event_disk_space_warning_desc() }
+				{ id: 'image_pulled', label: 'Image pulled', description: 'When a new image is pulled' },
+				{ id: 'image_prune_success', label: 'Image prune completed', description: 'Scheduled image prune completed successfully' },
+				{ id: 'image_prune_failed', label: 'Image prune failed', description: 'Scheduled image prune failed' },
+				{ id: 'environment_offline', label: 'Environment offline', description: 'Environment became unreachable' },
+				{ id: 'environment_online', label: 'Environment online', description: 'Environment came back online' },
+				{ id: 'disk_space_warning', label: 'Disk space warning', description: 'Docker disk usage exceeds threshold' }
 			]
 		}
 	];
@@ -152,7 +164,8 @@
 </script>
 
 <div class="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-	{#each NOTIFICATION_EVENT_GROUPS as group (group.id)}
+	<!-- BETA GATE: drop the Backup events group unless FEAT_BACKUPS_ENABLED (see features.ts) -->
+	{#each NOTIFICATION_EVENT_GROUPS.filter((g) => g.id !== 'backup' || $page.data.backupsEnabled) as group (group.id)}
 		{@const isCollapsed = collapsedGroups.has(group.id)}
 		{@const selectedCount = getGroupSelectedCount(group)}
 		{@const allSelected = selectedCount === group.events.length}
@@ -186,7 +199,7 @@
 					onclick={(e) => { e.stopPropagation(); toggleGroupAll(group); }}
 					{disabled}
 				>
-					{allSelected ? m.common_all() : someSelected ? m.settings_env_event_some() : m.settings_env_event_none()}
+					{allSelected ? 'All' : someSelected ? 'Some' : 'None'}
 				</button>
 			</div>
 

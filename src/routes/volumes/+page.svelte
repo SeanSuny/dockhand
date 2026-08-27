@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>{m.sidebar_volumes()} - Dockhand</title>
+	<title>Volumes - Dockhand</title>
 </svelte:head>
 
 <script lang="ts">
@@ -19,7 +19,7 @@
 	import CloneVolumeModal from './CloneVolumeModal.svelte';
 	import ContainerInspectModal from '../containers/ContainerInspectModal.svelte';
 	import { appSettings } from '$lib/stores/settings';
-	import * as m from '$lib/paraglide/messages';
+	import ContainerIcon from '$lib/components/ContainerIcon.svelte';
 	import type { VolumeInfo } from '$lib/types';
 	import { currentEnvironment, environments, appendEnvParam, clearStaleEnvironment } from '$lib/stores/environment';
 	import MultiSelectFilter from '$lib/components/MultiSelectFilter.svelte';
@@ -72,6 +72,108 @@
 		{ value: 'in-use', label: 'In use', icon: CircleDot, color: 'text-emerald-500' },
 		{ value: 'unused', label: 'Unused', icon: Circle, color: 'text-muted-foreground' }
 	];
+
+	// Confirmation popover state
+	let confirmDeleteName = $state<string | null>(null);
+
+	// Delete error state
+	let deleteError = $state<{ name: string; message: string } | null>(null);
+
+	// Timeout tracking for cleanup
+	let pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+
+	// Multi-select state
+	let selectedVolumes = $state<Set<string>>(new Set());
+	let confirmBulkRemove = $state(false);
+
+	// Row highlighting state
+	let highlightedRowId = $state<string | null>(null);
+
+	// Batch operation modal state
+	let showBatchOpModal = $state(false);
+	let batchOpTitle = $state('');
+	let batchOpOperation = $state('');
+	let batchOpItems = $state<Array<{ id: string; name: string }>>([]);
+
+	// Check if all filtered volumes are selected
+	const allFilteredSelected = $derived(
+		filteredVolumes.length > 0 && filteredVolumes.every(v => selectedVolumes.has(v.name))
+	);
+	const someFilteredSelected = $derived(
+		filteredVolumes.some(v => selectedVolumes.has(v.name)) && !allFilteredSelected
+	);
+	const selectedInFilter = $derived(
+		filteredVolumes.filter(v => selectedVolumes.has(v.name))
+	);
+
+	function selectNone() {
+		selectedVolumes = new Set();
+	}
+
+	function bulkRemove() {
+		batchOpTitle = `Removing ${selectedInFilter.length} volume${selectedInFilter.length !== 1 ? 's' : ''}`;
+		batchOpOperation = 'remove';
+		batchOpItems = selectedInFilter.map(v => ({ id: v.name, name: v.name }));
+		showBatchOpModal = true;
+	}
+
+	function handleBatchComplete() {
+		selectedVolumes = new Set();
+		fetchVolumes();
+	}
+
+	// Modal state
+	let showCreateModal = $state(false);
+	let showInspectModal = $state(false);
+	let inspectVolumeName = $state('');
+	let showBrowserModal = $state(false);
+	let browseVolumeName = $state('');
+	let showCloneModal = $state(false);
+	let cloneVolumeName = $state('');
+	let exportingVolume = $state<string | null>(null);
+
+	// Container inspect modal state
+	let showContainerInspectModal = $state(false);
+	let inspectContainerId = $state('');
+	let inspectContainerName = $state('');
+
+	// Prune state
+	let confirmPrune = $state(false);
+	let pruneStatus = $state<'idle' | 'pruning' | 'success' | 'error'>('idle');
+
+	// Debounce search input
+	let searchTimeout: ReturnType<typeof setTimeout>;
+	$effect(() => {
+		const input = searchInput; // Track dependency
+		clearTimeout(searchTimeout);
+		searchTimeout = setTimeout(() => {
+			searchQuery = input;
+		}, 200);
+		return () => clearTimeout(searchTimeout);
+	});
+
+	// Track if initial fetch has been done
+	let initialFetchDone = $state(false);
+
+	// Subscribe to environment changes using $effect
+	$effect(() => {
+		const env = $currentEnvironment;
+		const newEnvId = env?.id ?? null;
+
+		// Only fetch if environment actually changed or this is initial load
+		if (env && (newEnvId !== envId || !initialFetchDone)) {
+			envId = newEnvId;
+			initialFetchDone = true;
+			fetchVolumes();
+		} else if (!env) {
+			// No environment - clear data and stop loading
+			envId = null;
+			volumes = [];
+			loading = false;
+		}
+	});
+
+	// Filtered and sorted volumes - use $derived.by for complex logic
 	const filteredVolumes = $derived.by(() => {
 		let result = volumes;
 
@@ -142,108 +244,6 @@
 		return result;
 	});
 
-	// Confirmation popover state
-	let confirmDeleteName = $state<string | null>(null);
-
-	// Delete error state
-	let deleteError = $state<{ name: string; message: string } | null>(null);
-
-	// Timeout tracking for cleanup
-	let pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
-
-	// Multi-select state
-	let selectedVolumes = $state<Set<string>>(new Set());
-	let confirmBulkRemove = $state(false);
-
-	// Row highlighting state
-	let highlightedRowId = $state<string | null>(null);
-
-	// Batch operation modal state
-	let showBatchOpModal = $state(false);
-	let batchOpTitle = $state('');
-	let batchOpOperation = $state('');
-	let batchOpItems = $state<Array<{ id: string; name: string }>>([]);
-
-	// Check if all filtered volumes are selected
-	const allFilteredSelected = $derived(
-		filteredVolumes.length > 0 && filteredVolumes.every(v => selectedVolumes.has(v.name))
-	);
-	const someFilteredSelected = $derived(
-		filteredVolumes.some(v => selectedVolumes.has(v.name)) && !allFilteredSelected
-	);
-	const selectedInFilter = $derived(
-		filteredVolumes.filter(v => selectedVolumes.has(v.name))
-	);
-
-	function selectNone() {
-		selectedVolumes = new Set();
-	}
-
-	function bulkRemove() {
-		batchOpTitle = m.volumes_batch_remove_title({ count: selectedInFilter.length, plural: selectedInFilter.length !== 1 ? 's' : '' });
-		batchOpOperation = 'remove';
-		batchOpItems = selectedInFilter.map(v => ({ id: v.name, name: v.name }));
-		showBatchOpModal = true;
-	}
-
-	function handleBatchComplete() {
-		selectedVolumes = new Set();
-		fetchVolumes();
-	}
-
-	// Modal state
-	let showCreateModal = $state(false);
-	let showInspectModal = $state(false);
-	let inspectVolumeName = $state('');
-	let showBrowserModal = $state(false);
-	let browseVolumeName = $state('');
-	let showCloneModal = $state(false);
-	let cloneVolumeName = $state('');
-	let exportingVolume = $state<string | null>(null);
-
-	// Container inspect modal state
-	let showContainerInspectModal = $state(false);
-	let inspectContainerId = $state('');
-	let inspectContainerName = $state('');
-
-	// Prune state
-	let confirmPrune = $state(false);
-	let pruneStatus = $state<'idle' | 'pruning' | 'success' | 'error'>('idle');
-
-	// Debounce search input
-	let searchTimeout: ReturnType<typeof setTimeout>;
-	$effect(() => {
-		const input = searchInput; // Track dependency
-		clearTimeout(searchTimeout);
-		searchTimeout = setTimeout(() => {
-			searchQuery = input;
-		}, 200);
-		return () => clearTimeout(searchTimeout);
-	});
-
-	// Track if initial fetch has been done
-	let initialFetchDone = $state(false);
-
-	// Subscribe to environment changes using $effect
-	$effect(() => {
-		const env = $currentEnvironment;
-		const newEnvId = env?.id ?? null;
-
-		// Only fetch if environment actually changed or this is initial load
-		if (env && (newEnvId !== envId || !initialFetchDone)) {
-			envId = newEnvId;
-			initialFetchDone = true;
-			fetchVolumes();
-		} else if (!env) {
-			// No environment - clear data and stop loading
-			envId = null;
-			volumes = [];
-			loading = false;
-		}
-	});
-
-	// Filtered and sorted volumes - use $derived.by for complex logic
-
 
 	async function fetchVolumes() {
 		loading = true;
@@ -261,7 +261,7 @@
 			volumes = await response.json();
 		} catch (error) {
 			console.error('Failed to fetch volumes:', error);
-			toast.error(m.volumes_toast_load_failed());
+			toast.error('Failed to load volumes');
 		} finally {
 			loading = false;
 		}
@@ -273,20 +273,20 @@
 			const response = await fetch(appendEnvParam(`/api/volumes/${encodeURIComponent(name)}?force=true`, envId), { method: 'DELETE' });
 			if (!response.ok) {
 				const data = await response.json();
-				deleteError = { name, message: data.details || data.error || m.volumes_error_remove_failed() };
-				toast.error(m.stacks_error_remove({ name }));
+				deleteError = { name, message: data.details || data.error || 'Failed to remove volume' };
+				toast.error(`Failed to remove ${name}`);
 				// Auto-hide error after 5 seconds
 				pendingTimeouts.push(setTimeout(() => {
 					if (deleteError?.name === name) deleteError = null;
 				}, 5000));
 				return;
 			}
-			toast.success(m.stacks_toast_removed({ name }));
+			toast.success(`Removed ${name}`);
 			await fetchVolumes();
 		} catch (error) {
 			console.error('Failed to remove volume:', error);
-			deleteError = { name, message: m.volumes_error_remove_failed() };
-			toast.error(m.stacks_error_remove({ name }));
+			deleteError = { name, message: 'Failed to remove volume' };
+			toast.error(`Failed to remove ${name}`);
 			pendingTimeouts.push(setTimeout(() => {
 				if (deleteError?.name === name) deleteError = null;
 			}, 5000));
@@ -294,7 +294,7 @@
 	}
 
 	function formatDate(dateString: string): string {
-		if (!dateString) return m.volumes_na();
+		if (!dateString) return 'N/A';
 		return formatDateTime(dateString);
 	}
 
@@ -335,10 +335,10 @@
 			link.click();
 			document.body.removeChild(link);
 
-			toast.success(m.images_toast_exporting({ name: volumeName }));
+			toast.success(`Exporting ${volumeName}...`);
 		} catch (err) {
 			console.error('Failed to export volume:', err);
-			toast.error(m.images_toast_export_failed({ name: volumeName }));
+			toast.error(`Failed to export ${volumeName}`);
 		} finally {
 			pendingTimeouts.push(setTimeout(() => {
 				if (exportingVolume === volumeName) exportingVolume = null;
@@ -355,15 +355,15 @@
 			});
 			if (response.ok) {
 				pruneStatus = 'success';
-				toast.success(m.volumes_toast_pruned());
+				toast.success('Unused volumes pruned');
 				await fetchVolumes();
 			} else {
 				pruneStatus = 'error';
-				toast.error(m.volumes_toast_prune_failed());
+				toast.error('Failed to prune volumes');
 			}
 		} catch (error) {
 			pruneStatus = 'error';
-			toast.error(m.volumes_toast_prune_failed());
+			toast.error('Failed to prune volumes');
 		}
 		pendingTimeouts.push(setTimeout(() => {
 			pruneStatus = 'idle';
@@ -422,13 +422,13 @@
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
-		<PageHeader icon={HardDrive} title={m.sidebar_volumes()} count={volumes.length} />
+		<PageHeader icon={HardDrive} title="Volumes" count={volumes.length} />
 		<div class="flex flex-wrap items-center gap-2">
 			<div class="relative">
 				<Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
 				<Input
 					type="text"
-					placeholder={m.volumes_search_placeholder()}
+					placeholder="Search volumes..."
 					bind:value={searchInput}
 					onkeydown={(e) => e.key === 'Escape' && (searchInput = '')}
 					class="pl-8 h-8 w-48 text-sm"
@@ -437,25 +437,25 @@
 			<MultiSelectFilter
 				bind:value={driverFilter}
 				options={driverOptions}
-				placeholder={m.container_inspect_driver()}
-				pluralLabel={m.volumes_filter_driver_plural()}
+				placeholder="Driver"
+				pluralLabel="drivers"
 				width="w-28"
 				defaultIcon={Database}
 			/>
 			<MultiSelectFilter
 				bind:value={usageFilter}
 				options={usageOptions}
-				placeholder={m.volumes_filter_usage_placeholder()}
-				pluralLabel={m.volumes_filter_usage_plural()}
+				placeholder="Usage"
+				pluralLabel="usages"
 				width="w-28"
 				defaultIcon={CircleDot}
 			/>
 			{#if $canAccess('volumes', 'remove')}
 			<ConfirmPopover
 				open={confirmPrune}
-				action={m.containers_prune()}
-				itemType={m.volumes_prune_item_type()}
-				title={m.volumes_prune_title()}
+				action="Prune"
+				itemType="unused volumes"
+				title="Prune volumes"
 				position="left"
 				onConfirm={pruneVolumes}
 				onOpenChange={(open) => confirmPrune = open}
@@ -472,16 +472,16 @@
 						{:else}
 							<Icon iconNode={broom} class="w-3.5 h-3.5" />
 						{/if}
-						{m.containers_prune()}
+						Prune
 					</span>
 				{/snippet}
 			</ConfirmPopover>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchVolumes}>{m.common_refresh()}</Button>
+			<Button size="sm" variant="outline" onclick={fetchVolumes}>Refresh</Button>
 			{#if $canAccess('volumes', 'create')}
 			<Button size="sm" variant="secondary" onclick={() => showCreateModal = true}>
 				<Plus class="w-3.5 h-3.5" />
-				{m.common_create()}
+				Create
 			</Button>
 			{/if}
 		</div>
@@ -491,20 +491,20 @@
 	<div class="h-4 shrink-0">
 		{#if selectedVolumes.size > 0}
 			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
-			<span>{m.containers_selected_count({ count: selectedInFilter.length })}</span>
+			<span>{selectedInFilter.length} selected</span>
 			<button
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
 			>
-				{m.containers_clear_selection()}
+				Clear
 			</button>
 			{#if $canAccess('volumes', 'remove')}
 			<ConfirmPopover
 				open={confirmBulkRemove}
 				action="Delete"
-				itemType={m.volumes_batch_delete_item({ count: selectedInFilter.length, plural: selectedInFilter.length !== 1 ? 's' : '' })}
-				title={m.volumes_batch_delete_title({ count: selectedInFilter.length })}
+				itemType="{selectedInFilter.length} volume{selectedInFilter.length !== 1 ? 's' : ''}"
+				title="Delete {selectedInFilter.length}"
 				unstyled
 				onConfirm={bulkRemove}
 				onOpenChange={(open) => confirmBulkRemove = open}
@@ -512,7 +512,7 @@
 				{#snippet children({ open })}
 					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
 						<Trash2 class="w-3 h-3" />
-						{m.common_delete()}
+						Delete
 					</span>
 				{/snippet}
 			</ConfirmPopover>
@@ -526,8 +526,8 @@
 	{:else if !loading && volumes.length === 0}
 		<EmptyState
 			icon={HardDrive}
-			title={m.volumes_empty_title()}
-			description={m.volumes_empty_description()}
+			title="No volumes found"
+			description="Create a volume to persist container data"
 		/>
 	{:else}
 		<DataGrid
@@ -576,10 +576,11 @@
 								<button
 									type="button"
 									onclick={() => openContainerInspect(container.containerId, container.containerName)}
-									class="text-xs text-primary hover:underline cursor-pointer truncate max-w-[100px]"
+									class="text-xs text-primary hover:underline cursor-pointer truncate max-w-[110px] inline-flex items-center gap-1"
 									title={container.containerName}
 								>
-									{container.containerName}
+									<ContainerIcon image="" name={container.containerName} class="w-3 h-3" hideWhenNoMatch />
+									<span class="truncate">{container.containerName}</span>
 								</button>
 							{/each}
 							{#if volume.usedBy.length > 3}
@@ -597,7 +598,7 @@
 						<button
 							type="button"
 							onclick={() => inspectVolume(volume.name)}
-							title={m.containers_action_view_details()}
+							title="View details"
 							class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 						>
 							<Eye class="grid-action-icon grid-action-info text-muted-foreground hover:text-foreground" />
@@ -605,7 +606,7 @@
 						<button
 							type="button"
 							onclick={() => browseVolume(volume.name)}
-							title={m.containers_action_browse_files()}
+							title="Browse files"
 							class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 						>
 							<FolderOpen class="grid-action-icon grid-action-info text-muted-foreground hover:text-foreground" />
@@ -613,7 +614,7 @@
 						<button
 							type="button"
 							onclick={() => exportVolume(volume.name)}
-							title={m.volumes_action_export_title({ format: $appSettings.downloadFormat || 'tar' })}
+							title="Export volume as {$appSettings.downloadFormat || 'tar'}"
 							class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer {exportingVolume === volume.name ? 'animate-pulse' : ''}"
 							disabled={exportingVolume === volume.name}
 						>
@@ -624,7 +625,7 @@
 						<button
 							type="button"
 							onclick={() => cloneVolume(volume.name)}
-							title={m.volumes_clone_title()}
+							title="Clone volume"
 							class="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 						>
 							<Stamp class="grid-action-icon grid-action-edit text-muted-foreground hover:text-foreground" />
@@ -634,10 +635,10 @@
 						<div class="relative">
 							<ConfirmPopover
 								open={confirmDeleteName === volume.name}
-								action={m.common_delete()}
-								itemType={m.stacks_graph_legend_volume()}
+								action="Delete"
+								itemType="volume"
 								itemName={volume.name}
-								title={m.common_remove()}
+								title="Remove"
 								onConfirm={() => removeVolume(volume.name)}
 								onOpenChange={(open) => confirmDeleteName = open ? volume.name : null}
 							>

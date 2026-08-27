@@ -1,11 +1,10 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
 	// Trigger rebuild for debug logging changes
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Box, Images, HardDrive, Network, Cpu, Server, Crown, Building2, Layers, Clock, Code, Package, ExternalLink, Search, FileText, Tag, Sparkles, Bug, ChevronDown, ChevronRight, Plug, ScrollText, Shield, MessageSquarePlus, GitBranch, Coffee, Monitor, Cog, MemoryStick, Database, CircleArrowUp, Loader2, CheckCircle2 } from 'lucide-svelte';
+	import { Box, Images, HardDrive, Network, Cpu, Server, Crown, Building2, Layers, Clock, Code, Package, ExternalLink, Search, FileText, Tag, Sparkles, Bug, ChevronDown, ChevronRight, Plug, ScrollText, Shield, MessageSquarePlus, GitBranch, Coffee, Monitor, Cog, MemoryStick, Database, CircleArrowUp, Loader2, CheckCircle2, TriangleAlert } from 'lucide-svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { onMount, onDestroy } from 'svelte';
 	import { licenseStore } from '$lib/stores/license';
@@ -60,7 +59,7 @@
 
 	// Current version from git tag (injected at build time)
 	declare const __APP_VERSION__: string | null;
-	const currentVersion = __APP_VERSION__ || m.settings_selfupdate_unknown();
+	const currentVersion = __APP_VERSION__ || 'unknown';
 
 	const filteredDeps = $derived(
 		dependencies.filter(dep =>
@@ -72,10 +71,10 @@
 	async function fetchDependencies() {
 		try {
 			const res = await fetch('/api/dependencies');
-			if (!res.ok) throw new Error(m.settings_about_error_deps());
+			if (!res.ok) throw new Error('Failed to fetch dependencies');
 			dependencies = await res.json();
 		} catch (e) {
-			depsError = e instanceof Error ? e.message : m.stacks_git_modal_error_unknown();
+			depsError = e instanceof Error ? e.message : 'Unknown error';
 		} finally {
 			loadingDeps = false;
 		}
@@ -84,27 +83,27 @@
 	async function fetchChangelog() {
 		try {
 			const res = await fetch('/api/changelog');
-			if (!res.ok) throw new Error(m.settings_about_error_changelog());
+			if (!res.ok) throw new Error('Failed to fetch changelog');
 			changelog = await res.json();
 		} catch (e) {
-			changelogError = e instanceof Error ? e.message : m.stacks_git_modal_error_unknown();
+			changelogError = e instanceof Error ? e.message : 'Unknown error';
 		} finally {
 			loadingChangelog = false;
 		}
 	}
 
 	function formatChangelogDate(dateStr: string): string {
-		if (!dateStr) return m.settings_about_unreleased();
+		if (!dateStr) return 'Unreleased';
 		try {
 			const date = new Date(dateStr);
-			if (isNaN(date.getTime())) return m.settings_about_unreleased();
+			if (isNaN(date.getTime())) return 'Unreleased';
 			return date.toLocaleDateString('en-US', {
 				year: 'numeric',
 				month: 'long',
 				day: 'numeric'
 			});
 		} catch {
-			return m.settings_about_unreleased();
+			return 'Unreleased';
 		}
 	}
 
@@ -122,70 +121,69 @@
 	const BUILD_BRANCH = __BUILD_BRANCH__ ?? null;
 
 	const TAGLINES = [
-	m.settings_about_tagline_01(),
-	m.settings_about_tagline_02(),
-	m.settings_about_tagline_03(),
-	m.settings_about_tagline_04(),
-	m.settings_about_tagline_05(),
-	m.settings_about_tagline_06(),
-	m.settings_about_tagline_07(),
-	m.settings_about_tagline_08(),
-	m.settings_about_tagline_09(),
-	m.settings_about_tagline_10(),
-	m.settings_about_tagline_11(),
-	m.settings_about_tagline_12(),
-	m.settings_about_tagline_01(),
-	m.settings_about_tagline_13(),
-	m.settings_about_tagline_14(),
-	m.settings_about_tagline_15(),
-	m.settings_about_tagline_16(),
-	m.settings_about_tagline_17(),
-	m.settings_about_tagline_18(),
-	m.settings_about_tagline_19(),
-	m.settings_about_tagline_20(),
-	m.settings_about_tagline_21(),
-	m.settings_about_tagline_22(),
-	m.settings_about_tagline_23(),
-	m.settings_about_tagline_24(),
-	m.settings_about_tagline_25(),
-	m.settings_about_tagline_26(),
-	m.settings_about_tagline_27(),
-	m.settings_about_tagline_28(),
-	m.settings_about_tagline_29(),
-	m.settings_about_tagline_30(),
-	m.settings_about_tagline_31(),
-	m.settings_about_tagline_32(),
-	m.settings_about_tagline_33(),
-	m.settings_about_tagline_34(),
-	m.settings_about_tagline_35(),
-	m.settings_about_tagline_36(),
-	m.settings_about_tagline_37(),
-	m.settings_about_tagline_38(),
-	m.settings_about_tagline_39(),
-	m.settings_about_tagline_40(),
-	m.settings_about_tagline_41(),
-	m.settings_about_tagline_42(),
-	m.settings_about_tagline_43(),
-	m.settings_about_tagline_44(),
-	m.settings_about_tagline_45(),
-	m.settings_about_tagline_46(),
-	m.settings_about_tagline_47(),
-	m.settings_about_tagline_48(),
-	m.settings_about_tagline_49(),
-	m.settings_about_tagline_50(),
-	m.settings_about_tagline_51(),
-	m.settings_about_tagline_52(),
-	m.settings_about_tagline_53(),
-	m.settings_about_tagline_54(),
-	m.settings_about_tagline_55(),
-	m.settings_about_tagline_56(),
-	m.settings_about_tagline_57(),
-	m.settings_about_tagline_58(),
-	m.settings_about_tagline_59(),
-	m.settings_about_tagline_60(),
-	m.settings_about_tagline_61(),
-	m.settings_about_tagline_62(),
-];
+		"Simplify. Deploy. Smile.",
+		"Less typing. More shipping.",
+		"Taming containers so you don't have to wrestle whales.",
+		"Docker management, minus the sea monsters.",
+		"Because wrangling containers shouldn't feel like open-heart surgery.",
+		"One interface to rule your containers (and your sanity).",
+		"CLI fatigue is real. We treat it.",
+		"Automate, orchestrate, hydrate — we handle the first two.",
+		"Turning docker ps into pure bliss.",
+		"Your API deserves better than bash therapy.",
+		"Where DevOps takes a deep breath.",
+		"Zero friction. Just containers.",
+		"Simplify. Deploy. Smile.",
+		"Because even the whale needs a handler.",
+		"From chaos to compose — elegantly.",
+		"No sea-sickness. Just smooth shipping.",
+		"Your Docker daemon's spirit guide.",
+		"Stop speaking whale. Start managing Docker like a human.",
+		"Because docker ps shouldn't be a lifestyle.",
+		"Your containers deserve better than shell scripts and stress.",
+		"We make your Docker behave — no magic flags required.",
+		"From jumbled YAMLs to zen-like order.",
+		"When your containers listen the first time.",
+		"Control the chaos, skip the CLI yoga.",
+		"Docker wrangling for the rest of us.",
+		"Making containers civilized since version 1.0.",
+		"Less whale-wrestling, more shipping.",
+		"Calm seas for every deployment.",
+		"No drama, just Docker.",
+		"Docker management, distilled.",
+		"Smooth orchestration. Zero overhead.",
+		"Build. Ship. Chill.",
+		"Think less. Deploy faster.",
+		"Total control — no keyboard acrobatics.",
+		"Because you've got better things to grep for.",
+		"No more container existential crises.",
+		"CLI fatigue? We prescribe automation.",
+		"One app to outsmart your bash history.",
+		"Making Docker less dockery since forever.",
+		"Because Docker shouldn't require a PhD in bash.",
+		"Your containers. Less chaos, more chill.",
+		"Stop copy-pasting the same docker ps | grep again.",
+		"Finally, a Docker UI that doesn't feel like punishment.",
+		"We speak fluent container, so you don't have to.",
+		"Bringing dignity back to Docker management.",
+		"For when you love Docker but hate Docker.",
+		"Automation for humans who still like buttons.",
+		"Taming your containers without taming your spirit.",
+		"No more whales in your workflow.",
+		"Keeping your containers in line since this morning.",
+		"Because every DevOps deserves a day off.",
+		"Serious about containers. Not about suffering.",
+		"Work smarter, not docker-harder.",
+		"Made for people who break prod responsibly.",
+		"Turning Docker discipline into an art form.",
+		"Your shortcut to shipping sanity.",
+		"Zero friction. Infinite containers.",
+		"Less yak-shaving, more image-pulling.",
+		"Because scripts age like milk.",
+		"CLI acrobatics are so 2020.",
+		"Containers behave. Developers rejoice.",
+		"Finally, a tool that respects your time and your terminal."
+	];
 
 	interface SystemInfo {
 		docker: {
@@ -296,7 +294,7 @@
 		try {
 			const response = await fetch('/api/self-update/check');
 			if (!response.ok) {
-				updateCheckError = m.settings_about_update_check_failed();
+				updateCheckError = 'Failed to check for updates';
 				return;
 			}
 
@@ -327,7 +325,7 @@
 				};
 			}
 		} catch (err) {
-			updateCheckError = m.settings_about_update_check_error_prefix() + String(err);
+			updateCheckError = 'Check failed: ' + String(err);
 		} finally {
 			checkingUpdate = false;
 		}
@@ -349,7 +347,7 @@
 	}
 
 	function formatBuildDate(dateStr: string | null): string {
-		if (!dateStr) return m.settings_about_development();
+		if (!dateStr) return 'Development';
 		try {
 			const date = new Date(dateStr);
 			return date.toLocaleDateString('en-US', {
@@ -418,7 +416,7 @@
 				fetch('/api/system'),
 				fetch('/api/host')
 			]);
-			if (!systemRes.ok) throw new Error(m.settings_about_error_system());
+			if (!systemRes.ok) throw new Error('Failed to fetch system info');
 			systemInfo = await systemRes.json();
 
 			if (hostRes.ok) {
@@ -426,7 +424,7 @@
 				serverUptime = hostData.uptime;
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : m.stacks_git_modal_error_unknown();
+			error = e instanceof Error ? e.message : 'Unknown error';
 		} finally {
 			loading = false;
 		}
@@ -468,13 +466,13 @@
 					<div class="animate-speedy {isJumping ? (clickCount >= 10 ? 'crazy-jumping' : `jumping-${jumpLevel}`) : ''} {hasClicked && !isJumping ? 'clicked' : ''}" onclick={handleLogoClick}>
 						<img
 							src="/logo-light.webp"
-							alt="{m.settings_about_logo_alt()}"
+							alt="Dockhand Logo"
 							class="h-36 w-auto object-contain dark:hidden"
 							style="filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.9));"
 						/>
 						<img
 							src="/logo-dark.webp"
-							alt="{m.settings_about_logo_alt()}"
+							alt="Dockhand Logo"
 							class="h-36 w-auto object-contain hidden dark:block"
 							style="filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.6)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.2));"
 						/>
@@ -490,32 +488,33 @@
 						<!-- Easter Egg Popup -->
 						{#if showEasterEgg}
 							<div class="easter-egg-popup">
-								{m.settings_about_easter_egg()}
+								Stop already, will you? Coming from r/selfhosted?
 							</div>
 						{/if}
 					</div>
 
 					<!-- Version Badge + Update Check -->
 					<div class="flex flex-col items-center gap-1">
-						<Badge variant="secondary" class="text-xs">{m.settings_about_version_label({ version: currentVersion })}</Badge>
+						<Badge variant="secondary" class="text-xs">Version {currentVersion}</Badge>
 						{#if checkingUpdate}
 							<span class="flex items-center gap-1 text-xs text-muted-foreground">
 								<Loader2 class="w-3.5 h-3.5 animate-spin" />
-								{m.settings_about_checking_updates()}
+								Checking for updates...
 							</span>
 						{:else if updateAvailable && updateInfo}
 							<button class="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400 transition-colors" onclick={() => showSelfUpdateDialog = true}>
 								<CircleArrowUp class="w-3.5 h-3.5" />
-								{m.settings_about_update_available()}
+								Update available — click to see what's new
 							</button>
 						{:else if updateCheckDone && !updateAvailable}
 							<button class="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 transition-colors" onclick={checkForUpdates}>
 								<CheckCircle2 class="w-3.5 h-3.5" />
-								{m.settings_about_up_to_date()}
+								Up to date
 							</button>
 						{:else if updateCheckError}
-							<button class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" onclick={checkForUpdates} title={updateCheckError}>
-								{m.containers_check_updates()}
+							<button class="flex items-center gap-1 text-xs text-foreground hover:text-muted-foreground transition-colors" onclick={checkForUpdates} title={updateCheckError}>
+								<TriangleAlert class="w-3.5 h-3.5 shrink-0" />
+								Update check unavailable — click to retry
 							</button>
 						{/if}
 					</div>
@@ -537,7 +536,7 @@
 						{#if serverUptime !== null}
 							<div class="flex items-center gap-1 min-w-[8.5rem]">
 								<Clock class="w-3 h-3 shrink-0" />
-								<span class="tabular-nums">{m.settings_about_uptime_label({ uptime: formatUptime(serverUptime) })}</span>
+								<span class="tabular-nums">Uptime {formatUptime(serverUptime)}</span>
 							</div>
 						{/if}
 					</div>
@@ -558,12 +557,12 @@
 		<!-- System Stats Card (Right) -->
 		<Card.Root class="w-full h-full">
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium">{m.settings_about_system_info()}</Card.Title>
+				<Card.Title class="text-sm font-medium">System information</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				{#if loading}
 					<div class="flex items-center justify-center py-6">
-						<div class="text-sm text-muted-foreground">{m.common_loading()}</div>
+						<div class="text-sm text-muted-foreground">Loading...</div>
 					</div>
 				{:else if error}
 					<div class="flex items-center justify-center py-6">
@@ -576,17 +575,17 @@
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
 								<Server class="w-3.5 h-3.5" />
-								{m.settings_about_docker()}
+								Docker
 							</div>
 							<div class="text-sm pl-5 space-y-0.5">
 								<div class="flex items-center gap-2">
-									<span class="text-muted-foreground">{m.container_batch_version()}</span>
+									<span class="text-muted-foreground">Version</span>
 									<span>{systemInfo.docker.version}</span>
 									<span class="text-muted-foreground/50">|</span>
-									<span class="text-muted-foreground">{m.settings_about_api()}</span>
+									<span class="text-muted-foreground">API</span>
 									<span>{systemInfo.docker.apiVersion}</span>
 									<span class="text-muted-foreground/50">|</span>
-									<span class="text-muted-foreground">{m.settings_about_os_arch()}</span>
+									<span class="text-muted-foreground">OS/Arch</span>
 									<span>{systemInfo.docker.os}/{systemInfo.docker.arch}</span>
 								</div>
 							</div>
@@ -596,23 +595,23 @@
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
 								<Plug class="w-3.5 h-3.5" />
-								{m.settings_env_col_connection()}
+								Connection
 							</div>
 							<div class="text-sm pl-5">
 								<div class="flex items-center gap-2 flex-wrap">
 									{#if systemInfo.docker.connection.type === 'socket'}
 										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-500/15 text-violet-600 dark:text-violet-400 shadow-sm ring-1 ring-violet-500/20">
-											{m.settings_about_unix_socket()}
+											Unix Socket
 										</span>
 										<span class="text-xs font-mono text-muted-foreground">{systemInfo.docker.connection.socketPath}</span>
 									{:else if systemInfo.docker.connection.type === 'https'}
 										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-600 dark:text-green-400 shadow-sm ring-1 ring-green-500/20">
-											{m.settings_about_https_tls()}
+											HTTPS (TLS)
 										</span>
 										<span class="text-xs font-mono text-muted-foreground">{systemInfo.docker.connection.host}:{systemInfo.docker.connection.port}</span>
 									{:else}
 										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400 shadow-sm ring-1 ring-amber-500/20">
-											{m.settings_about_http()}
+											HTTP
 										</span>
 										<span class="text-xs font-mono text-muted-foreground">{systemInfo.docker.connection.host}:{systemInfo.docker.connection.port}</span>
 									{/if}
@@ -624,17 +623,17 @@
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
 								<Cpu class="w-3.5 h-3.5" />
-								{m.settings_env_modal_host()}
+								Host
 							</div>
 							<div class="text-sm pl-5">
 								<div class="flex items-center gap-2">
-									<span class="text-muted-foreground">{m.common_name()}</span>
+									<span class="text-muted-foreground">Name</span>
 									<span>{systemInfo.host.name}</span>
 									<span class="text-muted-foreground/50">|</span>
-									<span class="text-muted-foreground">{m.container_inspect_cpus()}</span>
+									<span class="text-muted-foreground">CPUs</span>
 									<span>{systemInfo.host.cpus}</span>
 									<span class="text-muted-foreground/50">|</span>
-									<span class="text-muted-foreground">{m.common_memory()}</span>
+									<span class="text-muted-foreground">Memory</span>
 									<span>{formatBytes(systemInfo.host.memory)}</span>
 								</div>
 							</div>
@@ -645,7 +644,7 @@
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
 								<Cpu class="w-3.5 h-3.5" />
-								{m.container_inspect_runtime()}
+								Runtime
 							</div>
 							<div class="text-sm pl-5">
 								<div class="flex items-center gap-2 flex-wrap">
@@ -667,7 +666,7 @@
 								{#if systemInfo.runtime.container.inContainer}
 								<div class="flex items-center gap-2 flex-wrap mt-1">
 									<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-blue-500/20">
-										{systemInfo.runtime.container.runtime || m.container_create_tab_container()}
+										{systemInfo.runtime.container.runtime || 'Container'}
 									</span>
 									{#if systemInfo.runtime.ownContainer}
 										<span class="text-xs font-mono text-muted-foreground">{systemInfo.runtime.ownContainer.image}</span>
@@ -686,7 +685,7 @@
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
 								<Database class="w-3.5 h-3.5" />
-								{m.settings_about_database()}
+								Database
 							</div>
 							<div class="text-sm pl-5 space-y-1">
 								<div class="flex items-center gap-2 flex-wrap">
@@ -706,7 +705,7 @@
 								</div>
 								{#if systemInfo.database.schemaVersion}
 									<div class="flex items-center gap-2">
-										<span class="text-muted-foreground">{m.settings_about_schema()}</span>
+										<span class="text-muted-foreground">Schema</span>
 										<span class="font-mono text-xs">{systemInfo.database.schemaVersion}</span>
 										{#if systemInfo.database.schemaDate}
 											<span class="text-muted-foreground/60 text-xs">({systemInfo.database.schemaDate})</span>
@@ -726,56 +725,55 @@
 								{:else}
 									<Crown class="w-3.5 h-3.5" />
 								{/if}
-								{m.settings_tab_license()}
+								License
 							</div>
 							<div class="text-sm pl-5">
 								<div class="flex items-center gap-2 flex-wrap">
-									<span class="text-muted-foreground">{m.settings_about_edition()}</span>
+									<span class="text-muted-foreground">Edition</span>
 									{#if $licenseStore.licenseType === 'enterprise'}
 										<span class="text-amber-500 font-medium flex items-center gap-1">
 											<Crown class="w-3.5 h-3.5 fill-current" />
-											{m.command_palette_group_enterprise()}
+											Enterprise
 										</span>
 									{:else if $licenseStore.licenseType === 'smb'}
 										<span class="text-blue-500 font-medium flex items-center gap-1">
 											<Building2 class="w-3.5 h-3.5" />
-											{m.settings_about_license_smb()}
+											SMB
 										</span>
 									{:else}
-										<span>{m.settings_about_license_community()}</span>
+										<span>Community</span>
 									{/if}
 									{#if $licenseStore.isLicensed && $licenseStore.licensedTo}
 										<span class="text-muted-foreground/50">|</span>
-										<span class="text-muted-foreground">{m.settings_about_licensed_to()}</span>
+										<span class="text-muted-foreground">Licensed to</span>
 										<span>{$licenseStore.licensedTo}</span>
 									{/if}
 									<span class="text-muted-foreground/50">|</span>
-									<button class="text-primary hover:underline cursor-pointer" onclick={() => showLicenseModal = true}>{m.settings_about_terms()}</button>
+									<button class="text-primary hover:underline cursor-pointer" onclick={() => showLicenseModal = true}>Terms</button>
 									<span class="text-muted-foreground/50">|</span>
-									<button class="text-primary hover:underline cursor-pointer" onclick={() => showPrivacyModal = true}>{m.settings_about_privacy()}</button>
+									<button class="text-primary hover:underline cursor-pointer" onclick={() => showPrivacyModal = true}>Privacy</button>
 								</div>
 								<div class="flex items-center gap-2 flex-wrap mt-3 pt-2 border-t border-border/50">
 									<a href="https://github.com/Finsys/dockhand/issues" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline inline-flex items-center gap-1.5 font-medium">
 										<MessageSquarePlus class="w-4 h-4" />
-										{m.settings_about_submit_issue()}
+										Submit issue or idea
 									</a>
 									<span class="text-muted-foreground/50">|</span>
 									<a href="https://discord.gg/rMxW9Y5cQw" target="_blank" rel="noopener noreferrer" class="hover:underline inline-flex items-center gap-1.5 font-medium text-indigo-500 dark:text-indigo-400">
 										<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-										{m.settings_about_discord()}
+										Discord
 									</a>
 									{#if !$licenseStore.isLicensed}
 										<span class="text-muted-foreground/50">|</span>
 										<a href="https://buymeacoffee.com/dockhand" target="_blank" rel="noopener noreferrer" class="hover:underline inline-flex items-center gap-1.5 font-medium text-amber-600 dark:text-yellow-400">
 											<Coffee class="w-4 h-4" />
-											{m.settings_about_buy_coffee()}
+											Buy me a coffee
 										</a>
 									{/if}
 								</div>
 								{#if !$licenseStore.isLicensed}
-									<p class="text-xs text-muted-foreground mt-2">{m.settings_about_community_desc()}</p>
+									<p class="text-xs text-muted-foreground mt-2">Dockhand Community Edition is free and always will be. No strings attached. Like it? Fuel the dev with caffeine.</p>
 								{/if}
-								<p class="text-xs text-muted-foreground mt-1">{m.settings_about_translator_credit({ name: 'Tan Json' })}</p>
 							</div>
 						</div>
 
@@ -787,35 +785,35 @@
 									<Box class="w-4 h-4 text-blue-500" />
 								</div>
 								<div class="text-lg font-bold">{systemInfo.stats.containers.total}</div>
-								<div class="text-2xs text-muted-foreground font-medium">{m.common_containers()}</div>
+								<div class="text-2xs text-muted-foreground font-medium">Containers</div>
 							</div>
 							<div class="stat-box stat-box-cyan">
 								<div class="stat-icon-wrapper bg-cyan-500/10">
 									<Layers class="w-4 h-4 text-cyan-500" />
 								</div>
 								<div class="text-lg font-bold">{systemInfo.stats.stacks}</div>
-								<div class="text-2xs text-muted-foreground font-medium">{m.sidebar_stacks()}</div>
+								<div class="text-2xs text-muted-foreground font-medium">Stacks</div>
 							</div>
 							<div class="stat-box stat-box-purple">
 								<div class="stat-icon-wrapper bg-purple-500/10">
 									<Images class="w-4 h-4 text-purple-500" />
 								</div>
 								<div class="text-lg font-bold">{systemInfo.stats.images}</div>
-								<div class="text-2xs text-muted-foreground font-medium">{m.sidebar_images()}</div>
+								<div class="text-2xs text-muted-foreground font-medium">Images</div>
 							</div>
 							<div class="stat-box stat-box-green">
 								<div class="stat-icon-wrapper bg-green-500/10">
 									<HardDrive class="w-4 h-4 text-green-500" />
 								</div>
 								<div class="text-lg font-bold">{systemInfo.stats.volumes}</div>
-								<div class="text-2xs text-muted-foreground font-medium">{m.sidebar_volumes()}</div>
+								<div class="text-2xs text-muted-foreground font-medium">Volumes</div>
 							</div>
 							<div class="stat-box stat-box-orange">
 								<div class="stat-icon-wrapper bg-orange-500/10">
 									<Network class="w-4 h-4 text-orange-500" />
 								</div>
 								<div class="text-lg font-bold">{systemInfo.stats.networks}</div>
-								<div class="text-2xs text-muted-foreground font-medium">{m.sidebar_networks()}</div>
+								<div class="text-2xs text-muted-foreground font-medium">Networks</div>
 							</div>
 						</div>
 						{/if}
@@ -832,12 +830,12 @@
 				<Tabs.List class="w-full grid grid-cols-2">
 					<Tabs.Trigger value="releases" class="flex items-center gap-2">
 						<FileText class="w-4 h-4" />
-						<span>{m.settings_about_release_notes()}</span>
+						<span>Release notes</span>
 						<Badge variant="secondary" class="text-2xs">{changelog.length}</Badge>
 					</Tabs.Trigger>
 					<Tabs.Trigger value="dependencies" class="flex items-center gap-2">
 						<Package class="w-4 h-4" />
-						<span>{m.settings_about_dependencies()}</span>
+						<span>Dependencies</span>
 						<Badge variant="secondary" class="text-2xs">{dependencies.length}</Badge>
 					</Tabs.Trigger>
 				</Tabs.List>
@@ -846,14 +844,14 @@
 			<Tabs.Content value="releases" class="px-4 pb-4">
 				{#if loadingChangelog}
 					<div class="flex items-center justify-center py-8">
-						<div class="text-sm text-muted-foreground">{m.settings_about_loading_releases()}</div>
+						<div class="text-sm text-muted-foreground">Loading releases...</div>
 					</div>
 				{:else if changelogError}
 					<div class="flex items-center justify-center py-8">
 						<div class="text-sm text-destructive">{changelogError}</div>
 					</div>
 				{:else}
-					<div class="space-y-2 max-h-[400px] overflow-y-auto">
+					<div class="space-y-2 max-h-[400px] overflow-y-auto pr-2">
 						{#each changelog as release, index}
 							{@const isExpanded = expandedReleases.has(index)}
 							<div class="border rounded-lg {index === 0 ? 'border-primary/30 bg-primary/5' : ''}">
@@ -872,9 +870,9 @@
 										<Tag class="w-4 h-4 text-primary" />
 										<span class="font-semibold">v{release.version}</span>
 										{#if index === 0}
-											<Badge variant="default" class="text-2xs">{m.settings_env_modal_scanner_latest()}</Badge>
+											<Badge variant="default" class="text-2xs">Latest</Badge>
 										{/if}
-										<Badge variant="secondary" class="text-2xs">{m.settings_about_changes_count({ count: release.changes.length, plural: release.changes.length !== 1 ? 's' : '' })}</Badge>
+										<Badge variant="secondary" class="text-2xs">{release.changes.length} changes</Badge>
 									</div>
 									<span class="text-xs text-muted-foreground">{formatChangelogDate(release.date)}</span>
 								</div>
@@ -886,12 +884,12 @@
 													{#if change.type === 'feature'}
 														<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
 															<Sparkles class="w-3 h-3" />
-															{m.common_new()}
+															New
 														</span>
 													{:else if change.type === 'fix'}
 														<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
 															<Bug class="w-3 h-3" />
-															{m.common_fix()}
+															Fix
 														</span>
 													{/if}
 													<ChangelogText text={change.text} />
@@ -915,7 +913,7 @@
 						<Search class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
 						<Input
 							type="text"
-							placeholder={m.settings_about_search_deps()}
+							placeholder="Search packages or licenses..."
 							class="h-7 text-xs pl-7"
 							bind:value={depsSearch}
 						/>
@@ -923,7 +921,7 @@
 				</div>
 				{#if loadingDeps}
 					<div class="flex items-center justify-center py-8">
-						<div class="text-sm text-muted-foreground">{m.settings_about_loading_dependencies()}</div>
+						<div class="text-sm text-muted-foreground">Loading dependencies...</div>
 					</div>
 				{:else if depsError}
 					<div class="flex items-center justify-center py-8">
@@ -932,12 +930,12 @@
 				{:else}
 					<div class="space-y-1">
 						<div class="grid grid-cols-[1fr_auto_auto_auto] gap-2 text-2xs font-medium text-muted-foreground px-2 py-1 border-b">
-							<div>{m.container_batch_package()}</div>
-							<div class="w-20 text-center">{m.container_batch_version()}</div>
-							<div class="w-24 text-center">{m.settings_tab_license()}</div>
+							<div>Package</div>
+							<div class="w-20 text-center">Version</div>
+							<div class="w-24 text-center">License</div>
 							<div class="w-8"></div>
 						</div>
-						<div class="max-h-[300px] overflow-y-auto">
+						<div class="max-h-[300px] overflow-y-auto pr-2">
 							{#each filteredDeps as dep}
 								<div class="grid grid-cols-[1fr_auto_auto_auto] gap-2 text-xs px-2 py-1.5 hover:bg-muted/50 rounded items-center">
 									<div class="font-mono text-[11px] truncate" title={dep.name}>{dep.name}</div>
@@ -954,7 +952,7 @@
 												target="_blank"
 												rel="noopener noreferrer"
 												class="text-muted-foreground hover:text-foreground transition-colors"
-												title={m.settings_about_view_github()}
+												title="View on GitHub"
 											>
 												<ExternalLink class="w-3.5 h-3.5" />
 											</a>

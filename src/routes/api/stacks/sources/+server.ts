@@ -3,6 +3,13 @@ import type { RequestHandler } from './$types';
 import { getStackSources } from '$lib/server/db';
 import { authorize } from '$lib/server/authorize';
 
+/**
+ * @openapi
+ * summary: List stack source records (their stored compose/env paths and source type)
+ * query: env:integer Filter to a single environment id
+ * resp-403: Permission denied (needs stacks:view)
+ * resp-500: Failed to list stack sources
+ */
 export const GET: RequestHandler = async ({ url, cookies }) => {
 	const auth = await authorize(cookies);
 
@@ -18,12 +25,23 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 		const sources = await getStackSources(envIdNum);
 
 		// Convert to a map for easier lookup in the frontend
-		const sourceMap: Record<string, { sourceType: string; composePath?: string | null; repository?: any }> = {};
+		const sourceMap: Record<
+			string,
+			{
+				sourceType: string;
+				composePath?: string | null;
+				repository?: any;
+				secretProviderId?: number | null;
+				icon?: string | null;
+			}
+		> = {};
 		for (const source of sources) {
 			sourceMap[source.stackName] = {
 				sourceType: source.sourceType,
 				composePath: source.composePath,
-				repository: source.repository
+				repository: source.repository,
+				secretProviderId: source.secretProviderId,
+				icon: source.icon ?? null,
 			};
 		}
 

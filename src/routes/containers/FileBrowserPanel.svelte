@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { readJobResponse } from '$lib/utils/sse-fetch';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -38,8 +39,8 @@
 		TextCursorInput
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { LoadingState } from '$lib/components/ui/loading-state';
 	import { formatDateTime, appSettings } from '$lib/stores/settings';
-	import * as m from '$lib/paraglide/messages';
 
 	interface FileEntry {
 		name: string;
@@ -53,7 +54,7 @@
 		readonly?: boolean;
 	}
 
-	type BrowserMode = 'container' | 'volume';
+	type BrowserMode = 'container' | 'volume' | 'snapshot';
 	type SortField = 'name' | 'size' | 'modified' | 'type';
 	type SortDirection = 'asc' | 'desc';
 
@@ -76,6 +77,9 @@
 		selectFilter?: RegExp;
 		// Callback when a file is selected (in selectMode)
 		onFileSelect?: (path: string, name: string) => void;
+		// Snapshot browsing mode
+		snapshotId?: string;
+		destinationId?: number;
 	}
 
 	let {
@@ -87,7 +91,9 @@
 		onUsageChange,
 		selectMode = false,
 		selectFilter,
-		onFileSelect
+		onFileSelect,
+		snapshotId,
+		destinationId
 	}: Props = $props();
 
 	// For volume mode, track whether volume is in use (controls editing ability)
@@ -97,12 +103,28 @@
 	let volumeHelperId = $state<string | null>(null);
 
 	// Determine mode based on which prop is provided
-	const mode: BrowserMode = $derived(volumeName ? 'volume' : 'container');
+	const mode: BrowserMode = $derived(snapshotId ? 'snapshot' : volumeName ? 'volume' : 'container');
 	const isVolumeMode = $derived(mode === 'volume');
+	const isSnapshotMode = $derived(mode === 'snapshot');
 
-	// Effective canEdit: for containers, use the prop; for volumes, only allow if not in use
+	// In a snapshot, the stack dir rides a reserved volume key; show it by what it holds,
+	// not the raw internal key. Navigation still uses the real name.
+	function displayEntryName(name: string): string {
+		if (isSnapshotMode && name === '__dockhand_stackdir__') return 'Stack files (compose, config)';
+		return name;
+	}
+
+	// A raw download of the snapshot's metadata.json is refused server-side (403) — it carries
+	// secrets and must only leave through the redacting metadata endpoint. So don't offer a
+	// download button that would always fail; the file is still previewable (redacted).
+	function canDownloadEntry(entry: FileEntry): boolean {
+		if (!isSnapshotMode) return true;
+		return !(entry.name === 'metadata.json' && (currentPath === '/metadata' || currentPath === '/metadata/'));
+	}
+
+	// Effective canEdit: snapshots are always read-only; volumes only if not in use
 	const effectiveCanEdit = $derived(
-		isVolumeMode ? (canEdit && !volumeIsInUse) : canEdit
+		isSnapshotMode ? false : isVolumeMode ? (canEdit && !volumeIsInUse) : canEdit
 	);
 
 	// Effective container ID for file operations (use helper container for volume mode)
@@ -146,6 +168,11 @@
 	// Editor/Viewer state
 	let editingFile = $state<{ name: string; path: string; content: string } | null>(null);
 	let viewingFile = $state<{ name: string; path: string; content: string } | null>(null);
+	// Preview-only loading flag (distinct from loadingFile, which also covers
+	// edit/download): drives the "Loading preview…" overlay so a slow restic dump
+	// from a remote repo (B2/S3) shows immediate feedback in-place.
+	let loadingPreview = $state(false);
+	let previewingName = $state('');
 	let editorContent = $state('');
 	let loadingFile = $state(false);
 	// True when the editor buffer differs from the loaded file (unsaved changes).
@@ -369,21 +396,32 @@
 	async function openFileForView(entry: FileEntry) {
 		const filePath = currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`;
 		loadingFile = true;
+		loadingPreview = true;
+		previewingName = entry.name;
 
 		try {
-			const params = new URLSearchParams({ path: filePath });
-			if (envId) params.set('env', envId.toString());
-
 			let res: Response;
-			if (isVolumeMode) {
-				res = await fetch(`/api/volumes/${encodeURIComponent(volumeName!)}/browse/content?${params}`);
+			let data: any;
+			if (isSnapshotMode) {
+				const params = new URLSearchParams({ destinationId: String(destinationId), path: filePath });
+				// Job-polling (readJobResponse) so a slow `restic dump` behind a proxy isn't aborted at ~15s.
+				res = await fetch(`/api/backup/snapshots/${snapshotId}/dump?${params}`, {
+					headers: { Accept: 'text/event-stream' }
+				});
+				data = await readJobResponse(res);
+				if (data?.error) throw new Error(data.error);
 			} else {
-				res = await fetch(`/api/containers/${effectiveContainerId}/files/content?${params}`);
-			}
-			const data = await res.json();
-
-			if (!res.ok) {
-				throw new Error(data.error || 'Failed to read file');
+				const params = new URLSearchParams({ path: filePath });
+				if (envId) params.set('env', envId.toString());
+				if (isVolumeMode) {
+					res = await fetch(`/api/volumes/${encodeURIComponent(volumeName!)}/browse/content?${params}`);
+				} else {
+					res = await fetch(`/api/containers/${effectiveContainerId}/files/content?${params}`);
+				}
+				data = await res.json();
+				if (!res.ok) {
+					throw new Error(data.error || 'Failed to read file');
+				}
 			}
 
 			viewingFile = {
@@ -395,6 +433,7 @@
 			toast.error(err.message || 'Failed to open file');
 		} finally {
 			loadingFile = false;
+			loadingPreview = false;
 		}
 	}
 
@@ -705,7 +744,15 @@
 			let res: Response;
 			let data: any;
 
-			if (isVolumeMode) {
+			if (isSnapshotMode) {
+				const snapshotParams = new URLSearchParams({ destinationId: String(destinationId), path });
+				// Job-polling (readJobResponse) so a slow `restic ls` behind a proxy isn't aborted at ~15s.
+				res = await fetch(`/api/backup/snapshots/${snapshotId}/browse?${snapshotParams}`, { headers: { Accept: 'text/event-stream' } });
+				data = await readJobResponse(res);
+				// A jobified error comes back as { error } with HTTP 200, so surface it explicitly
+				// (the shared `if (!res.ok)` gate below can't see it).
+				if (data?.error) throw new Error(data.error);
+			} else if (isVolumeMode) {
 				res = await fetch(`/api/volumes/${encodeURIComponent(volumeName!)}/browse?${params}`);
 				data = await res.json();
 
@@ -739,7 +786,26 @@
 			}
 
 			currentPath = data.path || path;
-			entries = data.entries || [];
+			// Map snapshot entries to match FileEntry interface
+			if (isSnapshotMode) {
+				// restic ls --json gives permissions as a 10-char ls string
+				// ("-rw-------": leading type char + 9 rwx). permissionsToOctal wants
+				// the 9 rwx chars, so drop the leading type char. Owner/group come as
+				// user/group names when the source had /etc/passwd, else numeric uid/gid.
+				entries = (data.entries || []).map((e: any) => ({
+					name: e.name,
+					type: e.type === 'dir' ? 'directory' : e.type,
+					size: e.size || 0,
+					permissions: typeof e.permissions === 'string' && e.permissions.length >= 10
+						? e.permissions.slice(1)
+						: '',
+					owner: e.user || (e.uid != null ? String(e.uid) : ''),
+					group: e.group || (e.gid != null ? String(e.gid) : ''),
+					modified: e.mtime || ''
+				}));
+			} else {
+				entries = data.entries || [];
+			}
 		} catch (err: any) {
 			error = err.message;
 			entries = [];
@@ -779,17 +845,20 @@
 	function downloadFile(entry: FileEntry) {
 		const filePath =
 			currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`;
-		const params = new URLSearchParams({
-			path: filePath,
-			format: $appSettings.downloadFormat
-		});
-		if (envId) params.set('env', envId.toString());
 
 		let url: string;
-		if (isVolumeMode) {
-			url = `/api/volumes/${encodeURIComponent(volumeName!)}/export?${params}`;
+		if (isSnapshotMode) {
+			const params = new URLSearchParams({ destinationId: String(destinationId), path: filePath, download: '1' });
+			if (entry.type === 'directory') params.set('type', 'directory');
+			url = `/api/backup/snapshots/${snapshotId}/dump?${params}`;
 		} else {
-			url = `/api/containers/${effectiveContainerId}/files/download?${params}`;
+			const params = new URLSearchParams({ path: filePath, format: $appSettings.downloadFormat });
+			if (envId) params.set('env', envId.toString());
+			if (isVolumeMode) {
+				url = `/api/volumes/${encodeURIComponent(volumeName!)}/export?${params}`;
+			} else {
+				url = `/api/containers/${effectiveContainerId}/files/download?${params}`;
+			}
 		}
 		window.open(url, '_blank');
 	}
@@ -842,8 +911,24 @@
 		return currentPath.split('/').filter(Boolean);
 	});
 
+	// Track all identity props so the effect re-fires when they change
 	$effect(() => {
-		loadDirectory(initialPath);
+		// Read reactive values to establish dependencies
+		const _mode = mode;
+		const _snap = snapshotId;
+		const _dest = destinationId;
+		const _cont = containerId;
+		const _vol = volumeName;
+		const _path = initialPath;
+
+		// Guard: don't load if required props for the mode are missing
+		if (_mode === 'snapshot' && (!_snap || !_dest)) return;
+		if (_mode === 'container' && !_cont) return;
+
+		currentPath = _path;
+		entries = [];
+		error = null;
+		loadDirectory(_path);
 	});
 </script>
 
@@ -874,7 +959,7 @@
 					title={segment}
 					onclick={() => navigateTo('/' + pathSegments().slice(0, i + 1).join('/'))}
 				>
-					{segment}
+					{displayEntryName(segment)}
 				</button>
 			{/each}
 		</div>
@@ -886,7 +971,7 @@
 				size="icon"
 				class="h-7 w-7"
 				onclick={() => { createType = 'file'; createName = ''; showCreateModal = true; }}
-				title={m.container_files_new_file()}
+				title="New file"
 			>
 				<FilePlus class="w-3.5 h-3.5" />
 			</Button>
@@ -895,7 +980,7 @@
 				size="icon"
 				class="h-7 w-7"
 				onclick={() => { createType = 'directory'; createName = ''; showCreateModal = true; }}
-				title={m.container_files_new_directory()}
+				title="New directory"
 			>
 				<FolderPlus class="w-3.5 h-3.5" />
 			</Button>
@@ -912,7 +997,7 @@
 				class="h-7 w-7"
 				onclick={() => fileInput.click()}
 				disabled={uploading || loading}
-				title={m.container_files_upload_files()}
+				title="Upload files"
 			>
 				{#if uploading}
 					<Loader2 class="w-3.5 h-3.5 animate-spin" />
@@ -926,7 +1011,7 @@
 			size="icon"
 			class="h-7 w-7"
 			onclick={toggleHiddenFiles}
-			title={showHiddenFiles ? m.container_files_hide_hidden() : m.container_files_show_hidden()}
+			title={showHiddenFiles ? 'Hide hidden files' : 'Show hidden files'}
 		>
 			{#if showHiddenFiles}
 				<Eye class="w-3.5 h-3.5" />
@@ -940,7 +1025,7 @@
 			class="h-7 w-7"
 			onclick={() => loadDirectory(currentPath)}
 			disabled={loading}
-			title={m.container_files_refresh()}
+			title="Refresh"
 		>
 			<RefreshCw class="w-3.5 h-3.5 {loading ? 'animate-spin' : ''}" />
 		</Button>
@@ -949,29 +1034,30 @@
 	<!-- File list -->
 	<div class="flex-1 overflow-auto relative">
 		{#if loading}
-			<div class="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-				<Loader2 class="w-5 h-5 animate-spin mr-2 text-muted-foreground" />
-				<span class="text-sm text-muted-foreground">{m.container_files_loading()}</span>
-			</div>
+			<LoadingState class="absolute inset-0 z-10 bg-background/80" label="Loading files..." />
 		{/if}
 		{#if error}
 			<div class="flex items-center justify-center p-4 h-full">
 				<div class="max-w-md bg-destructive/5 border border-destructive/20 rounded-lg p-4 text-center">
 					<AlertCircle class="w-6 h-6 text-destructive mx-auto" />
-					<p class="text-sm font-medium text-destructive mt-2">{m.container_files_unable_browse()}</p>
+					<p class="text-sm font-medium text-destructive mt-2">Unable to browse files</p>
 					<p class="text-xs text-muted-foreground mt-2 break-words font-mono bg-muted/50 rounded px-2 py-1.5">{error}</p>
 					<Button variant="outline" size="sm" class="mt-3" onclick={() => loadDirectory(currentPath)}>
-						{m.container_files_retry()}
+						Retry
 					</Button>
 				</div>
 			</div>
 		{:else if !loading && displayEntries().length === 0}
 			<div class="flex items-center justify-center h-32 text-muted-foreground">
-				<span class="text-sm">{showHiddenFiles ? m.container_files_empty() : m.container_files_no_visible()}</span>
+				<span class="text-sm">{showHiddenFiles ? 'Directory is empty' : 'No visible files (hidden files are hidden)'}</span>
 			</div>
 		{:else if displayEntries().length > 0}
-			<Table.Root class="text-xs">
-				<Table.Header>
+			<!-- Bare <table>, not Table.Root: Table.Root wraps the table in an
+			     overflow-x-auto div that becomes the sticky scroll context, so the
+			     sticky <thead> would anchor to that non-scrolling wrapper instead of
+			     the flex-1 overflow-auto above and never stick. Same pattern DataGrid uses. -->
+			<table class="w-full caption-bottom text-sm text-xs">
+				<Table.Header class="sticky top-0 z-10 bg-background">
 					<Table.Row>
 						<Table.Head class="w-[35%] py-1.5 text-xs font-medium">
 							<button type="button" class="flex items-center gap-1 hover:text-foreground" onclick={() => toggleSort('name')}>
@@ -985,8 +1071,11 @@
 								<svelte:component this={getSortIcon('size')} class="w-3 h-3 opacity-50" />
 							</button>
 						</Table.Head>
-						<Table.Head class="w-[18%] py-1.5 text-xs font-medium">
-							<span class="text-muted-foreground">{m.container_files_permissions()}</span>
+						<Table.Head class="w-[14%] py-1.5 text-xs font-medium">
+							<span class="text-muted-foreground">Permissions</span>
+						</Table.Head>
+						<Table.Head class="w-[12%] py-1.5 text-xs font-medium">
+							<span class="text-muted-foreground">Owner</span>
 						</Table.Head>
 						<Table.Head class="w-[14%] py-1.5 text-xs font-medium">
 							<button type="button" class="flex items-center gap-1 hover:text-foreground" onclick={() => toggleSort('modified')}>
@@ -994,7 +1083,7 @@
 								<svelte:component this={getSortIcon('modified')} class="w-3 h-3 opacity-50" />
 							</button>
 						</Table.Head>
-						<Table.Head class="w-[25%] py-1.5 text-xs font-medium text-right">{m.common_actions()}</Table.Head>
+						<Table.Head class="w-[21%] py-1.5 text-xs font-medium text-right">Actions</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -1012,14 +1101,16 @@
 									onclick={() => handleEntryClick(entry)}
 								>
 									<Icon
-										class="w-3.5 h-3.5 shrink-0 {entry.type === 'directory'
-											? 'text-blue-500'
-											: entry.type === 'symlink'
-												? 'text-purple-500'
-												: 'text-muted-foreground'}"
+										class="w-3.5 h-3.5 shrink-0 {isSnapshotMode && entry.name === '__dockhand_stackdir__'
+											? 'text-amber-500'
+											: entry.type === 'directory'
+												? 'text-blue-500'
+												: entry.type === 'symlink'
+													? 'text-purple-500'
+													: 'text-muted-foreground'}"
 									/>
 									<span class="truncate" title={entry.name}>
-										{entry.name}
+										{displayEntryName(entry.name)}
 										{#if entry.type === 'symlink' && entry.linkTarget}
 											<span class="text-muted-foreground ml-1">
 												→ {entry.linkTarget}
@@ -1029,7 +1120,7 @@
 									{#if entry.readonly && entry.type === 'file'}
 										<span
 											class="inline-flex items-center gap-0.5 ml-1.5 px-1 py-0.5 text-2xs bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded"
-											title={m.container_files_readonly_tooltip()}
+											title="Read-only file (no write permission)"
 										>
 											<Lock class="w-2.5 h-2.5" />
 											RO
@@ -1040,9 +1131,16 @@
 							<Table.Cell class="text-muted-foreground py-1">
 								{entry.type === 'directory' ? '-' : formatSize(entry.size)}
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-1 font-mono text-2xs">
+							<Table.Cell class="text-muted-foreground py-1 font-mono text-xs">
 								<span title={entry.permissions}>{permissionsToOctal(entry.permissions)}</span>
 								<span class="ml-1 opacity-60">{entry.permissions}</span>
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-1 font-mono text-xs">
+								{#if entry.owner}
+									<span title={entry.group ? `${entry.owner}:${entry.group}` : entry.owner}>{entry.owner}{#if entry.group && entry.group !== entry.owner}<span class="opacity-60">:{entry.group}</span>{/if}</span>
+								{:else}
+									<span class="opacity-40">-</span>
+								{/if}
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground py-1">
 								{formatDate(entry.modified)}
@@ -1056,7 +1154,7 @@
 											class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
 											onclick={(e: MouseEvent) => { e.stopPropagation(); openFileForView(entry); }}
 											disabled={loadingFile}
-											title={m.container_files_view_file()}
+											title="View file"
 										>
 											<Eye class="w-3 h-3" />
 										</Button>
@@ -1085,7 +1183,7 @@
 											size="icon"
 											class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
 											onclick={(e: MouseEvent) => { e.stopPropagation(); openRenameModal(entry); }}
-											title={m.container_files_rename()}
+											title="Rename"
 										>
 											<TextCursorInput class="w-3 h-3" />
 										</Button>
@@ -1094,7 +1192,7 @@
 											size="icon"
 											class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
 											onclick={(e: MouseEvent) => { e.stopPropagation(); openChmodModal(entry); }}
-											title={m.container_files_change_permissions()}
+											title="Change permissions"
 										>
 											<Shield class="w-3 h-3" />
 										</Button>
@@ -1117,21 +1215,23 @@
 											{/snippet}
 										</ConfirmPopover>
 									{/if}
-									<Button
-										variant="ghost"
-										size="icon"
-										class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-										onclick={(e: MouseEvent) => { e.stopPropagation(); downloadFile(entry); }}
-										title={m.container_files_download()}
-									>
-										<Download class="w-3 h-3" />
-									</Button>
+									{#if canDownloadEntry(entry)}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+											onclick={(e: MouseEvent) => { e.stopPropagation(); downloadFile(entry); }}
+											title="Download"
+										>
+											<Download class="w-3 h-3" />
+										</Button>
+									{/if}
 								</div>
 							</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
-			</Table.Root>
+			</table>
 		{/if}
 	</div>
 
@@ -1145,7 +1245,7 @@
 					<span class="text-muted-foreground">{editingFile.path}</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={toggleEditorTheme} title={editorTheme === 'light' ? m.container_files_switch_dark() : m.container_files_switch_light()}>
+					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={toggleEditorTheme} title={editorTheme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>
 						{#if editorTheme === 'light'}
 							<Moon class="w-3.5 h-3.5" />
 						{:else}
@@ -1160,7 +1260,7 @@
 						{/if}
 						Save
 					</Button>
-					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={closeEditor} title={m.container_files_close_editor()}>
+					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={closeEditor} title="Close editor">
 						<X class="w-3.5 h-3.5" />
 					</Button>
 				</div>
@@ -1196,24 +1296,26 @@
 	</Dialog.Root>
 
 	<!-- File Viewer Overlay -->
-	{#if viewingFile}
+	{#if loadingPreview && !viewingFile}
+		<LoadingState class="absolute inset-0 z-10 bg-background" label={`Loading preview${previewingName ? ` - ${previewingName}` : ''}...`} />
+	{:else if viewingFile}
 		<div class="absolute inset-0 bg-background flex flex-col z-10">
 			<div class="flex items-center justify-between p-2 border-b bg-muted/30">
 				<div class="flex items-center gap-2 text-xs">
 					<Eye class="w-3.5 h-3.5 text-muted-foreground" />
 					<span class="font-medium">{viewingFile.name}</span>
 					<span class="text-muted-foreground">{viewingFile.path}</span>
-					<span class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{m.container_files_readonly_badge()}</span>
+					<span class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">read-only</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={toggleEditorTheme} title={editorTheme === 'light' ? m.container_files_switch_dark() : m.container_files_switch_light()}>
+					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={toggleEditorTheme} title={editorTheme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>
 						{#if editorTheme === 'light'}
 							<Moon class="w-3.5 h-3.5" />
 						{:else}
 							<Sun class="w-3.5 h-3.5" />
 						{/if}
 					</Button>
-					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={closeViewer} title={m.container_files_close_viewer()}>
+					<Button variant="ghost" size="icon" class="h-7 w-7" onclick={closeViewer} title="Close viewer">
 						<X class="w-3.5 h-3.5" />
 					</Button>
 				</div>
@@ -1234,24 +1336,24 @@
 <Dialog.Root bind:open={showCreateModal}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>{createType === 'file' ? m.container_files_create_file() : m.container_files_create_directory()}</Dialog.Title>
+			<Dialog.Title>Create {createType === 'file' ? 'File' : 'Directory'}</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
-				<Label for="create-name">{m.common_name()}</Label>
+				<Label for="create-name">Name</Label>
 				<Input
 					id="create-name"
 					bind:value={createName}
-					placeholder={createType === 'file' ? m.container_files_placeholder_filename() : m.container_files_placeholder_directory()}
+					placeholder={createType === 'file' ? 'filename.txt' : 'directory-name'}
 					onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') handleCreate(); }}
 				/>
 			</div>
 			<p class="text-xs text-muted-foreground">
-				{m.container_files_created_in({ path: currentPath })}
+				Will be created in: {currentPath}
 			</p>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => showCreateModal = false}>{m.container_files_cancel()}</Button>
+			<Button variant="outline" onclick={() => showCreateModal = false}>Cancel</Button>
 			<Button onclick={handleCreate} disabled={creating || !createName.trim()}>
 				{#if creating}
 					<Loader2 class="w-4 h-4 mr-2 animate-spin" />
@@ -1266,11 +1368,11 @@
 <Dialog.Root bind:open={showRenameModal}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>{m.container_files_rename_title()}</Dialog.Title>
+			<Dialog.Title>Rename</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
-				<Label for="rename-name">{m.container_files_label_new_name()}</Label>
+				<Label for="rename-name">New name</Label>
 				<Input
 					id="rename-name"
 					bind:value={renameName}
@@ -1279,7 +1381,7 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => showRenameModal = false}>{m.container_files_cancel()}</Button>
+			<Button variant="outline" onclick={() => showRenameModal = false}>Cancel</Button>
 			<Button onclick={handleRename} disabled={renaming || !renameName.trim()}>
 				{#if renaming}
 					<Loader2 class="w-4 h-4 mr-2 animate-spin" />
@@ -1294,12 +1396,12 @@
 <Dialog.Root bind:open={showChmodModal}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>{m.container_files_change_permissions_title()}</Dialog.Title>
+			<Dialog.Title>Change permissions</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			{#if chmodEntry}
 				<p class="text-sm text-muted-foreground">{chmodEntry.name}</p>
-				<p class="text-xs text-muted-foreground">{m.container_files_current_permissions({ permissions: chmodEntry.permissions })}</p>
+				<p class="text-xs text-muted-foreground">Current: {chmodEntry.permissions}</p>
 			{/if}
 
 			<!-- Permission checkboxes -->
@@ -1308,26 +1410,26 @@
 					<thead>
 						<tr class="text-muted-foreground text-xs">
 							<th class="text-left font-normal pb-2"></th>
-							<th class="text-center font-normal pb-2 w-16">{m.container_files_perm_read()}</th>
-							<th class="text-center font-normal pb-2 w-16">{m.container_files_perm_write()}</th>
-							<th class="text-center font-normal pb-2 w-16">{m.container_files_perm_execute()}</th>
+							<th class="text-center font-normal pb-2 w-16">Read</th>
+							<th class="text-center font-normal pb-2 w-16">Write</th>
+							<th class="text-center font-normal pb-2 w-16">Execute</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr>
-							<td class="py-1.5 text-muted-foreground">{m.container_files_perm_owner()}</td>
+							<td class="py-1.5 text-muted-foreground">Owner</td>
 							<td class="text-center"><input type="checkbox" bind:checked={permOwnerR} onchange={checkboxesToOctal} class="rounded" /></td>
 							<td class="text-center"><input type="checkbox" bind:checked={permOwnerW} onchange={checkboxesToOctal} class="rounded" /></td>
 							<td class="text-center"><input type="checkbox" bind:checked={permOwnerX} onchange={checkboxesToOctal} class="rounded" /></td>
 						</tr>
 						<tr>
-							<td class="py-1.5 text-muted-foreground">{m.container_files_perm_group()}</td>
+							<td class="py-1.5 text-muted-foreground">Group</td>
 							<td class="text-center"><input type="checkbox" bind:checked={permGroupR} onchange={checkboxesToOctal} class="rounded" /></td>
 							<td class="text-center"><input type="checkbox" bind:checked={permGroupW} onchange={checkboxesToOctal} class="rounded" /></td>
 							<td class="text-center"><input type="checkbox" bind:checked={permGroupX} onchange={checkboxesToOctal} class="rounded" /></td>
 						</tr>
 						<tr>
-							<td class="py-1.5 text-muted-foreground">{m.container_files_perm_others()}</td>
+							<td class="py-1.5 text-muted-foreground">Others</td>
 							<td class="text-center"><input type="checkbox" bind:checked={permOtherR} onchange={checkboxesToOctal} class="rounded" /></td>
 							<td class="text-center"><input type="checkbox" bind:checked={permOtherW} onchange={checkboxesToOctal} class="rounded" /></td>
 							<td class="text-center"><input type="checkbox" bind:checked={permOtherX} onchange={checkboxesToOctal} class="rounded" /></td>
@@ -1339,22 +1441,22 @@
 			<!-- Preview -->
 			<div class="flex items-center gap-4 text-sm bg-muted/50 rounded-lg p-3">
 				<div>
-					<span class="text-muted-foreground text-xs">{m.container_files_octal()}</span>
+					<span class="text-muted-foreground text-xs">Octal:</span>
 					<span class="font-mono font-medium ml-1">{chmodMode}</span>
 				</div>
 				<div>
-					<span class="text-muted-foreground text-xs">{m.container_files_symbolic()}</span>
+					<span class="text-muted-foreground text-xs">Symbolic:</span>
 					<span class="font-mono font-medium ml-1">{checkboxesToSymbolic()}</span>
 				</div>
 			</div>
 
 			<!-- Manual octal input -->
 			<div class="space-y-2">
-				<Label for="chmod-mode">{m.container_files_octal_mode_direct()}</Label>
+				<Label for="chmod-mode">Or enter octal mode directly</Label>
 				<Input
 					id="chmod-mode"
 					bind:value={chmodMode}
-					placeholder={m.container_files_placeholder_octal()}
+					placeholder="755"
 					maxlength={4}
 					oninput={() => octalToCheckboxes(chmodMode)}
 					onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') handleChmod(); }}
@@ -1369,7 +1471,7 @@
 			{/if}
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => showChmodModal = false}>{m.container_files_cancel()}</Button>
+			<Button variant="outline" onclick={() => showChmodModal = false}>Cancel</Button>
 			<Button onclick={handleChmod} disabled={changingPerms || !chmodMode.trim()}>
 				{#if changingPerms}
 					<Loader2 class="w-4 h-4 mr-2 animate-spin" />

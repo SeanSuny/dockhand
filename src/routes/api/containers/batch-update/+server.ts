@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { authorize } from '$lib/server/authorize';
-import { listContainers, pullImage, inspectContainer } from '$lib/server/docker';
+import { listContainers, pullImage, inspectContainer, inspectImage } from '$lib/server/docker';
 import { auditContainer } from '$lib/server/audit';
 import { recreateContainer } from '$lib/server/scheduler/tasks/container-update';
 import { isUpdateDisabledByLabel } from '$lib/server/container-labels';
@@ -18,6 +18,17 @@ export interface BatchUpdateResult {
  * Preserves ALL container settings including health checks, resource limits,
  * capabilities, DNS, security options, ulimits, and network connections.
  * Expects JSON body: { containerIds: string[] }
+ *
+ * @openapi
+ * summary: Recreate a set of containers with their latest images, preserving all settings (requires the 'create' permission)
+ * description: Containers are processed sequentially; the response reports per-container success/failure plus a summary. Use the streaming variant for live progress. containerIds from GET /api/containers.
+ * query: env:integer The target environment ID (omit for the local/default Docker host) (from GET /api/environments)
+ * body: {containerIds:array<string>!}
+ * body-example: {"containerIds":["3f4a1c2b9d8e","a1b2c3d4e5f6"]}
+ * resp-200: {success:boolean!, results:array<{containerId:string!, containerName:string!, success:boolean!, error:string}>!, summary:{total:integer!, success:integer!, failed:integer!}!}
+ * resp-400: The containerIds array is missing or empty
+ * resp-403: Permission denied
+ * resp-500: Failed to run the batch update
  */
 export const POST: RequestHandler = async (event) => {
 	const { url, cookies, request } = event;
@@ -63,6 +74,16 @@ export const POST: RequestHandler = async (event) => {
 				const imageName = config.Image;
 				const containerName = container.name;
 
+				// Capture the OLD image's Env/Labels BEFORE the pull for the env/label
+				// rebase (#1226, #1256) — the old digest may be GC'd after the pull.
+				let oldImageConfig: { Env?: string[]; Labels?: Record<string, string> } | null = null;
+				try {
+					const oldImg = await inspectImage(inspectData.Image, envIdNum) as any;
+					oldImageConfig = { Env: oldImg?.Config?.Env, Labels: oldImg?.Config?.Labels };
+				} catch {
+					// Best-effort; rebase falls back if unavailable.
+				}
+
 				// Skip containers with dockhand.update=false label
 				if (isUpdateDisabledByLabel(config.Labels)) {
 					results.push({
@@ -89,7 +110,7 @@ export const POST: RequestHandler = async (event) => {
 
 				let newContainerId = containerId;
 
-				const recreateResult = await recreateContainer(containerName, envIdNum);
+				const recreateResult = await recreateContainer(containerName, envIdNum, { oldImageConfig });
 				if (recreateResult.success) {
 					const updatedContainers = await listContainers(true, envIdNum);
 					const updatedContainer = updatedContainers.find(c => c.name === containerName);

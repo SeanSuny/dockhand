@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
+	import { formatErrorLines } from '$lib/utils/format';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -196,18 +196,18 @@
 				{:else}
 					<Rocket class="w-5 h-5 text-violet-500 shrink-0" />
 				{/if}
-				<span class="text-base font-semibold">{m.stacks_git_deploy_title()}</span>
+				<span class="text-base font-semibold">Git deploy</span>
 				<code class="text-sm font-normal bg-muted px-1.5 py-0.5 rounded ml-1 truncate">{stackName}</code>
 				{#if overallStatus === 'complete'}
-					<Badge variant="outline" class="ml-auto shrink-0 text-green-600 border-green-600/30">{m.stacks_git_deploy_badge_complete()}</Badge>
+					<Badge variant="outline" class="ml-auto shrink-0 text-green-600 border-green-600/30">Complete</Badge>
 				{:else if overallStatus === 'error'}
-					<Badge variant="outline" class="ml-auto shrink-0 text-red-600 border-red-600/30">{m.common_failed()}</Badge>
+					<Badge variant="outline" class="ml-auto shrink-0 text-red-600 border-red-600/30">Failed</Badge>
 				{:else if isDeploying}
 					<Badge variant="secondary" class="ml-auto shrink-0 tabular-nums text-xs">
 						{#if currentStep?.step && currentStep?.totalSteps}
 							{currentStep.step}/{currentStep.totalSteps}
 						{:else}
-							{m.stacks_git_deploy_badge_deploying()}
+							Deploying...
 						{/if}
 					</Badge>
 				{/if}
@@ -225,16 +225,17 @@
 				<div class="flex items-start gap-3 py-2 px-2">
 					<AlertTriangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
 					<div class="space-y-1">
-						<p class="font-medium">{m.stacks_git_deploy_confirm_title()}</p>
+						<p class="font-medium">Sync from git?</p>
 						<p class="text-sm text-muted-foreground">
-							{@html m.stacks_git_deploy_confirm_desc({ stackName })}
+							This will pull the latest changes for <strong class="text-foreground">{stackName}</strong>.
+							Containers will only restart if the configuration changed.
 						</p>
 					</div>
 				</div>
 			{:else if steps.length === 0 && isDeploying}
 				<div class="flex items-center gap-3 text-muted-foreground py-2 px-2">
 					<Loader2 class="w-4 h-4 animate-spin shrink-0" />
-					<span class="text-sm">{m.stacks_git_deploy_initializing()}</span>
+					<span class="text-sm">Initializing...</span>
 				</div>
 			{:else}
 				<div class="space-y-0.5">
@@ -257,7 +258,7 @@
 				<div class="mt-3 mx-2 p-3 rounded-md bg-destructive/10 border border-destructive/20">
 					<div class="flex items-start gap-2 text-sm text-destructive">
 						<AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
-						<span class="break-all">{errorMessage}</span>
+						<span class="whitespace-pre-wrap break-words">{formatErrorLines(errorMessage)}</span>
 					</div>
 				</div>
 			{/if}
@@ -268,15 +269,15 @@
 			<!-- Left: copy / cancel -->
 			<div>
 				{#if overallStatus === 'confirming'}
-					<Button variant="outline" onclick={handleCancelConfirm}>{m.common_cancel()}</Button>
+					<Button variant="outline" onclick={handleCancelConfirm}>Cancel</Button>
 				{:else if steps.length > 0}
 					<Button variant="outline" size="sm" onclick={copyLogs} class="gap-1.5">
 						{#if copied}
 							<Check class="w-3.5 h-3.5" />
-							{m.stacks_git_deploy_copied()}
+							Copied!
 						{:else}
 							<Copy class="w-3.5 h-3.5" />
-							{m.stacks_git_deploy_copy_logs()}
+							Copy logs
 						{/if}
 					</Button>
 				{/if}
@@ -287,7 +288,7 @@
 				{#if overallStatus === 'confirming'}
 					<Button onclick={handleConfirmDeploy}>
 						<Rocket class="w-4 h-4" />
-						{m.common_deploy()}
+						Deploy
 					</Button>
 				{:else}
 					<Button
@@ -297,9 +298,9 @@
 					>
 						{#if isDeploying}
 							<Loader2 class="w-4 h-4 animate-spin" />
-							{m.stacks_git_deploy_badge_deploying()}
+							Deploying...
 						{:else}
-							{m.common_close()}
+							Close
 						{/if}
 					</Button>
 				{/if}

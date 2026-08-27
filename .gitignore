@@ -9,3 +9,5 @@ data/db
 data/.encryption_key
 .omo/
 .cortexkit/
+.last-synced-gitea
+.hermes/

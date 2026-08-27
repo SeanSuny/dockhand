@@ -344,7 +344,7 @@
 								type="button"
 								class="p-1 rounded hover:bg-muted text-muted-foreground"
 								onclick={cancelCreatingFolder}
-								title={m.stacks_filesystem_cancel()}
+								title={m.common_cancel()}
 							>
 								<X class="w-4 h-4" />
 							</button>
@@ -470,7 +470,7 @@
 					</div>
 				{/if}
 				<Button variant="outline" onclick={handleClose}>
-					{m.stacks_filesystem_cancel()}
+					{m.common_cancel()}
 				</Button>
 				{#if selectMode === 'directory'}
 					<Button onclick={handleConfirm}>

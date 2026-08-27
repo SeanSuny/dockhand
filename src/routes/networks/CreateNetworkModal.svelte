@@ -295,7 +295,7 @@
 				</div>
 
 			<div class="space-y-2">
-				<Label for="driver">{m.volumes_col_driver()}</Label>
+				<Label for="driver">{m.container_inspect_driver()}</Label>
 				<Select.Root type="single" bind:value={driver}>
 						<Select.Trigger class="w-full h-9">
 							<span class="flex items-center">

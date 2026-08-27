@@ -2168,7 +2168,7 @@
 				onclick={toggleConnectionMode}
 			>
 				<Link class="w-3 h-3" />
-				{connectionMode ? m.stacks_graph_button_cancel() : m.stacks_graph_button_dependency()}
+				{connectionMode ? m.common_cancel() : m.stacks_graph_button_dependency()}
 			</Button>
 
 			<!-- Mount mode toggle (volume/network/config/secret to service) -->
@@ -2179,7 +2179,7 @@
 				onclick={toggleMountMode}
 			>
 				<HardDrive class="w-3 h-3" />
-				{mountMode ? m.stacks_graph_button_cancel() : m.stacks_graph_button_mount()}
+				{mountMode ? m.common_cancel() : m.stacks_graph_button_mount()}
 			</Button>
 
 			<!-- Hint when in connection/mount mode -->
@@ -2382,7 +2382,7 @@
 									size="sm"
 									class="h-6 w-6 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
 									onclick={deleteSelectedNode}
-									title={m.stacks_graph_tooltip_delete()}
+									title={m.common_delete()}
 								>
 									<Trash2 class="w-3.5 h-3.5" />
 								</Button>
@@ -2627,7 +2627,7 @@
 							<div class="space-y-3 text-sm">
 								<!-- Driver -->
 								<div class="space-y-1.5">
-									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_driver()}</span>
+									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.container_inspect_driver()}</span>
 									<Select.Root type="single" bind:value={editNetworkDriver} onValueChange={() => { networkEditDirty = true; }}>
 										<Select.Trigger class="h-8 text-xs">
 											<span class="flex items-center gap-1.5">
@@ -2790,7 +2790,7 @@
 							<div class="space-y-3 text-sm">
 								<!-- Driver -->
 								<div class="space-y-1.5">
-									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.stacks_graph_label_driver()}</span>
+									<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.container_inspect_driver()}</span>
 									<Input bind:value={editVolumeDriver} oninput={markVolumeDirty} placeholder="local" class="h-8 text-xs" />
 								</div>
 
@@ -3003,7 +3003,7 @@
 		</div>
 
 		<div class="flex justify-end gap-2">
-			<Button variant="outline" size="sm" onclick={() => showAddDialog = false}>{m.stacks_graph_button_dialog_cancel()}</Button>
+			<Button variant="outline" size="sm" onclick={() => showAddDialog = false}>{m.common_cancel()}</Button>
 			<Button variant="secondary" size="sm" onclick={addElement} disabled={!newElementName.trim()}>
 				<Plus class="w-3.5 h-3.5 mr-1.5" />
 				{m.common_add()} {getElementTypeLabel(addElementType)}

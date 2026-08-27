@@ -88,7 +88,7 @@
 				<Tooltip.Trigger>
 					<XCircle class="w-3.5 h-3.5 text-red-500" />
 				</Tooltip.Trigger>
-				<Tooltip.Content>{m.stacks_path_bar_copy_requires_https()}</Tooltip.Content>
+				<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 			</Tooltip.Root>
 		{:else if copied === 'ok'}
 			<Check class="w-3.5 h-3.5 text-green-500" />

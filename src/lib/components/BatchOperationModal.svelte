@@ -325,7 +325,7 @@
 				</Button>
 			{:else}
 				<Button size="sm" onclick={handleOk}>
-					{m.containers_toast_ok()}
+					{m.common_ok()}
 				</Button>
 			{/if}
 		</div>

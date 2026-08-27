@@ -766,7 +766,7 @@
 								<div class="space-y-3 text-sm">
 									<!-- Driver -->
 									<div class="space-y-1.5">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.volumes_col_driver()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.container_inspect_driver()}</span>
 										<!-- Simulate the select element -->
 										<div class="flex items-center justify-between w-fit h-8 px-3 py-2 text-xs border rounded-md border-input bg-background shadow-sm dark:bg-input/30">
 											<span class="flex items-center gap-1.5">

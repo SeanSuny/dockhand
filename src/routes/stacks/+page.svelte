@@ -1484,7 +1484,7 @@
 				defaultIcon={Layers}
 			/>
 			<Button size="sm" variant="outline" onclick={fetchStacks}>
-				<RefreshCw class="w-3.5 h-3.5" />{m.containers_refresh()}</Button>
+				<RefreshCw class="w-3.5 h-3.5" />{m.common_refresh()}</Button>
 			<CheckUpdatesButton
 				{envId}
 				hasPendingUpdates={stacks.some((s) => s.updatesAvailable)}

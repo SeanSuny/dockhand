@@ -1526,7 +1526,7 @@
 					{/snippet}
 				</ConfirmPopover>
 				{/if}
-				<Button size="sm" variant="outline" onclick={fetchContainers}>{m.containers_refresh()}</Button>
+				<Button size="sm" variant="outline" onclick={fetchContainers}>{m.common_refresh()}</Button>
 				<Button
 					size="sm"
 					variant="outline"

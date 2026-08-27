@@ -292,7 +292,7 @@
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(m.networks_toast_removed({ name }));
+			toast.success(m.toast_removed({ name }));
 			await fetchNetworks();
 		} catch (error) {
 			console.error('Failed to remove network:', error);
@@ -520,7 +520,7 @@
 			<MultiSelectFilter
 				bind:value={selectedDrivers}
 				options={driverOptions}
-				placeholder={m.volumes_col_driver()}
+				placeholder={m.container_inspect_driver()}
 				pluralLabel={m.volumes_filter_driver_plural()}
 			/>
 			<!-- Scope filter -->

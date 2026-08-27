@@ -154,7 +154,7 @@
 					Add channel
 				</Button>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchNotifications}>{m.containers_refresh()}</Button>
+			<Button size="sm" variant="outline" onclick={fetchNotifications}>{m.common_refresh()}</Button>
 		</div>
 	</div>
 

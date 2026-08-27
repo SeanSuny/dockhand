@@ -478,7 +478,7 @@
 				{/snippet}
 			</ConfirmPopover>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchVolumes}>{m.containers_refresh()}</Button>
+			<Button size="sm" variant="outline" onclick={fetchVolumes}>{m.common_refresh()}</Button>
 			{#if $canAccess('volumes', 'create')}
 			<Button size="sm" variant="secondary" onclick={() => showCreateModal = true}>
 				<Plus class="w-3.5 h-3.5" />{m.common_create()}</Button>

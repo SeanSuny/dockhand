@@ -406,7 +406,7 @@
 				{/if}
 				<span class="w-14">Test all</span>
 			</Button>
-			<Button size="sm" variant="outline" onclick={fetchEnvironments}>{m.containers_refresh()}</Button>
+			<Button size="sm" variant="outline" onclick={fetchEnvironments}>{m.common_refresh()}</Button>
 		</div>
 	</div>
 

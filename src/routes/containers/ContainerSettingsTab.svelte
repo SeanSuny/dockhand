@@ -1969,7 +1969,7 @@
 					{/if}
 
 					<div class="space-y-1.5">
-						<Label class="text-xs font-medium">{m.container_settings_driver()}</Label>
+						<Label class="text-xs font-medium">{m.container_inspect_driver()}</Label>
 						<Input bind:value={gpuDriver} placeholder={m.container_settings_driver_placeholder()} class="h-9" />
 					</div>
 

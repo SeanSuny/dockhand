@@ -487,7 +487,7 @@
 							onclick={handleClose}
 							disabled={isProcessing}
 						>
-							{m.containers_toast_ok()}
+							{m.common_ok()}
 						</Button>
 					{/if}
 				{/if}

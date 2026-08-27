@@ -1092,7 +1092,7 @@
 				onchange={handleLoadTar}
 			/>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchImages}>{m.containers_refresh()}</Button>
+			<Button size="sm" variant="outline" onclick={fetchImages}>{m.common_refresh()}</Button>
 		</div>
 		{/if}
 
@@ -1161,7 +1161,7 @@
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 				<Button size="sm" variant="outline" onclick={refreshVulnerabilities} disabled={vulnList.loading}>
-					<RefreshCw class="w-3.5 h-3.5 {vulnList.loading ? 'animate-spin' : ''}" />{m.containers_refresh()}</Button>
+					<RefreshCw class="w-3.5 h-3.5 {vulnList.loading ? 'animate-spin' : ''}" />{m.common_refresh()}</Button>
 				{#if scannerEnabled}
 					<Button size="sm" variant="secondary" onclick={() => showVulnScanModal = true}>
 						<ShieldCheck class="w-3.5 h-3.5" />

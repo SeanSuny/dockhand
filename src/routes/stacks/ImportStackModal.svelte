@@ -430,7 +430,7 @@
 						{m.stacks_import_button_back()}
 					</Button>
 					<Button variant="outline" onclick={handleClose}>
-						{m.stacks_import_button_cancel()}
+						{m.common_cancel()}
 					</Button>
 					<Button
 						variant="default"
@@ -517,7 +517,7 @@
 
 		<div class="px-5 py-3 border-t flex justify-end gap-2 shrink-0">
 			<Button variant="outline" onclick={() => showPreview = false}>
-				{m.stacks_import_button_cancel()}
+				{m.common_cancel()}
 			</Button>
 			<Button onclick={confirmAdoptFromPreview} disabled={adopting}>
 				{#if adopting}

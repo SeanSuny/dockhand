@@ -1273,7 +1273,7 @@
 	<Dialog.Root open={showCloseConfirm} onOpenChange={(o) => { if (!o) showCloseConfirm = false; }}>
 		<Dialog.Content class="sm:max-w-md">
 			<Dialog.Header>
-				<Dialog.Title>{m.file_browser_unsaved_changes()}</Dialog.Title>
+				<Dialog.Title>{m.common_unsaved_changes()}</Dialog.Title>
 				<Dialog.Description>
 					{editingFile?.name ?? 'This file'} has unsaved changes. Save them before closing?
 				</Dialog.Description>
@@ -1282,7 +1282,7 @@
 				<Button variant="outline" onclick={() => showCloseConfirm = false}>{m.common_cancel()}</Button>
 				<div class="flex gap-2">
 					<Button variant="destructive" onclick={forceCloseEditor}>{m.file_browser_discard()}</Button>
-					<Button onclick={saveFile} disabled={savingFile}>{m.settings_env_modal_save_btn()}</Button>
+					<Button onclick={saveFile} disabled={savingFile}>{m.common_save()}</Button>
 				</div>
 			</Dialog.Footer>
 		</Dialog.Content>

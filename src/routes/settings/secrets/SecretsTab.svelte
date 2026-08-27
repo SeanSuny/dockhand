@@ -116,7 +116,7 @@
 				</Button>
 			{/if}
 			<Button size="sm" variant="outline" onclick={fetchProviders}
-				>{m.containers_refresh()}</Button
+				>{m.common_refresh()}</Button
 			>
 		</div>
 	</div>

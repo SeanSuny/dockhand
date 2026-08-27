@@ -2944,5 +2944,18 @@
 	"snapshots_panel_snapshot": "快照",
 	"snapshots_panel_added": "添加时间",
 	"snapshots_panel_taken": "拍摄时间",
-	"snapshots_panel_empty": "从计划标签页运行一次备份即可创建。"
+	"snapshots_panel_empty": "从计划标签页运行一次备份即可创建。",
+	"container_inspect_compose": "Compose",
+	"container_inspect_merge_hint": "下次更新时，你未覆盖的镜像提供值会刷新到新镜像；你自己设置的值会保留。使用“移除并部署”可将所有内容重置为镜像默认值。",
+	"container_inspect_current_status": "当前状态",
+	"container_inspect_cpu": "CPU",
+	"container_inspect_added_caps": "已添加能力",
+	"container_inspect_dropped_caps": "已移除能力",
+	"container_inspect_start_period": "启动周期",
+	"container_inspect_failing_streak": "失败次数",
+	"container_inspect_no_labels_filter": "无匹配 \"{filter}\" 的标签",
+	"container_inspect_bind": "bind",
+	"container_inspect_volume": "volume",
+	"container_inspect_ulimit": "软限制={soft} 硬限制={hard}",
+	"common_state_on": "开"
 }

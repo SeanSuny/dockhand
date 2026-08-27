@@ -2944,5 +2944,18 @@
 	"snapshots_panel_snapshot": "Snapshot",
 	"snapshots_panel_added": "Added",
 	"snapshots_panel_taken": "Taken",
-	"snapshots_panel_empty": "Run a backup from the Schedules tab to create one."
+	"snapshots_panel_empty": "Run a backup from the Schedules tab to create one.",
+	"container_inspect_compose": "Compose",
+	"container_inspect_merge_hint": "On the next update, image-provided values you haven't overridden are refreshed to the new image; values you set yourself are kept. Use Remove & Deploy to reset everything to the image.",
+	"container_inspect_current_status": "Current status",
+	"container_inspect_cpu": "CPU",
+	"container_inspect_added_caps": "Added capabilities",
+	"container_inspect_dropped_caps": "Dropped capabilities",
+	"container_inspect_start_period": "Start period",
+	"container_inspect_failing_streak": "Failing streak",
+	"container_inspect_no_labels_filter": "No labels match \"{filter}\"",
+	"container_inspect_bind": "bind",
+	"container_inspect_volume": "volume",
+	"container_inspect_ulimit": "soft={soft} hard={hard}",
+	"common_state_on": "on"
 }

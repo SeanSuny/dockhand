@@ -712,7 +712,7 @@
 							</button>
 						</Tooltip.Trigger>
 						<Tooltip.Content>
-							<p class="text-xs whitespace-nowrap">Open stack "{composeStack}"</p>
+							<p class="text-xs whitespace-nowrap">{m.container_inspect_open_stack({ stack: composeStack })}</p>
 						</Tooltip.Content>
 					</Tooltip.Root>
 				{/if}
@@ -834,7 +834,7 @@
 						<Tabs.Trigger value="security" onclick={() => showLogs = false}>{m.settings_env_modal_tab_security()}</Tabs.Trigger>
 						<Tabs.Trigger value="resources" onclick={() => showLogs = false}>{m.container_inspect_tab_resources()}</Tabs.Trigger>
 						<Tabs.Trigger value="health" onclick={() => showLogs = false}>{m.container_inspect_tab_health()}</Tabs.Trigger>
-						<Tabs.Trigger value="compose" onclick={() => showLogs = false}>Compose</Tabs.Trigger>
+						<Tabs.Trigger value="compose" onclick={() => showLogs = false}>{m.container_inspect_compose()}</Tabs.Trigger>
 					</Tabs.List>
 
 					<!-- Overview Tab -->
@@ -846,7 +846,7 @@
 								<div class="p-3 border border-border rounded-lg">
 									<div class="flex items-center gap-2 mb-2">
 										<Cpu class="w-4 h-4 text-blue-500" />
-										<span class="text-xs font-medium">CPU</span>
+										<span class="text-xs font-medium">{m.container_inspect_cpu()}</span>
 										<span class="ml-auto text-sm font-bold">{currentStats?.cpuPercent?.toFixed(1) ?? '—'}%</span>
 									</div>
 									{#if cpuHistory.length >= 2}
@@ -984,10 +984,10 @@
 
 							<!-- Basic Info -->
 							<div class="space-y-3">
-								<h3 class="text-sm font-semibold">Basic information</h3>
+								<h3 class="text-sm font-semibold">{m.container_inspect_basic_info()}</h3>
 								<div class="grid grid-cols-2 gap-2 text-sm">
 									<div>
-										<p class="text-muted-foreground text-xs">ID</p>
+										<p class="text-muted-foreground text-xs">{m.container_inspect_id()}</p>
 										<code class="text-xs">{containerData.Id?.slice(0, 12)}</code>
 									</div>
 									<div>
@@ -1104,14 +1104,14 @@
 					<Tabs.Content value="network" class="space-y-4 overflow-auto">
 						<!-- Network Mode -->
 						<div class="space-y-2">
-							<h3 class="text-sm font-semibold">Network mode</h3>
+							<h3 class="text-sm font-semibold">{m.container_inspect_network_mode()}</h3>
 							<Badge variant="outline">{networkModeLabel}</Badge>
 						</div>
 
 						<!-- DNS Settings -->
 						{#if containerData.HostConfig?.Dns?.length > 0 || containerData.HostConfig?.DnsSearch?.length > 0 || containerData.HostConfig?.DnsOptions?.length > 0}
 							<div class="space-y-2">
-								<h3 class="text-sm font-semibold">DNS configuration</h3>
+								<h3 class="text-sm font-semibold">{m.container_inspect_dns_config()}</h3>
 								<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
 									{#if containerData.HostConfig?.Dns?.length > 0}
 										<div class="p-2 bg-muted rounded">
@@ -1144,7 +1144,7 @@
 						<!-- Extra Hosts -->
 						{#if containerData.HostConfig?.ExtraHosts?.length > 0}
 							<div class="space-y-2">
-								<h3 class="text-sm font-semibold">Extra hosts</h3>
+								<h3 class="text-sm font-semibold">{m.container_inspect_extra_hosts()}</h3>
 								<div class="space-y-1">
 									{#each containerData.HostConfig.ExtraHosts as host}
 										<div class="text-xs p-2 bg-muted rounded">
@@ -1157,7 +1157,7 @@
 
 						<!-- Networks -->
 						<div class="space-y-2">
-							<h3 class="text-sm font-semibold">Connected networks</h3>
+							<h3 class="text-sm font-semibold">{m.container_inspect_connected_networks()}</h3>
 							{#if isSharedNetworkMode}
 								<p class="text-xs text-muted-foreground">
 									Network namespace is shared via <code class="px-1 py-0.5 rounded bg-muted">{containerData.HostConfig?.NetworkMode}</code> — additional networks cannot be attached.
@@ -1192,19 +1192,19 @@
 											<div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
 												{#if networkData.IPAddress}
 													<div>
-														<p class="text-muted-foreground">IPv4</p>
+														<p class="text-muted-foreground">{m.container_inspect_ipv4()}</p>
 														<code>{networkData.IPAddress}</code>
 													</div>
 												{/if}
 												{#if networkData.GlobalIPv6Address}
 													<div>
-														<p class="text-muted-foreground">IPv6</p>
+														<p class="text-muted-foreground">{m.container_inspect_ipv6()}</p>
 														<code>{networkData.GlobalIPv6Address}</code>
 													</div>
 												{/if}
 												{#if networkData.MacAddress}
 													<div>
-														<p class="text-muted-foreground">MAC</p>
+														<p class="text-muted-foreground">{m.container_inspect_mac()}</p>
 														<code>{networkData.MacAddress}</code>
 													</div>
 												{/if}
@@ -1279,7 +1279,7 @@
 						{#if containerData.NetworkSettings?.Ports && Object.keys(containerData.NetworkSettings.Ports).length > 0}
 							{@const inspectParsedUrl = parseCustomUrl(containerData.Config?.Labels?.['dockhand.url'])}
 							<div class="space-y-2">
-								<h3 class="text-sm font-semibold">Port mappings</h3>
+								<h3 class="text-sm font-semibold">{m.container_inspect_port_mappings()}</h3>
 								<div class="flex flex-wrap gap-2">
 									{#if inspectParsedUrl}
 										<div class="flex items-center gap-2 text-xs p-2 bg-primary/10 rounded">
@@ -1322,7 +1322,7 @@
 											{/each}
 										{:else}
 											<div class="flex items-center gap-2 text-xs p-2 bg-amber-500/10 border border-amber-500/20 rounded">
-												<code class="text-amber-600 dark:text-amber-400">exposed</code>
+												<code class="text-amber-600 dark:text-amber-400">{m.container_inspect_exposed()}</code>
 												<code class="text-amber-600 dark:text-amber-400">{containerPort}</code>
 											</div>
 										{/if}
@@ -1342,9 +1342,9 @@
 											<!-- Typed mount chip, consistent with the backup picker/log (amber Folder
 											     for bind, sky HardDrive for volume). -->
 											{#if mount.Type === 'bind'}
-												<span class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400"><Folder class="h-3 w-3" />bind</span>
+												<span class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400"><Folder class="h-3 w-3" />{m.container_inspect_bind()}</span>
 											{:else if mount.Type === 'volume'}
-												<span class="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400"><HardDrive class="h-3 w-3" />volume</span>
+												<span class="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400"><HardDrive class="h-3 w-3" />{m.container_inspect_volume()}</span>
 											{:else}
 												<Badge variant="outline" class="text-xs">{mount.Type}</Badge>
 											{/if}
@@ -1504,10 +1504,10 @@
 									{/each}
 								</div>
 							{:else}
-								<p class="text-sm text-muted-foreground">No labels match "{labelFilter}"</p>
+								<p class="text-sm text-muted-foreground">{m.container_inspect_no_labels_filter({ filter: labelFilter })}</p>
 							{/if}
 						{:else}
-							<p class="text-sm text-muted-foreground">No labels</p>
+							<p class="text-sm text-muted-foreground">{m.container_inspect_no_labels()}</p>
 						{/if}
 					</Tabs.Content>
 
@@ -1540,7 +1540,7 @@
 						<!-- Security Options -->
 						{#if containerData.HostConfig?.SecurityOpt?.length > 0}
 							<div class="space-y-2">
-								<h3 class="text-sm font-semibold">Security options</h3>
+								<h3 class="text-sm font-semibold">{m.container_inspect_security_options()}</h3>
 								<div class="space-y-1">
 									{#each containerData.HostConfig.SecurityOpt as opt}
 										<div class="text-xs p-2 bg-muted rounded">
@@ -1573,7 +1573,7 @@
 						<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 							{#if containerData.HostConfig?.CapAdd?.length > 0}
 								<div class="space-y-2">
-									<h3 class="text-sm font-semibold text-green-600 dark:text-green-400">Added capabilities</h3>
+									<h3 class="text-sm font-semibold text-green-600 dark:text-green-400">{m.container_inspect_added_caps()}</h3>
 									<div class="flex flex-wrap gap-1">
 										{#each containerData.HostConfig.CapAdd as cap}
 											<Badge variant="outline" class="text-xs bg-green-500/10">{cap}</Badge>
@@ -1583,7 +1583,7 @@
 							{/if}
 							{#if containerData.HostConfig?.CapDrop?.length > 0}
 								<div class="space-y-2">
-									<h3 class="text-sm font-semibold text-red-600 dark:text-red-400">Dropped capabilities</h3>
+									<h3 class="text-sm font-semibold text-red-600 dark:text-red-400">{m.container_inspect_dropped_caps()}</h3>
 									<div class="flex flex-wrap gap-1">
 										{#each containerData.HostConfig.CapDrop as cap}
 											<Badge variant="outline" class="text-xs bg-red-500/10">{cap}</Badge>
@@ -1654,7 +1654,7 @@
 									{#each containerData.HostConfig.Ulimits as ulimit}
 										<div class="flex justify-between text-xs p-2 bg-muted rounded">
 											<code class="text-muted-foreground">{ulimit.Name}</code>
-											<code>soft={ulimit.Soft} hard={ulimit.Hard}</code>
+											<code>{m.container_inspect_ulimit({ soft: ulimit.Soft, hard: ulimit.Hard })}</code>
 										</div>
 									{/each}
 								</div>
@@ -1733,7 +1733,7 @@
 
 						<!-- Cgroup -->
 						<div class="space-y-2">
-							<h3 class="text-sm font-semibold">Cgroup settings</h3>
+							<h3 class="text-sm font-semibold">{m.container_inspect_cgroup_settings()}</h3>
 							<div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
 								<div class="p-2 bg-muted rounded">
 									<p class="text-xs text-muted-foreground">{m.container_inspect_cgroup()}</p>
@@ -1780,7 +1780,7 @@
 												<code class="text-xs">{healthConfig.Retries || '-'}</code>
 											</div>
 											<div>
-												<p class="text-muted-foreground">Start period</p>
+												<p class="text-muted-foreground">{m.container_inspect_start_period()}</p>
 												<code class="text-xs">{formatNs(healthConfig.StartPeriod)}</code>
 											</div>
 										</div>
@@ -1793,13 +1793,13 @@
 										<h3 class="text-sm font-semibold mb-2">{m.common_status()}</h3>
 										<div class="grid grid-cols-2 gap-3 text-sm">
 											<div>
-												<p class="text-muted-foreground">Current status</p>
+												<p class="text-muted-foreground">{m.container_inspect_current_status()}</p>
 												<Badge variant={healthState.Status === 'healthy' ? 'default' : healthState.Status === 'starting' ? 'secondary' : 'destructive'}>
 													{healthState.Status}
 												</Badge>
 											</div>
 											<div>
-												<p class="text-muted-foreground">Failing streak</p>
+												<p class="text-muted-foreground">{m.container_inspect_failing_streak()}</p>
 												<code class="text-xs">{healthState.FailingStreak || 0}</code>
 											</div>
 										</div>

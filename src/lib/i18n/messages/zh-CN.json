@@ -2799,5 +2799,16 @@
 	"backups_stats_scheduled": "{n} 已计划",
 	"backups_stats_stale": "{n} 陈旧",
 	"common_backup": "备份",
-	"backups_stats_orphans": "{n} 个孤立项"
+	"backups_stats_orphans": "{n} 个孤立项",
+	"backups_rotate_password_title": "轮换仓库密码",
+	"backups_rotate_password_desc": "修改 {name} 的 restic 加密密码。需要提供当前密码以验证身份。",
+	"backups_rotate_current_password": "当前密码",
+	"backups_rotate_new_password": "新密码",
+	"backups_rotate_confirm_password": "确认新密码",
+	"backups_rotate_passwords_same": "新密码必须与当前密码不同",
+	"backups_rotate_db_failed": "仓库已轮换，数据库更新失败",
+	"backups_rotate_failed": "轮换失败",
+	"backups_rotate_manual_hint": "打开<strong>编辑目标</strong>，手动将密码设为最新值，以便 Dockhand 重新连接该仓库。",
+	"backups_rotate_in_progress": "轮换中…",
+	"backups_rotate_password_button": "轮换密码"
 }

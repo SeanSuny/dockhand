@@ -77,31 +77,30 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<KeyRound class="w-4 h-4" />
-				Rotate repository password
+				{m.backups_rotate_password_title()}
 			</Dialog.Title>
 			<Dialog.Description>
-				Change the restic encryption password for <strong>{destinationName}</strong>. The current
-				password is required for verification.
+				{m.backups_rotate_password_desc({ name: destinationName })}
 			</Dialog.Description>
 		</Dialog.Header>
 
 		<div class="space-y-3 py-2">
 			<div class="space-y-1">
-				<Label for="rotate-current">Current password</Label>
+				<Label for="rotate-current">{m.backups_rotate_current_password()}</Label>
 				<Input id="rotate-current" type="password" bind:value={currentPassword} autocomplete="current-password" />
 			</div>
 			<div class="space-y-1">
-				<Label for="rotate-new">New password</Label>
+				<Label for="rotate-new">{m.backups_rotate_new_password()}</Label>
 				<Input id="rotate-new" type="password" bind:value={newPassword} autocomplete="new-password" />
 			</div>
 			<div class="space-y-1">
-				<Label for="rotate-confirm">Confirm new password</Label>
+				<Label for="rotate-confirm">{m.backups_rotate_confirm_password()}</Label>
 				<Input id="rotate-confirm" type="password" bind:value={confirmPassword} autocomplete="new-password" />
 				{#if confirmPassword.length > 0 && !passwordsMatch}
 					<p class="text-xs text-destructive">{m.settings_auth_user_modal_err_passwords_mismatch()}</p>
 				{/if}
 				{#if newPassword.length > 0 && newPassword === currentPassword}
-					<p class="text-xs text-destructive">New password must differ from current</p>
+					<p class="text-xs text-destructive">{m.backups_rotate_passwords_same()}</p>
 				{/if}
 			</div>
 
@@ -112,16 +111,15 @@
 						<div>
 							<p class="font-medium text-destructive">
 								{#if dbOutOfSync}
-									Repository rotated, database update failed
+									{m.backups_rotate_db_failed()}
 								{:else}
-									Rotation failed
+									{m.backups_rotate_failed()}
 								{/if}
 							</p>
 							<p class="text-muted-foreground mt-1 break-words">{errorMsg}</p>
 							{#if dbOutOfSync}
 								<p class="text-muted-foreground mt-2">
-									Open <strong>Edit destination</strong> and manually set the password to the new
-									value so Dockhand can talk to the repository again.
+									{m.backups_rotate_manual_hint()}
 								</p>
 							{/if}
 						</div>
@@ -135,9 +133,9 @@
 			<Button onclick={submit} disabled={!canSubmit}>
 				{#if submitting}
 					<Loader2 class="w-3 h-3 mr-2 animate-spin" />
-					Rotating…
+					{m.backups_rotate_in_progress()}
 				{:else}
-					Rotate password
+					{m.backups_rotate_password_button()}
 				{/if}
 			</Button>
 		</Dialog.Footer>

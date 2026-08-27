@@ -2799,5 +2799,16 @@
 	"backups_stats_scheduled": "{n} scheduled",
 	"backups_stats_stale": "{n} stale",
 	"common_backup": "Backup",
-	"backups_stats_orphans": "{n} orphan(s)"
+	"backups_stats_orphans": "{n} orphan(s)",
+	"backups_rotate_password_title": "Rotate repository password",
+	"backups_rotate_password_desc": "Change the restic encryption password for {name}. The current password is required for verification.",
+	"backups_rotate_current_password": "Current password",
+	"backups_rotate_new_password": "New password",
+	"backups_rotate_confirm_password": "Confirm new password",
+	"backups_rotate_passwords_same": "New password must differ from current",
+	"backups_rotate_db_failed": "Repository rotated, database update failed",
+	"backups_rotate_failed": "Rotation failed",
+	"backups_rotate_manual_hint": "Open <strong>Edit destination</strong> and manually set the password to the new value so Dockhand can talk to the repository again.",
+	"backups_rotate_in_progress": "Rotating…",
+	"backups_rotate_password_button": "Rotate password"
 }

@@ -45,7 +45,7 @@
 				{#if status === 'running'}
 					<Badge variant="secondary" class="text-xs gap-1"><Loader2 class="w-3 h-3 animate-spin" />{m.status_running()}</Badge>
 				{:else if status === 'success'}
-					<Badge variant="secondary" class="text-xs gap-1 text-green-500"><CheckCircle class="w-3 h-3" />Completed</Badge>
+					<Badge variant="secondary" class="text-xs gap-1 text-green-500"><CheckCircle class="w-3 h-3" />{m.backups_log_completed()}</Badge>
 				{:else}
 					<Badge variant="destructive" class="text-xs gap-1"><XCircle class="w-3 h-3" />{m.common_failed()}</Badge>
 				{/if}
@@ -64,7 +64,7 @@
 			<LogConsole lines={logs} class="flex-1 min-h-0" />
 			{#if status === 'running' && logs.length === 0}
 				<div class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-					<Loader2 class="h-3 w-3 animate-spin" /><span>Waiting for output…</span>
+					<Loader2 class="h-3 w-3 animate-spin" /><span>{m.backups_log_waiting_output()}</span>
 				</div>
 			{/if}
 			{#if error}<div class="mt-1 text-xs text-red-400">{error}</div>{/if}
@@ -74,7 +74,7 @@
 					type="button"
 					class="absolute top-8 right-3 rounded border bg-background/80 p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
 					onclick={copyLogs}
-					title="Copy log content"
+					title={m.backups_log_copy_title()}
 				>
 					{#if copied}<Check class="w-3.5 h-3.5 text-green-500" />{:else}<Copy class="w-3.5 h-3.5" />{/if}
 				</button>
@@ -87,7 +87,7 @@
 					<Square class="w-3.5 h-3.5 mr-1" />{m.common_stop()}</Button>
 			{/if}
 			<Button variant="outline" onclick={() => (open = false)}>
-				{status === 'running' ? 'Run in background' : 'Close'}
+				{status === 'running' ? m.backups_log_run_in_background() : m.common_close()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

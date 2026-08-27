@@ -462,11 +462,11 @@
 						<div class="flex-1 space-y-4">
 							<div class="grid grid-cols-2 gap-4">
 								<div>
-									<Label class="text-muted-foreground text-xs">Username</Label>
+									<Label class="text-muted-foreground text-xs">{m.login_username()}</Label>
 									<p class="font-medium">{profile.username}</p>
 								</div>
 								<div>
-									<Label class="text-muted-foreground text-xs">Role</Label>
+									<Label class="text-muted-foreground text-xs">{m.settings_auth_roles_item_type()}</Label>
 									<div class="flex items-center gap-2">
 										{#if profile.isAdmin}
 											<Badge variant="default" class="gap-1 rounded-sm">
@@ -474,7 +474,7 @@
 												Admin
 											</Badge>
 										{:else}
-											<Badge variant="secondary" class="rounded-sm">User</Badge>
+											<Badge variant="secondary" class="rounded-sm">{m.common_user()}</Badge>
 										{/if}
 									</div>
 								</div>
@@ -482,7 +482,7 @@
 
 							<div class="grid grid-cols-2 gap-4">
 								<div>
-									<Label class="text-muted-foreground text-xs">Created</Label>
+									<Label class="text-muted-foreground text-xs">{m.status_created()}</Label>
 									<p class="text-sm flex items-center gap-1">
 										<Calendar class="w-3.5 h-3.5" />
 										{formatProfileDate(profile.createdAt)}
@@ -526,7 +526,7 @@
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label>Email</Label>
+							<Label>{m.settings_auth_users_email()}</Label>
 							<Input
 								type="email"
 								bind:value={formEmail}
@@ -557,9 +557,7 @@
 			<Card.Root class="flex flex-col">
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
-						<Shield class="w-5 h-5" />
-						Security
-					</Card.Title>
+						<Shield class="w-5 h-5" />{m.settings_env_modal_tab_security()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<!-- Password - only show for local auth users -->
@@ -568,7 +566,7 @@
 							<div class="flex items-center gap-3">
 								<Key class="w-5 h-5 text-muted-foreground" />
 								<div>
-									<p class="font-medium">Password</p>
+									<p class="font-medium">{m.login_password()}</p>
 									<p class="text-sm text-muted-foreground">Change your password</p>
 								</div>
 							</div>
@@ -581,7 +579,7 @@
 							<div class="flex items-center gap-3">
 								<Key class="w-5 h-5 text-muted-foreground" />
 								<div>
-									<p class="font-medium">Password</p>
+									<p class="font-medium">{m.login_password()}</p>
 									<p class="text-sm text-muted-foreground">Managed by your SSO provider</p>
 								</div>
 							</div>
@@ -599,14 +597,12 @@
 								<Smartphone class="w-5 h-5 text-muted-foreground" />
 								<div>
 									<div class="flex items-center gap-2">
-										<p class="font-medium">Two-factor authentication</p>
+										<p class="font-medium">{m.settings_auth_user_modal_mfa_title()}</p>
 										{#if profile.mfaEnabled}
 											<Badge variant="default" class="bg-green-500 gap-1 rounded-sm">
-												<ShieldCheck class="w-3 h-3" />
-												Enabled
-											</Badge>
+												<ShieldCheck class="w-3 h-3" />{m.toast_setting_enabled()}</Badge>
 										{:else}
-											<Badge variant="secondary" class="rounded-sm">Disabled</Badge>
+											<Badge variant="secondary" class="rounded-sm">{m.toast_setting_disabled()}</Badge>
 										{/if}
 									</div>
 									<p class="text-sm text-muted-foreground">
@@ -638,7 +634,7 @@
 							<div class="flex items-center gap-3">
 								<Smartphone class="w-5 h-5 text-muted-foreground" />
 								<div>
-									<p class="font-medium">Two-factor authentication</p>
+									<p class="font-medium">{m.settings_auth_user_modal_mfa_title()}</p>
 									<p class="text-sm text-muted-foreground">Managed by your SSO provider</p>
 								</div>
 							</div>
@@ -682,10 +678,10 @@
 						<Table.Root>
 							<Table.Header>
 								<Table.Row>
-									<Table.Head>Name</Table.Head>
+									<Table.Head>{m.common_name()}</Table.Head>
 									<Table.Head>Prefix</Table.Head>
 									<Table.Head>Last used</Table.Head>
-									<Table.Head>Expires</Table.Head>
+									<Table.Head>{m.settings_license_expires()}</Table.Head>
 									<Table.Head class="w-[80px]"></Table.Head>
 								</Table.Row>
 							</Table.Header>
@@ -705,7 +701,7 @@
 											{:else if token.expiresAt}
 												{formatDateTime(token.expiresAt)}
 											{:else}
-												<span class="text-muted-foreground">Never</span>
+												<span class="text-muted-foreground">{m.schedules_never()}</span>
 											{/if}
 										</Table.Cell>
 										<Table.Cell>
@@ -737,9 +733,7 @@
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
-						<Palette class="w-5 h-5" />
-						Appearance
-					</Card.Title>
+						<Palette class="w-5 h-5" />{m.appearance_title()}</Card.Title>
 					<Card.Description>Customize the look of the application</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
@@ -775,9 +769,7 @@
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
-						<Compass class="w-5 h-5" />
-						Navigation
-					</Card.Title>
+						<Compass class="w-5 h-5" />{m.command_palette_group_navigation()}</Card.Title>
 					<Card.Description>Your landing page and environment-click target. Leave on "Use global default" to follow the workspace setting.</Card.Description>
 				</Card.Header>
 				<Card.Content>

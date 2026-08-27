@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Pencil, Check, Loader2, X, Layers, Settings, Archive } from 'lucide-svelte';
 	import { currentEnvironment, appendEnvParam } from '$lib/stores/environment';
@@ -1214,9 +1215,7 @@
 
 		{#if loadingData}
 			<div class="flex-1 flex items-center justify-center text-muted-foreground text-sm min-h-[200px]">
-				<Loader2 class="w-5 h-5 animate-spin mr-2" />
-				Loading container data...
-			</div>
+				<Loader2 class="w-5 h-5 animate-spin mr-2" />{m.container_edit_loading()}</div>
 		{:else}
 			<div class="px-5 flex gap-1 border-b shrink-0">
 				<button
@@ -1224,9 +1223,7 @@
 					class="flex items-center gap-1.5 px-3 py-2 text-sm transition-colors border-b-2 -mb-px {activeTab === 'settings' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
 					onclick={() => activeTab = 'settings'}
 				>
-					<Settings class="w-3.5 h-3.5" />
-					Settings
-				</button>
+					<Settings class="w-3.5 h-3.5" />{m.sidebar_settings()}</button>
 				<!-- BETA GATE: Backups tab hidden unless FEAT_BACKUPS_ENABLED (see features.ts) -->
 				{#if $page.data.backupsEnabled}
 					<button
@@ -1339,9 +1336,7 @@
 			</div>
 
 			<div class="flex justify-end gap-2 px-5 py-3 border-t bg-muted/30 shrink-0">
-				<Button type="button" variant="outline" onclick={handleClose} size="sm">
-					Cancel
-				</Button>
+				<Button type="button" variant="outline" onclick={handleClose} size="sm">{m.common_cancel()}</Button>
 				<Button type="button" variant="secondary" disabled={loading} size="sm" onclick={handleSubmit}>
 					{#if loading}
 						<Loader2 class="w-4 h-4 mr-1 animate-spin" />
@@ -1360,9 +1355,7 @@
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
 			<Dialog.Title>Unsaved changes</Dialog.Title>
-			<Dialog.Description>
-				You have unsaved changes. Are you sure you want to close without saving?
-			</Dialog.Description>
+			<Dialog.Description>{m.stacks_modal_dialog_unsaved_desc()}</Dialog.Description>
 		</Dialog.Header>
 		<div class="flex justify-end gap-1.5 mt-4">
 			<Button variant="outline" size="sm" onclick={() => showConfirmClose = false}>

@@ -2691,5 +2691,6 @@
 	"templates_src_toast_add_failed": "添加来源失败",
 	"templates_src_toast_validation_failed": "有 {count} 个来源验证失败",
 	"templates_src_toast_all_reachable": "所有来源均可访问",
-	"templates_src_toast_disabled_inactive": "已禁用 {count} 个不可用来源"
+	"templates_src_toast_disabled_inactive": "已禁用 {count} 个不可用来源",
+	"sidebar_backups": "\u5907\u4efd"
 }

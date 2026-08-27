@@ -7,6 +7,7 @@
 	 * the Schedules view uses.
 	 */
 	import { Check, X, AlertTriangle, Clock, CheckCheck, AlertCircle, Timer, Hand, Webhook, ChevronDown, FileText, Loader2 } from 'lucide-svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { formatDateTime, formatRelativeTime } from '$lib/stores/settings';
 	import { formatBytes } from '$lib/utils/format';
 	import { getRepoTypeIcon } from '$lib/utils/backup';
@@ -83,9 +84,9 @@
 			<thead>
 				<tr class="border-b text-left text-muted-foreground">
 					<th class="py-1.5 pl-2 font-medium">Run</th>
-					<th class="py-1.5 pl-2 text-center font-medium">Trigger</th>
-					<th class="py-1.5 pl-2 font-medium">Duration</th>
-					<th class="py-1.5 pl-2 text-center font-medium">Status</th>
+					<th class="py-1.5 pl-2 text-center font-medium">{m.schedules_trigger()}</th>
+					<th class="py-1.5 pl-2 font-medium">{m.schedules_col_duration()}</th>
+					<th class="py-1.5 pl-2 text-center font-medium">{m.common_status()}</th>
 					<th class="py-1.5 pl-2 font-medium">Detail</th>
 					{#if showRepo}<th class="py-1.5 pl-2 font-medium">Repo</th>{/if}
 					<th class="py-1.5 pr-2 font-medium"></th>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Trash2, Folder, Database, Loader2, ArrowRight } from 'lucide-svelte';
@@ -176,9 +177,7 @@
 		{/if}
 
 		<div class="mt-4 flex justify-end gap-1.5">
-			<Button variant="outline" size="sm" onclick={() => (open = false)} disabled={busy}>
-				Cancel
-			</Button>
+			<Button variant="outline" size="sm" onclick={() => (open = false)} disabled={busy}>{m.common_cancel()}</Button>
 			<Button variant="destructive" size="sm" onclick={run} disabled={busy || loading}>
 				{#if busy}<Loader2 class="w-3.5 h-3.5 mr-1 animate-spin" />{:else}<Trash2 class="w-3.5 h-3.5 mr-1" />{/if}
 				Remove

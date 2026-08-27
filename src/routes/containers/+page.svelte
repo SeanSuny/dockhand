@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
@@ -1459,9 +1460,7 @@
 			<div class="flex gap-2">
 				{#if $canAccess('containers', 'create')}
 				<Button size="sm" variant="secondary" onclick={() => (showCreateModal = true)}>
-					<Plus class="w-3.5 h-3.5" />
-					Create
-				</Button>
+					<Plus class="w-3.5 h-3.5" />{m.common_create()}</Button>
 				{/if}
 				<CheckUpdatesButton
 					bind:this={checkUpdatesBtn}
@@ -1527,7 +1526,7 @@
 					{/snippet}
 				</ConfirmPopover>
 				{/if}
-				<Button size="sm" variant="outline" onclick={fetchContainers}>Refresh</Button>
+				<Button size="sm" variant="outline" onclick={fetchContainers}>{m.containers_refresh()}</Button>
 				<Button
 					size="sm"
 					variant="outline"
@@ -1555,9 +1554,7 @@
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
 				disabled={bulkActionInProgress}
-			>
-				Clear
-			</button>
+			>{m.containers_clear_selection()}</button>
 			{#if selectedStopped.length > 0 && $canAccess('containers', 'start')}
 				<ConfirmPopover
 					open={confirmBulkStart}
@@ -1571,9 +1568,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-							<Play class="w-3 h-3" />
-							Start
-						</span>
+							<Play class="w-3 h-3" />{m.common_start()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1589,9 +1584,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-							<Square class="w-3 h-3" />
-							Stop
-						</span>
+							<Square class="w-3 h-3" />{m.common_stop()}</span>
 					{/snippet}
 				</ConfirmPopover>
 				<ConfirmPopover
@@ -1606,9 +1599,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-yellow-600 hover:border-yellow-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-							<Pause class="w-3 h-3" />
-							Pause
-						</span>
+							<Pause class="w-3 h-3" />{m.containers_batch_pause_action()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1625,9 +1616,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-blue-600 hover:border-blue-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-							<Play class="w-3 h-3" />
-							Unpause
-						</span>
+							<Play class="w-3 h-3" />{m.containers_batch_unpause_action()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1644,9 +1633,7 @@
 			>
 				{#snippet children({ open })}
 					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-						<RotateCw class="w-3 h-3" />
-						Restart
-					</span>
+						<RotateCw class="w-3 h-3" />{m.common_restart()}</span>
 				{/snippet}
 			</ConfirmPopover>
 			{/if}
@@ -1662,9 +1649,7 @@
 			>
 				{#snippet children({ open })}
 					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
-						<Trash2 class="w-3 h-3" />
-						Remove
-					</span>
+						<Trash2 class="w-3 h-3" />{m.common_remove()}</span>
 				{/snippet}
 			</ConfirmPopover>
 			{/if}
@@ -1781,7 +1766,7 @@
 													</a>
 												</div>
 											{:else}
-												<p class="text-sm whitespace-nowrap">Dockhand management container</p>
+												<p class="text-sm whitespace-nowrap">{m.containers_tooltip_dockhand_mgmt()}</p>
 											{/if}
 										{:else}
 											{#if hasUpdate}
@@ -1790,7 +1775,7 @@
 														<CircleArrowUp class="w-4 h-4 text-amber-500" />
 														Update available
 													</p>
-													<p class="text-muted-foreground text-xs whitespace-nowrap">Update on the remote host where Hawser runs.</p>
+													<p class="text-muted-foreground text-xs whitespace-nowrap">{m.containers_tooltip_hawser_update_hint()}</p>
 													<a
 														href="https://github.com/Finsys/hawser"
 														target="_blank"
@@ -1798,12 +1783,10 @@
 														class="text-primary hover:underline text-xs flex items-center gap-1 whitespace-nowrap"
 														onclick={(e) => e.stopPropagation()}
 													>
-														<ExternalLink class="w-3 h-3" />
-														Update instructions on GitHub
-													</a>
+														<ExternalLink class="w-3 h-3" />{m.containers_tooltip_hawser_github()}</a>
 												</div>
 											{:else}
-												<p class="text-sm whitespace-nowrap">Hawser remote agent</p>
+												<p class="text-sm whitespace-nowrap">{m.containers_tooltip_hawser_agent()}</p>
 											{/if}
 										{/if}
 									</Tooltip.Content>
@@ -2188,18 +2171,18 @@
 										{#if detectingShellsFor === container.id}
 											<div class="p-4 text-center">
 												<Loader2 class="w-5 h-5 mx-auto mb-2 text-muted-foreground animate-spin" />
-												<p class="text-xs text-muted-foreground">Detecting shells...</p>
+												<p class="text-xs text-muted-foreground">{m.containers_shell_detecting()}</p>
 											</div>
 										{:else if !anyShellAvailableFor(container.id)}
 											<div class="p-4 text-center">
 												<AlertCircle class="w-5 h-5 mx-auto mb-2 text-amber-500" />
-												<p class="text-xs font-medium text-amber-500">No shell available</p>
-												<p class="text-xs text-muted-foreground mt-1">This container has no shell installed.</p>
+												<p class="text-xs font-medium text-amber-500">{m.container_terminal_no_shell()}</p>
+												<p class="text-xs text-muted-foreground mt-1">{m.containers_shell_none_desc()}</p>
 											</div>
 										{:else}
 											<div class="p-3 space-y-3">
 												<div class="space-y-1.5">
-													<Label class="text-xs">Shell</Label>
+													<Label class="text-xs">{m.sidebar_shell()}</Label>
 													<Select.Root type="single" bind:value={terminalShell}>
 														<Select.Trigger class="w-full h-8 text-xs">
 															<Shell class="w-3 h-3 mr-1.5 text-muted-foreground" />
@@ -2213,7 +2196,7 @@
 																		<span class={option.available ? 'text-foreground' : 'text-muted-foreground/60'}>
 																			{option.label}
 																			{#if !option.available}
-																				<span class="text-xs ml-1">(unavailable)</span>
+																				<span class="text-xs ml-1">{m.containers_shell_unavailable()}</span>
 																			{/if}
 																		</span>
 																	</Select.Item>
@@ -2223,7 +2206,7 @@
 													</Select.Root>
 												</div>
 												<div class="space-y-1.5">
-													<Label class="text-xs">User</Label>
+													<Label class="text-xs">{m.common_user()}</Label>
 													<Select.Root type="single" bind:value={terminalUser}>
 														<Select.Trigger class="w-full h-8 text-xs">
 															<User class="w-3 h-3 mr-1.5 text-muted-foreground" />
@@ -2269,9 +2252,7 @@
 													</Select.Root>
 												</div>
 												<Button size="sm" class="w-full h-7 text-xs" onclick={() => startTerminal(container)}>
-													<Terminal class="w-3 h-3" />
-													Connect
-												</Button>
+													<Terminal class="w-3 h-3" />{m.container_terminal_connect()}</Button>
 											</div>
 										{/if}
 									</Popover.Content>

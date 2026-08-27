@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Loader2, CheckCircle, XCircle, Archive, Copy, Check, Square } from 'lucide-svelte';
@@ -42,11 +43,11 @@
 				<TitleIcon class="w-5 h-5 shrink-0" />
 				{title}
 				{#if status === 'running'}
-					<Badge variant="secondary" class="text-xs gap-1"><Loader2 class="w-3 h-3 animate-spin" />Running</Badge>
+					<Badge variant="secondary" class="text-xs gap-1"><Loader2 class="w-3 h-3 animate-spin" />{m.status_running()}</Badge>
 				{:else if status === 'success'}
 					<Badge variant="secondary" class="text-xs gap-1 text-green-500"><CheckCircle class="w-3 h-3" />Completed</Badge>
 				{:else}
-					<Badge variant="destructive" class="text-xs gap-1"><XCircle class="w-3 h-3" />Failed</Badge>
+					<Badge variant="destructive" class="text-xs gap-1"><XCircle class="w-3 h-3" />{m.common_failed()}</Badge>
 				{/if}
 			</Dialog.Title>
 		</Dialog.Header>
@@ -83,9 +84,7 @@
 		<Dialog.Footer class="pt-3">
 			{#if status === 'running' && onStop}
 				<Button variant="destructive" onclick={onStop}>
-					<Square class="w-3.5 h-3.5 mr-1" />
-					Stop
-				</Button>
+					<Square class="w-3.5 h-3.5 mr-1" />{m.common_stop()}</Button>
 			{/if}
 			<Button variant="outline" onclick={() => (open = false)}>
 				{status === 'running' ? 'Run in background' : 'Close'}

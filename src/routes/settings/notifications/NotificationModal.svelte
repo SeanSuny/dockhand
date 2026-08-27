@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
@@ -327,11 +328,11 @@
 				<Tabs.Content value="channel" class="space-y-4 mt-0">
 			<div class="grid grid-cols-2 gap-4">
 				<div class="space-y-2">
-					<Label for="notif-name">Name *</Label>
+					<Label for="notif-name">{m.settings_cfgset_modal_name_label()}</Label>
 					<Input id="notif-name" bind:value={formName} placeholder="My notification channel" />
 				</div>
 				<div class="space-y-2">
-					<Label>Type</Label>
+					<Label>{m.volumes_col_type()}</Label>
 					{#if isEditing}
 						<Badge variant="secondary" class="h-9 flex items-center justify-center">
 							{formType === 'smtp' ? 'SMTP (Email)' : 'Webhooks'}
@@ -353,10 +354,10 @@
 							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="smtp">
-									<span class="flex items-center gap-2"><Mail class="w-4 h-4" />SMTP (Email)</span>
+									<span class="flex items-center gap-2"><Mail class="w-4 h-4" />{m.settings_notif_modal_type_smtp()}</span>
 								</Select.Item>
 								<Select.Item value="apprise">
-									<span class="flex items-center gap-2"><Zap class="w-4 h-4" />Webhooks</span>
+									<span class="flex items-center gap-2"><Zap class="w-4 h-4" />{m.settings_notif_modal_type_webhook()}</span>
 								</Select.Item>
 							</Select.Content>
 						</Select.Root>
@@ -365,7 +366,7 @@
 			</div>
 
 			<div class="flex items-center gap-2">
-				<Label>Status</Label>
+				<Label>{m.common_status()}</Label>
 				<TogglePill bind:checked={formEnabled} onLabel="Enabled" offLabel="Disabled" />
 			</div>
 
@@ -379,19 +380,19 @@
 							</Tooltip.Trigger>
 							<Tooltip.Portal>
 								<Tooltip.Content side="right" class="w-80">
-									<p class="text-xs"><span class="font-semibold">Gmail:</span> smtp.gmail.com, port 587, TLS/SSL off. Use an App Password.</p>
-									<p class="text-xs mt-1"><span class="font-semibold">Outlook:</span> smtp.office365.com, port 587, TLS/SSL off.</p>
+									<p class="text-xs"><span class="font-semibold">Gmail:</span>{m.settings_notif_modal_smtp_tip_gmail()}</p>
+									<p class="text-xs mt-1"><span class="font-semibold">Outlook:</span>{m.settings_notif_modal_smtp_tip_outlook()}</p>
 								</Tooltip.Content>
 							</Tooltip.Portal>
 						</Tooltip.Root>
 					</div>
 					<div class="grid grid-cols-3 gap-4">
 						<div class="space-y-2 col-span-2">
-							<Label for="notif-smtp-host">SMTP host *</Label>
+							<Label for="notif-smtp-host">{m.settings_notif_modal_smtp_host_label()}</Label>
 							<Input id="notif-smtp-host" bind:value={formSmtpHost} placeholder="smtp.gmail.com" />
 						</div>
 						<div class="space-y-2">
-							<Label for="notif-smtp-port">Port *</Label>
+							<Label for="notif-smtp-port">{m.settings_notif_modal_port_label()}</Label>
 							<Input id="notif-smtp-port" type="number" bind:value={formSmtpPort} />
 						</div>
 					</div>
@@ -401,23 +402,23 @@
 							<TogglePill bind:checked={formSmtpSecure} onLabel="Yes" offLabel="No" />
 						</div>
 						<div class="flex items-center gap-2">
-							<Label class="text-muted-foreground">Skip TLS verify</Label>
+							<Label class="text-muted-foreground">{m.settings_notif_modal_smtp_skip_tls()}</Label>
 							<TogglePill bind:checked={formSmtpSkipTlsVerify} onLabel="Yes" offLabel="No" />
 						</div>
 					</div>
 					<div class="grid grid-cols-2 gap-4">
 						<div class="space-y-2">
-							<Label for="notif-smtp-username">Username</Label>
+							<Label for="notif-smtp-username">{m.login_username()}</Label>
 							<Input id="notif-smtp-username" bind:value={formSmtpUsername} placeholder="user@example.com" />
 						</div>
 						<div class="space-y-2">
-							<Label for="notif-smtp-password">Password</Label>
+							<Label for="notif-smtp-password">{m.login_password()}</Label>
 							<Input id="notif-smtp-password" type="password" bind:value={formSmtpPassword} placeholder={isEditing ? 'Leave blank to keep existing' : 'App password or token'} />
 						</div>
 					</div>
 					<div class="grid grid-cols-2 gap-4">
 						<div class="space-y-2">
-							<Label for="notif-smtp-from-email">From email *</Label>
+							<Label for="notif-smtp-from-email">{m.settings_notif_modal_smtp_from_email_label()}</Label>
 							<Input id="notif-smtp-from-email" bind:value={formSmtpFromEmail} placeholder="alerts@example.com" />
 						</div>
 						<div class="space-y-2">
@@ -426,7 +427,7 @@
 						</div>
 					</div>
 					<div class="space-y-2">
-						<Label for="notif-smtp-to">Recipients * (comma-separated)</Label>
+						<Label for="notif-smtp-to">{m.settings_notif_modal_smtp_to_label()}</Label>
 						<Input id="notif-smtp-to" bind:value={formSmtpToEmails} placeholder="admin@example.com, ops@example.com" />
 					</div>
 				</div>
@@ -434,7 +435,7 @@
 				<div class="space-y-4 border-t pt-4 min-h-[380px]">
 					<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Webhook configuration</p>
 					<div class="space-y-2">
-						<Label for="notif-apprise-urls">Webhook URLs * (one per line)</Label>
+						<Label for="notif-apprise-urls">{m.settings_notif_modal_urls_label()}</Label>
 						<textarea
 							id="notif-apprise-urls"
 							bind:value={formAppriseUrls}
@@ -517,7 +518,7 @@ zabbixs://hostname/api_jsonrpc.php?token=TOKEN&amp;host=HOST&amp;key=ITEM_KEY"
 				{/if}
 			</Button>
 			<div class="flex gap-2">
-				<Button variant="outline" onclick={handleClose}>Cancel</Button>
+				<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 				<Button onclick={save} disabled={formSaving || formTesting}>
 					{#if formSaving}
 						<RefreshCw class="w-4 h-4 mr-1 animate-spin" />

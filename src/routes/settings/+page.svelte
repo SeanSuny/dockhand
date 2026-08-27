@@ -89,9 +89,7 @@
 			<!-- BETA GATE: Backups tab hidden unless FEAT_BACKUPS_ENABLED (see features.ts) -->
 			{#if $page.data.backupsEnabled}
 				<Tabs.Trigger value="backups" class="flex-1 flex items-center justify-center gap-1.5">
-					<Archive class="w-4 h-4" />
-					Backups
-				</Tabs.Trigger>
+					<Archive class="w-4 h-4" />{m.sidebar_backups()}</Tabs.Trigger>
 			{/if}
 			<Tabs.Trigger value="auth" class="flex-1 flex items-center justify-center gap-1.5">
 				<Users class="w-4 h-4" />

@@ -1,5 +1,6 @@
 <script lang='ts'>
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
@@ -115,7 +116,7 @@
 				</Button>
 			{/if}
 			<Button size="sm" variant="outline" onclick={fetchProviders}
-				>Refresh</Button
+				>{m.containers_refresh()}</Button
 			>
 		</div>
 	</div>
@@ -172,9 +173,7 @@
 											{:else}
 												<PlugZap class="w-3 h-3" />
 											{/if}
-										</span>
-										Test
-									</Button>
+										</span>{m.settings_registry_modal_test()}</Button>
 								{/if}
 								{#if $canAccess("secrets", "edit")}
 									<Button

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { page } from '$app/stores'; // BETA GATE: backups feature flag
 	import { formatBytes } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button';
@@ -989,22 +990,16 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterTypes = []}
-						>
-							Clear
-						</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					<Select.Item value="container_update">
 						<CircleArrowUp class="w-4 h-4 mr-2 inline text-green-500 drop-shadow-[0_0_3px_rgba(34,197,94,0.4)]" />
 						Container updates
 					</Select.Item>
 					<Select.Item value="git_stack_sync">
-						<GitBranch class="w-4 h-4 mr-2 inline text-purple-500 drop-shadow-[0_0_3px_rgba(168,85,247,0.4)]" />
-						Git stack syncs
-					</Select.Item>
+						<GitBranch class="w-4 h-4 mr-2 inline text-purple-500 drop-shadow-[0_0_3px_rgba(168,85,247,0.4)]" />{m.schedules_type_git_stack_syncs()}</Select.Item>
 					<Select.Item value="env_update_check">
-						<CircleFadingArrowUp class="w-4 h-4 mr-2 inline text-green-500/50 drop-shadow-[0_0_3px_rgba(34,197,94,0.3)]" />
-						Env update checks
-					</Select.Item>
+						<CircleFadingArrowUp class="w-4 h-4 mr-2 inline text-green-500/50 drop-shadow-[0_0_3px_rgba(34,197,94,0.3)]" />{m.schedules_type_env_update_checks()}</Select.Item>
 					<Select.Item value="image_prune">
 						<Trash2 class="w-4 h-4 mr-2 inline text-amber-500 drop-shadow-[0_0_3px_rgba(245,158,11,0.4)]" />
 						Image prune
@@ -1012,9 +1007,7 @@
 					<!-- BETA GATE: backup schedule filters hidden unless FEAT_BACKUPS_ENABLED (see features.ts) -->
 					{#if $page.data.backupsEnabled}
 						<Select.Item value="backup">
-							<Archive class="w-4 h-4 mr-2 inline text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]" />
-							Backups
-						</Select.Item>
+							<Archive class="w-4 h-4 mr-2 inline text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]" />{m.sidebar_backups()}</Select.Item>
 						<Select.Item value="repo_prune">
 							<ArchiveX class="w-4 h-4 mr-2 inline text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]" />
 							Repo prune
@@ -1057,9 +1050,7 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterEnvironments = []}
-						>
-							Clear
-						</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					{#each environments as env}
 						<Select.Item value={String(env.id)}>
@@ -1101,30 +1092,20 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterStatuses = []}
-						>
-							Clear
-						</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					<Select.Item value="success">
-						<Check class="w-4 h-4 mr-2 inline text-green-500" />
-						Success
-					</Select.Item>
+						<Check class="w-4 h-4 mr-2 inline text-green-500" />{m.schedules_status_success()}</Select.Item>
 					<Select.Item value="warning">
 						<AlertTriangle class="w-4 h-4 mr-2 inline text-amber-500" />
 						Warning
 					</Select.Item>
 					<Select.Item value="failed">
-						<X class="w-4 h-4 mr-2 inline text-red-500" />
-						Failed
-					</Select.Item>
+						<X class="w-4 h-4 mr-2 inline text-red-500" />{m.common_failed()}</Select.Item>
 					<Select.Item value="skipped">
-						<CheckCheck class="w-4 h-4 mr-2 inline text-green-500" />
-						Up-to-date
-					</Select.Item>
+						<CheckCheck class="w-4 h-4 mr-2 inline text-green-500" />{m.schedules_status_up_to_date()}</Select.Item>
 					<Select.Item value="running">
-						<Loader2 class="w-4 h-4 mr-2 inline text-sky-500 animate-spin" />
-						Running
-					</Select.Item>
+						<Loader2 class="w-4 h-4 mr-2 inline text-sky-500 animate-spin" />{m.status_running()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
 
@@ -1230,7 +1211,7 @@
 						<div class="font-medium flex items-center gap-2 truncate">
 							<span class="truncate">{schedule.name}</span>
 							{#if schedule.isSystem}
-								<Badge variant="outline" class="text-xs shrink-0">System</Badge>
+								<Badge variant="outline" class="text-xs shrink-0">{m.schedules_badge_system()}</Badge>
 							{/if}
 						</div>
 						<div class="text-xs text-muted-foreground flex items-center gap-1 truncate">
@@ -1331,7 +1312,7 @@
 						</div>
 					{/if}
 				{:else}
-					<span class="text-muted-foreground text-xs">Never</span>
+					<span class="text-muted-foreground text-xs">{m.schedules_never()}</span>
 				{/if}
 			{:else if column.id === 'nextRun'}
 				<span class="text-xs">{formatNextRun(schedule.nextRun)}</span>
@@ -1465,11 +1446,11 @@
 						<table class="w-full table-fixed">
 							<thead class="sticky top-0 bg-muted z-20">
 								<tr class="text-xs text-muted-foreground">
-									<th class="text-left px-2 py-1 w-36">Triggered</th>
-									<th class="text-center px-2 py-1 w-20">Trigger</th>
-									<th class="text-left px-2 py-1 w-20">Duration</th>
-									<th class="text-center px-2 py-1 w-14">Status</th>
-									<th class="text-left px-2 py-1">Error</th>
+									<th class="text-left px-2 py-1 w-36">{m.schedules_col_triggered()}</th>
+									<th class="text-center px-2 py-1 w-20">{m.schedules_trigger()}</th>
+									<th class="text-left px-2 py-1 w-20">{m.schedules_col_duration()}</th>
+									<th class="text-center px-2 py-1 w-14">{m.common_status()}</th>
+									<th class="text-left px-2 py-1">{m.common_error()}</th>
 									<th class="text-left px-2 py-1 w-14"></th>
 								</tr>
 							</thead>
@@ -1568,7 +1549,7 @@
 						<Loader2 class="w-6 h-6 animate-spin text-muted-foreground" />
 					</div>
 				{:else}
-					<p class="text-xs text-muted-foreground py-4">No executions found</p>
+					<p class="text-xs text-muted-foreground py-4">{m.schedules_no_executions_found()}</p>
 				{/if}
 			</div>
 		{/snippet}
@@ -1576,8 +1557,8 @@
 		{#snippet emptyState()}
 			<div class="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
 				<Calendar class="w-12 h-12" />
-				<p>No schedules found</p>
-				<p class="text-xs">Enable auto-update on containers or auto-sync on git stacks to see them here</p>
+				<p>{m.schedules_empty_title()}</p>
+				<p class="text-xs">{m.schedules_empty_desc()}</p>
 			</div>
 		{/snippet}
 	</DataGrid>
@@ -1657,7 +1638,7 @@
 				<!-- Execution info -->
 				<div class="flex flex-wrap items-center gap-4 text-xs shrink-0">
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-muted-foreground">Status</span>
+						<span class="text-muted-foreground">{m.common_status()}</span>
 						{#if selectedExecution.status}
 							{@const badge = getStatusBadge(selectedExecution.status)}
 							{@const envUpdateStatus = getEnvUpdateStatus(selectedExecution)}
@@ -1671,7 +1652,7 @@
 							{:else if isBlockedByVuln}
 								<Badge variant="default" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
 									<Bug class="w-3 h-3 mr-1" />
-									<span>Blocked</span>
+									<span>{m.schedules_status_blocked()}</span>
 								</Badge>
 							{:else}
 								{@const SelBadgeIcon = badge.icon}
@@ -1683,7 +1664,7 @@
 						{/if}
 					</div>
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-muted-foreground">Trigger</span>
+						<span class="text-muted-foreground">{m.schedules_trigger()}</span>
 						{#if selectedExecution.triggeredBy}
 							{@const trigger = getTriggerBadge(selectedExecution.triggeredBy)}
 							{@const SelTriggerIcon = trigger.icon}
@@ -1695,7 +1676,7 @@
 					</div>
 					{#if selectedExecution.details?.vulnerabilityCriteria}
 						<div class="flex flex-wrap items-center gap-2">
-							<span class="text-muted-foreground">Update block criteria</span>
+							<span class="text-muted-foreground">{m.schedules_update_block_criteria()}</span>
 							<VulnerabilityCriteriaBadge criteria={selectedExecution.details.vulnerabilityCriteria} showLabel />
 						</div>
 					{/if}
@@ -1717,7 +1698,7 @@
 					{@const summary = selectedExecution.details.scanResult.summary}
 					{@const scannerResults = selectedExecution.details.scanResult.scannerResults}
 					<div class="shrink-0">
-						<div class="text-xs text-muted-foreground mb-1">Vulnerability scan results</div>
+						<div class="text-xs text-muted-foreground mb-1">{m.schedules_vuln_scan_results()}</div>
 						<div class="border border-muted-foreground/20 rounded p-3">
 							<div class="mb-2">
 								<ScannerSeverityPills results={scannerResults ?? []} />
@@ -1735,7 +1716,7 @@
 				<!-- Error message -->
 				{#if selectedExecution.errorMessage}
 					<div class="shrink-0">
-						<div class="text-xs text-muted-foreground mb-1">Error</div>
+						<div class="text-xs text-muted-foreground mb-1">{m.common_error()}</div>
 						<div class="bg-destructive/10 border border-destructive/20 rounded p-3 text-xs text-destructive break-words">
 							{cleanError(selectedExecution.errorMessage)}
 						</div>

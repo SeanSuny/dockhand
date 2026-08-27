@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { Badge } from '$lib/components/ui/badge';
@@ -477,12 +478,10 @@
 				{/snippet}
 			</ConfirmPopover>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchVolumes}>Refresh</Button>
+			<Button size="sm" variant="outline" onclick={fetchVolumes}>{m.containers_refresh()}</Button>
 			{#if $canAccess('volumes', 'create')}
 			<Button size="sm" variant="secondary" onclick={() => showCreateModal = true}>
-				<Plus class="w-3.5 h-3.5" />
-				Create
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_create()}</Button>
 			{/if}
 		</div>
 	</div>
@@ -496,9 +495,7 @@
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
-			>
-				Clear
-			</button>
+			>{m.containers_clear_selection()}</button>
 			{#if $canAccess('volumes', 'remove')}
 			<ConfirmPopover
 				open={confirmBulkRemove}
@@ -511,9 +508,7 @@
 			>
 				{#snippet children({ open })}
 					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
-						<Trash2 class="w-3 h-3" />
-						Delete
-					</span>
+						<Trash2 class="w-3 h-3" />{m.common_delete()}</span>
 				{/snippet}
 			</ConfirmPopover>
 			{/if}

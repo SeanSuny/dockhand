@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -549,7 +550,7 @@
 					<Select.Item value="all">All statuses</Select.Item>
 					<Select.Item value="success"><CheckCircle class="w-3.5 h-3.5 text-green-500 mr-1.5 inline" />Initialized</Select.Item>
 					<Select.Item value="needs_init"><AlertCircle class="w-3.5 h-3.5 text-amber-500 mr-1.5 inline" />Needs init</Select.Item>
-					<Select.Item value="failed"><XCircle class="w-3.5 h-3.5 text-destructive mr-1.5 inline" />Failed</Select.Item>
+					<Select.Item value="failed"><XCircle class="w-3.5 h-3.5 text-destructive mr-1.5 inline" />{m.common_failed()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
 			<Badge variant="secondary" class="text-xs">{destinations.length} destination{destinations.length !== 1 ? 's' : ''}</Badge>
@@ -646,7 +647,7 @@
 							<Tooltip.Trigger>
 								<div class="flex items-center gap-1.5">
 									<XCircle class="w-3.5 h-3.5 text-destructive" />
-									<span class="text-xs text-destructive">Failed</span>
+									<span class="text-xs text-destructive">{m.common_failed()}</span>
 								</div>
 							</Tooltip.Trigger>
 							{#if dest.lastTestError}
@@ -656,7 +657,7 @@
 					{:else if testingAll}
 						<div class="flex items-center gap-1.5">
 							<Loader2 class="w-3.5 h-3.5 text-muted-foreground animate-spin" />
-							<span class="text-xs text-muted-foreground">Testing...</span>
+							<span class="text-xs text-muted-foreground">{m.settings_env_status_testing()}</span>
 						</div>
 					{:else}
 						<div class="flex items-center gap-1.5">
@@ -842,8 +843,8 @@
 									<Table.Header class="sticky top-0 z-10 bg-background">
 										<Table.Row>
 											<Table.Head class="w-28 py-1.5 text-xs" style="padding-left:8px">ID</Table.Head>
-											<Table.Head class="py-1.5 text-xs" style="padding-left:8px">Created</Table.Head>
-											<Table.Head class="w-16 py-1.5 text-xs text-right" style="padding-right:8px">Browse</Table.Head>
+											<Table.Head class="py-1.5 text-xs" style="padding-left:8px">{m.status_created()}</Table.Head>
+											<Table.Head class="w-16 py-1.5 text-xs text-right" style="padding-right:8px">{m.templates_tab_browse()}</Table.Head>
 										</Table.Row>
 									</Table.Header>
 									<Table.Body>
@@ -867,7 +868,7 @@
 			{/if}
 		</div>
 		<Dialog.Footer class="pt-4">
-			<Button variant="outline" onclick={() => browseOpen = false}>Close</Button>
+			<Button variant="outline" onclick={() => browseOpen = false}>{m.common_close()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

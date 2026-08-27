@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Label } from '$lib/components/ui/label';
+	import * as m from '$lib/paraglide/messages';
 	import { TogglePill } from '$lib/components/ui/toggle-pill';
 	import { Tag, Info } from 'lucide-svelte';
 
@@ -75,8 +76,7 @@
 						{/each}
 					</div>
 				</div>
-				<div class="rounded-md border border-border bg-muted/40 p-2.5 text-[11.5px] leading-relaxed text-muted-foreground">
-					Running <code>1.4.2</code>, you'll be told about:<br />
+				<div class="rounded-md border border-border bg-muted/40 p-2.5 text-[11.5px] leading-relaxed text-muted-foreground">{m.status_running()}<code>1.4.2</code>, you'll be told about:<br />
 					<span class="font-bold text-foreground">Patch</span> bug-fix only → <code>1.4.3</code><br />
 					<span class="font-bold text-foreground">Minor</span> new features too → <code>1.4.3</code>, <code>1.5.0</code><br />
 					<span class="font-bold text-foreground">Major</span> everything, incl. breaking → <code>1.4.3</code>, <code>1.5.0</code>, <code>2.0.0</code>
@@ -97,7 +97,7 @@
 				</div>
 				<div class="rounded-md border border-border bg-muted/40 p-2.5 text-[11.5px] leading-relaxed text-muted-foreground">
 					<span class="font-bold text-foreground">On</span> <code>1.2-alpine</code> → <code>1.5-alpine</code>, never bare <code>1.5</code><br />
-					<span class="font-bold text-foreground">Off</span> any newer version, even a different flavor — noisier
+					<span class="font-bold text-foreground">{m.activity_collection_off()}</span> any newer version, even a different flavor — noisier
 				</div>
 			</div>
 

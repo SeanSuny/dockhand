@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
@@ -136,9 +137,7 @@
 						Configure notification channels to receive alerts about Docker events. Supports SMTP email and webhook URLs (Discord, Slack, Telegram, ntfy, Bark, Signal, Zabbix, Apprise, and more).
 					</p>
 					<p class="text-xs text-amber-600 dark:text-amber-500 mt-2 flex items-center gap-1">
-						<Info class="w-3 h-3" />
-						Detailed notification settings (event types, enable/disable) are configured per environment in Environment settings.
-					</p>
+						<Info class="w-3 h-3" />{m.settings_notif_per_env_hint()}</p>
 				</div>
 			</div>
 		</Card.Content>
@@ -155,12 +154,12 @@
 					Add channel
 				</Button>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchNotifications}>Refresh</Button>
+			<Button size="sm" variant="outline" onclick={fetchNotifications}>{m.containers_refresh()}</Button>
 		</div>
 	</div>
 
 	{#if notifLoading && notifications.length === 0}
-		<p class="text-muted-foreground text-sm">Loading notification channels...</p>
+		<p class="text-muted-foreground text-sm">{m.settings_notif_loading()}</p>
 	{:else if notifications.length === 0}
 		<EmptyState
 			icon={Bell}
@@ -205,9 +204,7 @@
 
 						{#if testingNotif === notif.id}
 							<div class="text-xs text-muted-foreground flex items-center gap-1">
-								<RefreshCw class="w-3 h-3 animate-spin" />
-								Sending test...
-							</div>
+								<RefreshCw class="w-3 h-3 animate-spin" />{m.settings_notif_sending_test()}</div>
 						{:else if testResult && testedNotifId === notif.id}
 							<div class="text-xs flex items-center gap-1 {testResult.success ? 'text-green-600' : 'text-destructive'}">
 								{#if testResult.success}
@@ -227,9 +224,7 @@
 								onclick={() => testNotification(notif.id)}
 								disabled={testingNotif !== null}
 							>
-								<Send class="w-3 h-3" />
-								Test
-							</Button>
+								<Send class="w-3 h-3" />{m.settings_registry_modal_test()}</Button>
 							{#if $canAccess('notifications', 'edit')}
 								<Button
 									variant="outline"

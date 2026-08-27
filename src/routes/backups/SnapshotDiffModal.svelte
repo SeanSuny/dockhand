@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Plus, Minus, FileEdit, FileCheck, Loader2, ArrowRight, FolderOpen, Container, Info } from 'lucide-svelte';
@@ -129,8 +130,7 @@
 		<!-- Tabs -->
 		<div class="flex gap-1 border-b mb-3">
 			<button class="px-3 py-1.5 text-sm {activeTab === 'files' ? 'border-b-2 border-primary font-medium' : 'text-muted-foreground'}" onclick={() => activeTab = 'files'}>
-				<FolderOpen class="w-3.5 h-3.5 inline mr-1" />Files
-			</button>
+				<FolderOpen class="w-3.5 h-3.5 inline mr-1" />{m.container_inspect_tab_files()}</button>
 			<button class="px-3 py-1.5 text-sm {activeTab === 'metadata' ? 'border-b-2 border-primary font-medium' : 'text-muted-foreground'}" onclick={switchToMetadata}>
 				<Container class="w-3.5 h-3.5 inline mr-1" />Metadata
 			</button>

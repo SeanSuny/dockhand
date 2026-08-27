@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
@@ -750,7 +751,7 @@
 						<Label for="dest-cacert">CA certificate</Label>
 						<div class="flex gap-1">
 							{#if isEditing && hadCacert && !formCacert}
-								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadCacert = false; }}>Clear</Button>
+								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadCacert = false; }}>{m.containers_clear_selection()}</Button>
 							{/if}
 							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" onclick={() => caFileInput?.click()}>
 								<Upload class="mr-1 h-3 w-3" />Upload
@@ -772,7 +773,7 @@
 						<Label for="dest-client-cert">Client certificate (mTLS)</Label>
 						<div class="flex gap-1">
 							{#if isEditing && hadTlsClientCert && !formTlsClientCert}
-								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadTlsClientCert = false; }}>Clear</Button>
+								<Button variant="outline" size="sm" class="h-7 px-2 text-xs text-destructive" onclick={() => { hadTlsClientCert = false; }}>{m.containers_clear_selection()}</Button>
 							{/if}
 							<Button variant="outline" size="sm" class="h-7 px-2 text-xs" onclick={() => clientCertFileInput?.click()}>
 								<Upload class="mr-1 h-3 w-3" />Upload
@@ -907,11 +908,11 @@
 					<div class="grid grid-cols-3 gap-2">
 						<div class="bg-muted/30 rounded px-2 py-1.5 text-center border border-border/30">
 							<div class="text-sm font-semibold">{formatBytes(repoStats.totalSize)}</div>
-							<div class="text-[9px] text-muted-foreground">Size</div>
+							<div class="text-[9px] text-muted-foreground">{m.container_files_size()}</div>
 						</div>
 						<div class="bg-muted/30 rounded px-2 py-1.5 text-center border border-border/30">
 							<div class="text-sm font-semibold">{repoStats.totalFiles.toLocaleString()}</div>
-							<div class="text-[9px] text-muted-foreground">Files</div>
+							<div class="text-[9px] text-muted-foreground">{m.container_inspect_tab_files()}</div>
 						</div>
 						<div class="bg-muted/30 rounded px-2 py-1.5 text-center border border-border/30">
 							<div class="text-sm font-semibold">{repoStats.snapshots}</div>
@@ -965,7 +966,7 @@
 					</span>
 				{/if}
 			</div>
-			<Button variant="outline" onclick={() => { open = false; onClose(); }}>Cancel</Button>
+			<Button variant="outline" onclick={() => { open = false; onClose(); }}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving || !formValid} variant={repoConflictName ? 'destructive' : 'default'} title={!formValid ? 'Fill in all required fields first' : undefined}>
 				{#if formSaving}<Loader2 class="w-4 h-4 mr-1 animate-spin" />{:else if repoConflictName}<AlertTriangle class="w-4 h-4 mr-1" />{:else if isEditing}<Check class="w-4 h-4 mr-1" />{:else}<Plus class="w-4 h-4 mr-1" />{/if}
 				{repoConflictName ? 'Save anyway' : needsInit && !isEditing ? 'Create and init' : isEditing ? 'Save' : 'Create'}

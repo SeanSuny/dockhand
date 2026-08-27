@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
+	import * as m from '$lib/paraglide/messages';
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
 	import { Input } from '$lib/components/ui/input';
@@ -338,9 +339,7 @@ services:
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
-						<Eye class="w-4 h-4" />
-						Appearance
-						<Tooltip.Provider delayDuration={100}>
+						<Eye class="w-4 h-4" />{m.appearance_title()}<Tooltip.Provider delayDuration={100}>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
 									<HelpCircle class="w-4 h-4 text-muted-foreground cursor-help" />
@@ -364,7 +363,7 @@ services:
 						<div class="space-y-4">
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Show stopped containers</Label>
+									<Label>{m.appearance_show_stopped()}</Label>
 									<TogglePill
 										checked={showStoppedContainers}
 										onchange={(checked) => {
@@ -374,11 +373,11 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Display stopped and exited containers in lists</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_show_stopped_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Highlight available updates</Label>
+									<Label>{m.appearance_highlight_updates()}</Label>
 									<TogglePill
 										checked={highlightUpdates}
 										onchange={(checked) => {
@@ -388,11 +387,11 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Highlight container rows in amber when updates are available</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_highlight_updates_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Show changelog links</Label>
+									<Label>{m.appearance_show_changelog_links()}</Label>
 									<Tooltip.Root>
 										<Tooltip.Trigger>
 											<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
@@ -410,7 +409,7 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Show a release-notes icon next to images with updates available</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_show_changelog_links_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
@@ -450,7 +449,7 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Compact port display</Label>
+									<Label>{m.appearance_compact_ports()}</Label>
 									<TogglePill
 										checked={compactPorts}
 										onchange={(checked) => {
@@ -460,17 +459,17 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Show first port with +N count instead of all ports</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_compact_ports_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Show exposed ports</Label>
+									<Label>{m.appearance_show_exposed_ports()}</Label>
 									<Tooltip.Root>
 										<Tooltip.Trigger>
 											<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="w-96 max-w-[90vw]">
-											<p>Shows internal container ports (from EXPOSE directives) that are not published to the host. These appear in the container list with an amber badge to distinguish them from published port mappings.</p>
+											<p>{m.appearance_show_exposed_ports_tooltip()}</p>
 										</Tooltip.Content>
 									</Tooltip.Root>
 									<TogglePill
@@ -482,7 +481,7 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Display internal container ports in the container list grid</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_show_exposed_ports_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
@@ -526,7 +525,7 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Show URLs inferred from Traefik and Pangolin labels alongside dockhand.url</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_honor_proxy_labels_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
@@ -542,7 +541,7 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Display timestamps in 12-hour (AM/PM) or 24-hour format</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_time_format_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
@@ -574,7 +573,7 @@ services:
 										</Select.Content>
 									</Select.Root>
 								</div>
-								<p class="text-xs text-muted-foreground">How dates are displayed throughout the app</p>
+								<p class="text-xs text-muted-foreground">{m.appearance_date_format_desc()}</p>
 							</div>
 						</div>
 						<!-- Right column: Theme settings (always shown, with hint when auth enabled) -->
@@ -599,9 +598,7 @@ services:
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
-						<Compass class="w-4 h-4" />
-						Navigation
-					</Card.Title>
+						<Compass class="w-4 h-4" />{m.command_palette_group_navigation()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<NavigationSelector />
@@ -611,9 +608,7 @@ services:
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
-						<Globe class="w-4 h-4" />
-						Scheduling
-					</Card.Title>
+						<Globe class="w-4 h-4" />{m.settings_general_scheduling_title()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-2">
@@ -626,7 +621,7 @@ services:
 							}}
 							class="w-[320px]"
 						/>
-						<p class="text-xs text-muted-foreground">Default timezone for new environments. Used for scheduled tasks like auto-updates.</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_default_timezone_desc()}</p>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -634,14 +629,12 @@ services:
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
-						<Bell class="w-4 h-4" />
-						Confirmations
-					</Card.Title>
+						<Bell class="w-4 h-4" />{m.confirmations_title()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-1">
 						<div class="flex items-center gap-3">
-							<Label>Confirm destructive actions</Label>
+							<Label>{m.confirmations_destructive()}</Label>
 							<TogglePill
 								checked={confirmDestructive}
 								onchange={(checked) => {
@@ -651,7 +644,7 @@ services:
 								disabled={!$canAccess('settings', 'edit')}
 							/>
 						</div>
-						<p class="text-xs text-muted-foreground">Show confirmation dialogs before deleting resources</p>
+						<p class="text-xs text-muted-foreground">{m.confirmations_destructive_desc()}</p>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -659,15 +652,13 @@ services:
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
-						<FileText class="w-4 h-4" />
-						Logs & files
-					</Card.Title>
+						<FileText class="w-4 h-4" />{m.settings_general_logs_files_title()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
 						<div class="space-y-4">
 							<div class="space-y-2">
-								<Label for="log-max-lines">Log buffer size</Label>
+								<Label for="log-max-lines">{m.settings_general_log_buffer_size()}</Label>
 								<Select.Root
 									type="single"
 									value={String(logMaxLines)}
@@ -683,7 +674,7 @@ services:
 										{/each}
 									</Select.Content>
 								</Select.Root>
-								<p class="text-xs text-muted-foreground">Maximum number of log lines kept per container panel. Older lines are dropped when the limit is exceeded.</p>
+								<p class="text-xs text-muted-foreground">{m.settings_general_log_buffer_size_desc()}</p>
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
@@ -715,13 +706,13 @@ services:
 										</Select.Content>
 									</Select.Root>
 								</div>
-								<p class="text-xs text-muted-foreground">Format when downloading files from containers or volumes. "No archive" emits raw bytes for single files; directories still download as tar.</p>
+								<p class="text-xs text-muted-foreground">{m.settings_general_download_format_desc()}</p>
 							</div>
 						</div>
 						<div class="space-y-4">
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>Format log timestamps</Label>
+									<Label>{m.settings_general_format_log_timestamps()}</Label>
 									<TogglePill
 										checked={formatLogTimestamps}
 										onchange={(checked) => {
@@ -731,7 +722,7 @@ services:
 										disabled={!$canAccess('settings', 'edit')}
 									/>
 								</div>
-								<p class="text-xs text-muted-foreground">Convert ISO timestamps in logs to your configured date/time format</p>
+								<p class="text-xs text-muted-foreground">{m.settings_general_format_log_timestamps_desc()}</p>
 								<div class="flex items-start gap-1.5 mt-1">
 									<Info class="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
 									<p class="text-xs text-muted-foreground">Docker logs use UTC timestamps by default. When enabled, timestamps like <code class="bg-muted px-1 rounded">2026-01-12T07:47:44Z</code> are converted to local time using your date/time settings.</p>
@@ -748,7 +739,7 @@ services:
 						<FileText class="w-4 h-4" />
 						Compose template
 					</Card.Title>
-					<p class="text-xs text-muted-foreground">Default YAML content when creating a new stack.</p>
+					<p class="text-xs text-muted-foreground">{m.settings_general_compose_template_desc()}</p>
 				</Card.Header>
 				<Card.Content class="space-y-3">
 					<div class="h-64">
@@ -767,9 +758,7 @@ services:
 								Save template
 							</Button>
 							<Button size="sm" variant="ghost" onclick={revertComposeTemplate}>
-								<RotateCcw class="w-3.5 h-3.5" />
-								Revert to default
-							</Button>
+								<RotateCcw class="w-3.5 h-3.5" />{m.settings_general_revert_template()}</Button>
 						</div>
 					{/if}
 				</Card.Content>
@@ -796,7 +785,7 @@ services:
 							disabled={!$canAccess('settings', 'edit')}
 							placeholder={"anchore/grype:v0.110.0"}
 						/>
-						<p class="text-xs text-muted-foreground">Docker image for Grype scanner. Pin to a specific version for supply chain security.</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_grype_image_desc()}</p>
 					</div>
 					<div class="space-y-2">
 						<Label for="trivy-image">Trivy image</Label>
@@ -807,10 +796,10 @@ services:
 							disabled={!$canAccess('settings', 'edit')}
 							placeholder={"aquasec/trivy:0.69.3"}
 						/>
-						<p class="text-xs text-muted-foreground">Docker image for Trivy scanner. Pin to a specific version for supply chain security.</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_trivy_image_desc()}</p>
 					</div>
 					<div class="space-y-2">
-						<Label for="grype-args">Default Grype arguments</Label>
+						<Label for="grype-args">{m.settings_general_grype_args()}</Label>
 						<Input
 							id="grype-args"
 							value={defaultGrypeArgs}
@@ -821,7 +810,7 @@ services:
 						<p class="text-xs text-muted-foreground">Use <code class="bg-muted px-1 rounded">{'{image}'}</code> as placeholder for the image name</p>
 					</div>
 					<div class="space-y-2">
-						<Label for="trivy-args">Default Trivy arguments</Label>
+						<Label for="trivy-args">{m.settings_general_trivy_args()}</Label>
 						<Input
 							id="trivy-args"
 							value={defaultTrivyArgs}
@@ -880,7 +869,7 @@ services:
 						<div class="flex items-center justify-between">
 							<div>
 								<p class="text-sm font-medium">Scanner cache</p>
-								<p class="text-xs text-muted-foreground">Remove cached vulnerability databases to free disk space. Next scan will re-download fresh data (~200MB).</p>
+								<p class="text-xs text-muted-foreground">{m.settings_general_scanner_cache_desc()}</p>
 							</div>
 							<Button
 								variant="outline"
@@ -932,7 +921,7 @@ services:
 					<div class="space-y-3">
 						<div>
 							<div class="flex items-center gap-2">
-								<Label>Activity event collection mode</Label>
+								<Label>{m.settings_general_event_collection_mode()}</Label>
 								<Tooltip.Root>
 									<Tooltip.Trigger>
 										<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
@@ -957,7 +946,7 @@ services:
 										class="accent-primary w-4 h-4"
 									/>
 									<Activity class="w-3.5 h-3.5" />
-									<span class="text-sm">Stream</span>
+									<span class="text-sm">{m.settings_general_event_mode_stream()}</span>
 								</label>
 								<label class="flex items-center gap-2 cursor-pointer">
 									<input
@@ -970,7 +959,7 @@ services:
 										class="accent-primary w-4 h-4"
 									/>
 									<Clock class="w-3.5 h-3.5" />
-									<span class="text-sm">Poll</span>
+									<span class="text-sm">{m.settings_general_event_mode_poll()}</span>
 								</label>
 
 								<span class="text-xs text-muted-foreground {(eventCollectionMode || 'stream') === 'poll' ? '' : 'invisible'}">every</span>
@@ -996,7 +985,7 @@ services:
 
 					<div class="space-y-1 pt-2 border-t">
 						<div class="flex items-center gap-2">
-							<Label for="metrics-interval">Metrics collection interval</Label>
+							<Label for="metrics-interval">{m.settings_general_metrics_interval()}</Label>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
 									<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
@@ -1031,14 +1020,14 @@ services:
 
 					<div class="space-y-1 pt-2 border-t">
 						<div class="flex items-center gap-3">
-							<Label for="schedule-retention">Schedule execution cleanup</Label>
+							<Label for="schedule-retention">{m.settings_general_schedule_cleanup()}</Label>
 							<TogglePill
 								checked={scheduleCleanupEnabled}
 								onchange={handleScheduleCleanupEnabledChange}
 								disabled={!$canAccess('settings', 'edit')}
 							/>
 						</div>
-						<p class="text-xs text-muted-foreground">Delete executions older than specified days</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_schedule_cleanup_desc()}</p>
 						<div class="flex items-center gap-2 mt-2">
 							<Input
 								id="schedule-retention"
@@ -1062,14 +1051,14 @@ services:
 					</div>
 					<div class="space-y-1">
 						<div class="flex items-center gap-3">
-							<Label for="event-retention">Container event cleanup</Label>
+							<Label for="event-retention">{m.settings_general_event_cleanup()}</Label>
 							<TogglePill
 								checked={eventCleanupEnabled}
 								onchange={handleEventCleanupEnabledChange}
 								disabled={!$canAccess('settings', 'edit')}
 							/>
 						</div>
-						<p class="text-xs text-muted-foreground">Delete events older than specified days</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_event_cleanup_desc()}</p>
 						<div class="flex items-center gap-2 mt-2">
 							<Input
 								id="event-retention"
@@ -1093,7 +1082,7 @@ services:
 					</div>
 					<div class="space-y-1 pt-2 border-t">
 						<div class="flex items-center gap-3">
-							<Label>Volume helper cleanup</Label>
+							<Label>{m.settings_general_volume_helper_cleanup()}</Label>
 							<Badge variant="secondary" class="text-xs">Always enabled</Badge>
 						</div>
 						<p class="text-xs text-muted-foreground">
@@ -1103,14 +1092,14 @@ services:
 					</div>
 					<div class="space-y-1 pt-2 border-t">
 						<div class="flex items-center gap-3">
-							<Label>Scanner cache cleanup</Label>
+							<Label>{m.settings_general_scanner_cleanup()}</Label>
 							<TogglePill
 								checked={scannerCleanupEnabled}
 								onchange={handleScannerCleanupEnabledChange}
 								disabled={!$canAccess('settings', 'edit')}
 							/>
 						</div>
-						<p class="text-xs text-muted-foreground">Remove cached vulnerability databases to reclaim disk space</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_scanner_cleanup_desc()}</p>
 						{#if scannerCleanupEnabled}
 							<div class="mt-2">
 								<CronEditor
@@ -1123,13 +1112,13 @@ services:
 					</div>
 					<div class="space-y-1 pt-2 border-t">
 						<div class="flex items-center gap-3">
-							<Label>Protect scanner images from prune</Label>
+							<Label>{m.settings_general_protect_scanner_images()}</Label>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
 									<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
 								</Tooltip.Trigger>
 								<Tooltip.Content side="top" class="w-96 max-w-[90vw]">
-									<p>When ON, "Prune all unused" skips Dockhand's grype and trivy scanner images so the next scan doesn't have to re-pull them (and re-download the ~100MB vuln database). When OFF, prune behaves like vanilla Docker and may remove them.</p>
+									<p>{m.settings_general_protect_scanner_images_tooltip()}</p>
 								</Tooltip.Content>
 							</Tooltip.Root>
 							<TogglePill
@@ -1141,7 +1130,7 @@ services:
 								disabled={!$canAccess('settings', 'edit')}
 							/>
 						</div>
-						<p class="text-xs text-muted-foreground">Skip grype and trivy images during "Prune all unused"</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_protect_scanner_images_desc()}</p>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -1149,15 +1138,13 @@ services:
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="text-sm font-medium flex items-center gap-2">
-						<LayoutDashboard class="w-4 h-4" />
-						Dashboard
-					</Card.Title>
+						<LayoutDashboard class="w-4 h-4" />{m.sidebar_dashboard()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-3">
 						<div class="space-y-1">
 							<div class="flex items-center gap-3">
-								<Label>Label filter matching</Label>
+								<Label>{m.settings_general_label_filter_matching()}</Label>
 								<Tooltip.Root>
 									<Tooltip.Trigger>
 										<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />

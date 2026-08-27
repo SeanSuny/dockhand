@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { ArrowBigRight, Settings2, Shield, Loader2, Download, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, X, Play } from 'lucide-svelte';
@@ -588,7 +589,7 @@
 				class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-30"
 			>
 				<X class="h-4 w-4" />
-				<span class="sr-only">Close</span>
+				<span class="sr-only">{m.common_close()}</span>
 			</button>
 		</Dialog.Header>
 
@@ -639,9 +640,7 @@
 				class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-2 {activeTab === 'container' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
 				onclick={() => activeTab = 'container'}
 			>
-				<Settings2 class="w-4 h-4" />
-				Container
-			</button>
+				<Settings2 class="w-4 h-4" />{m.container_create_tab_container()}</button>
 		</div>
 		{/if}
 
@@ -678,7 +677,7 @@
 				<div class="flex-1 flex items-center justify-center">
 					<div class="text-center">
 						<Shield class="w-12 h-12 text-muted-foreground/50 mx-auto mb-2" />
-						<p class="text-sm text-muted-foreground">Vulnerability scanning is disabled for this environment.</p>
+						<p class="text-sm text-muted-foreground">{m.container_create_scan_disabled()}</p>
 						<p class="text-xs text-muted-foreground mt-1">Enable it in Settings -> Environments to scan images.</p>
 					</div>
 				</div>
@@ -754,14 +753,12 @@
 				{#if activeTab === 'container' && hasCriticalOrHigh}
 					<div class="flex items-center gap-2 text-amber-600 text-xs">
 						<AlertTriangle class="w-4 h-4" />
-						<span>Critical/high vulnerabilities found in image</span>
+						<span>{m.container_create_vuln_warning()}</span>
 					</div>
 				{/if}
 			</div>
 			<div class="flex gap-2">
-				<Button type="button" variant="outline" onclick={handleClose} disabled={loading || isPulling || isScanning}>
-					Cancel
-				</Button>
+				<Button type="button" variant="outline" onclick={handleClose} disabled={loading || isPulling || isScanning}>{m.common_cancel()}</Button>
 				<Button type="button" disabled={loading || isPulling || isScanning || activeTab !== 'container'} onclick={handleSubmit}>
 					{#if loading}
 						<Loader2 class="w-4 h-4 animate-spin" />

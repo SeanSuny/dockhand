@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
+	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -97,7 +98,7 @@
 				<Label for="rotate-confirm">Confirm new password</Label>
 				<Input id="rotate-confirm" type="password" bind:value={confirmPassword} autocomplete="new-password" />
 				{#if confirmPassword.length > 0 && !passwordsMatch}
-					<p class="text-xs text-destructive">Passwords do not match</p>
+					<p class="text-xs text-destructive">{m.settings_auth_user_modal_err_passwords_mismatch()}</p>
 				{/if}
 				{#if newPassword.length > 0 && newPassword === currentPassword}
 					<p class="text-xs text-destructive">New password must differ from current</p>
@@ -130,7 +131,7 @@
 		</div>
 
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)} disabled={submitting}>Cancel</Button>
+			<Button variant="outline" onclick={() => (open = false)} disabled={submitting}>{m.common_cancel()}</Button>
 			<Button onclick={submit} disabled={!canSubmit}>
 				{#if submitting}
 					<Loader2 class="w-3 h-3 mr-2 animate-spin" />

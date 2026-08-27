@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { HardDrive, Lock, Container } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import FileBrowserPanel from '../containers/FileBrowserPanel.svelte';
@@ -58,7 +59,7 @@
 					{#if isInUse}
 						<Badge variant="secondary" class="flex items-center gap-1">
 							<Lock class="w-3 h-3" />
-							<span>Read-only</span>
+							<span>{m.stacks_modal_state_readonly()}</span>
 						</Badge>
 					{/if}
 				{/snippet}
@@ -67,7 +68,7 @@
 				{#if isInUse}
 					<span class="flex items-center gap-1.5 flex-wrap">
 						<Lock class="w-3.5 h-3.5 text-muted-foreground inline" />
-						<span>Volume is in use by:</span>
+						<span>{m.volumes_browse_in_use_by()}</span>
 						{#each volumeUsage as container, i}
 							<span class="inline-flex items-center gap-1 text-foreground font-medium">
 								<Container class="w-3 h-3" />
@@ -75,7 +76,7 @@
 								<span class="text-muted-foreground">({container.state})</span>{#if i < volumeUsage.length - 1}<span>,</span>{/if}
 							</span>
 						{/each}
-						<span class="text-muted-foreground">- editing disabled</span>
+						<span class="text-muted-foreground">{m.volumes_browse_editing_disabled()}</span>
 					</span>
 				{:else}
 					Browse, edit, and manage files in the volume.

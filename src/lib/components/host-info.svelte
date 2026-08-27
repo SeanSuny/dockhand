@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Cpu, MemoryStick, Box, Globe, ChevronDown, Check, HardDrive, Clock, Wifi, WifiOff, Route, UndoDot, Icon, AlertCircle, Loader2, Search, Server, X } from 'lucide-svelte';
 	import { whale } from '@lucide/lab';
 	import { Button } from '$lib/components/ui/button';
@@ -458,9 +459,7 @@
 							{/if}
 						</button>
 					{:else}
-						<div class="px-3 py-2 text-sm text-muted-foreground">
-							No matching environments
-						</div>
+						<div class="px-3 py-2 text-sm text-muted-foreground">{m.dashboard_no_match_title()}</div>
 					{/each}
 				</div>
 			</div>
@@ -500,7 +499,7 @@
 				<span>Hawser (edge){hostInfo.environment.hawserVersion ? ` ${hostInfo.environment.hawserVersion}` : ''}</span>
 			{:else}
 				<Icon iconNode={whale} class="{iconSizeClass()}" />
-				<span>Socket</span>
+				<span>{m.dashboard_conn_socket()}</span>
 			{/if}
 		</div>
 
@@ -544,7 +543,7 @@
 			<span class="text-muted-foreground" title={currentTimezone}>{formatLastUpdated(lastUpdated, currentTimezone)}</span>
 			{#if isConnected}
 				<Wifi class="{iconSizeLargeClass()}" />
-				<span class="font-medium">Live</span>
+				<span class="font-medium">{m.container_inspect_live()}</span>
 			{:else}
 				<WifiOff class="{iconSizeLargeClass()}" />
 			{/if}

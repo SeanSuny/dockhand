@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -328,13 +329,13 @@
 				<div class="flex items-center gap-2">
 					{#if status === 'pulling'}
 						<Download class="w-4 h-4 animate-spin text-blue-600" />
-						<span class="text-sm">Pulling layers...</span>
+						<span class="text-sm">{m.image_pull_pulling_layers()}</span>
 					{:else if status === 'complete'}
 						<CheckCircle2 class="w-4 h-4 text-green-600" />
-						<span class="text-sm text-green-600">Pull completed!</span>
+						<span class="text-sm text-green-600">{m.image_pull_completed()}</span>
 					{:else if status === 'error'}
 						<XCircle class="w-4 h-4 text-red-600" />
-						<span class="text-sm text-red-600">Failed</span>
+						<span class="text-sm text-red-600">{m.common_failed()}</span>
 					{/if}
 				</div>
 				<div class="flex items-center gap-3">
@@ -382,9 +383,9 @@
 				<table class="w-full text-xs">
 					<thead class="bg-muted sticky top-0">
 						<tr>
-							<th class="text-left py-1.5 px-3 font-medium w-28">Layer ID</th>
-							<th class="text-left py-1.5 px-3 font-medium">Status</th>
-							<th class="text-right py-1.5 px-3 font-medium w-24">Progress</th>
+							<th class="text-left py-1.5 px-3 font-medium w-28">{m.image_pull_layer_id()}</th>
+							<th class="text-left py-1.5 px-3 font-medium">{m.common_status()}</th>
+							<th class="text-right py-1.5 px-3 font-medium w-24">{m.container_batch_progress()}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -424,7 +425,7 @@
 											<span class="text-muted-foreground w-8">{percentage}%</span>
 										</div>
 									{:else if isComplete}
-										<span class="text-green-600">Done</span>
+										<span class="text-green-600">{m.images_push_done()}</span>
 									{:else}
 										<span class="text-muted-foreground">-</span>
 									{/if}
@@ -478,7 +479,7 @@
 	<!-- Idle state -->
 	{#if status === 'idle' && !showImageInput}
 		<div class="flex-1 flex items-center justify-center text-muted-foreground">
-			<p class="text-sm">Enter an image name to start pulling</p>
+			<p class="text-sm">{m.image_pull_idle_hint()}</p>
 		</div>
 	{/if}
 </div>

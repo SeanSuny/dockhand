@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { readJobResponse } from '$lib/utils/sse-fetch';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
@@ -131,9 +132,7 @@
 				type="button"
 				class="px-3 py-1.5 text-sm transition-colors border-b-2 -mb-px {activeTab === 'files' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
 				onclick={() => activeTab = 'files'}
-			>
-				Files
-			</button>
+			>{m.container_inspect_tab_files()}</button>
 			<button
 				type="button"
 				class="px-3 py-1.5 text-sm transition-colors border-b-2 -mb-px {activeTab === 'metadata' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
@@ -170,9 +169,9 @@
 						<section class="space-y-2">
 							<h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Backup info</h4>
 							<dl class="grid grid-cols-[130px_1fr] gap-y-1.5 text-sm">
-								<dt class="text-muted-foreground">Type</dt>
+								<dt class="text-muted-foreground">{m.volumes_col_type()}</dt>
 								<dd><Badge variant="outline" class="text-[10px]">{metadata.type}</Badge></dd>
-								<dt class="text-muted-foreground">Name</dt>
+								<dt class="text-muted-foreground">{m.common_name()}</dt>
 								<dd class="font-medium">{metadata.targetName}</dd>
 								<dt class="text-muted-foreground">Backup time</dt>
 								<dd>{formatDateTime(metadata.backupTime)}</dd>
@@ -180,7 +179,7 @@
 									<dt class="text-muted-foreground">Environment ID</dt>
 									<dd class="font-mono">{metadata.environmentId}</dd>
 								{/if}
-								<dt class="text-muted-foreground">Volumes</dt>
+								<dt class="text-muted-foreground">{m.sidebar_volumes()}</dt>
 								<dd>{metadata.volumes?.length ?? 0}</dd>
 								{#if metadata.type === 'stack'}
 									{#if metadata.stack?.composeFileName}
@@ -261,10 +260,10 @@
 									{(containerInspect.Name || metadata.targetName || '').replace(/^\//, '')}
 								</h4>
 								<dl class="grid grid-cols-[130px_1fr] gap-y-1.5 text-sm">
-									<dt class="text-muted-foreground">Image</dt>
+									<dt class="text-muted-foreground">{m.container_inspect_image()}</dt>
 									<dd class="font-mono break-all">{containerInspect.Config.Image || '—'}</dd>
 									{#if containerInspect.Id}
-										<dt class="text-muted-foreground">Container ID</dt>
+										<dt class="text-muted-foreground">{m.activity_detail_container_id()}</dt>
 										<dd class="font-mono">{containerInspect.Id.slice(0, 12)}</dd>
 									{/if}
 									{#if containerInspect.State?.Status}
@@ -272,11 +271,11 @@
 										<dd>{containerInspect.State.Status}</dd>
 									{/if}
 									{#if containerInspect.Created}
-										<dt class="text-muted-foreground">Created</dt>
+										<dt class="text-muted-foreground">{m.status_created()}</dt>
 										<dd>{formatDateTime(containerInspect.Created)}</dd>
 									{/if}
 									{#if containerInspect.Config.Cmd?.length}
-										<dt class="text-muted-foreground">Command</dt>
+										<dt class="text-muted-foreground">{m.common_command()}</dt>
 										<dd class="font-mono break-all">{containerInspect.Config.Cmd.join(' ')}</dd>
 									{/if}
 									{#if containerInspect.Config.Entrypoint?.length}
@@ -288,7 +287,7 @@
 										<dd class="font-mono break-all">{containerInspect.Config.WorkingDir}</dd>
 									{/if}
 									{#if containerInspect.Config.User}
-										<dt class="text-muted-foreground">User</dt>
+										<dt class="text-muted-foreground">{m.common_user()}</dt>
 										<dd class="font-mono">{containerInspect.Config.User}</dd>
 									{/if}
 									{#if containerInspect.Config.ExposedPorts}
@@ -304,7 +303,7 @@
 										<dd class="break-all">{containerInspect.HostConfig.NetworkMode}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.Privileged}
-										<dt class="text-muted-foreground">Privileged</dt>
+										<dt class="text-muted-foreground">{m.container_inspect_privileged()}</dt>
 										<dd>yes</dd>
 									{/if}
 								</dl>
@@ -334,7 +333,7 @@
 								<!-- Security flags -->
 								{#if containerInspect.HostConfig?.Privileged || containerInspect.HostConfig?.ReadonlyRootfs || containerInspect.HostConfig?.CapAdd?.length || containerInspect.HostConfig?.CapDrop?.length}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><ShieldAlert class="w-3.5 h-3.5" />Security</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><ShieldAlert class="w-3.5 h-3.5" />{m.settings_env_modal_tab_security()}</span>
 										<div class="flex flex-wrap gap-1">
 											{#if containerInspect.HostConfig.Privileged}<Badge variant="outline" class="text-xs text-amber-600 border-amber-600/40">privileged</Badge>{/if}
 											{#if containerInspect.HostConfig.ReadonlyRootfs}<Badge variant="outline" class="text-xs">read-only rootfs</Badge>{/if}
@@ -347,7 +346,7 @@
 								<!-- Runtime details (log driver, stop signal, platform) -->
 								{#if containerInspect.HostConfig?.LogConfig?.Type || containerInspect.Config?.StopSignal || containerInspect.Platform}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Server class="w-3.5 h-3.5" />Runtime</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Server class="w-3.5 h-3.5" />{m.container_inspect_runtime()}</span>
 										<dl class="grid grid-cols-[130px_1fr] gap-y-1 text-sm">
 											{#if containerInspect.HostConfig?.LogConfig?.Type}
 												<dt class="text-muted-foreground flex items-center gap-1.5"><ScrollText class="w-3.5 h-3.5" />Log driver</dt>
@@ -358,7 +357,7 @@
 												<dd class="font-mono">{containerInspect.Config.StopSignal}</dd>
 											{/if}
 											{#if containerInspect.Platform}
-												<dt class="text-muted-foreground flex items-center gap-1.5"><Cpu class="w-3.5 h-3.5" />Platform</dt>
+												<dt class="text-muted-foreground flex items-center gap-1.5"><Cpu class="w-3.5 h-3.5" />{m.container_inspect_platform()}</dt>
 												<dd class="font-mono">{containerInspect.Platform}</dd>
 											{/if}
 										</dl>
@@ -379,7 +378,7 @@
 								<!-- Networks -->
 								{#if containerInspect.NetworkSettings?.Networks && Object.keys(containerInspect.NetworkSettings.Networks).length}
 									<div class="pt-1 space-y-1.5">
-										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Network class="w-3.5 h-3.5" />Networks</span>
+										<span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Network class="w-3.5 h-3.5" />{m.sidebar_networks()}</span>
 										<div class="flex flex-wrap gap-1">
 											{#each Object.entries(containerInspect.NetworkSettings.Networks) as [net, cfg]}
 												<Badge variant="secondary" class="text-xs"><Network class="w-3.5 h-3.5 mr-1" />{net}{(cfg as any)?.IPAddress ? ` (${(cfg as any).IPAddress})` : ''}</Badge>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, type Snippet } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import StackEnvVarsEditor, { type EnvVar, type ValidationResult } from '$lib/components/StackEnvVarsEditor.svelte';
 	import CodeEditor from '$lib/components/CodeEditor.svelte';
@@ -407,9 +408,7 @@
 					</Button>
 					{#if viewMode === 'form'}
 						<Button type="button" size="sm" variant="ghost" onclick={addEnvVariable} class="h-6 text-xs px-2">
-							<Plus class="w-3.5 h-3.5" />
-							Add
-						</Button>
+							<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 					{/if}
 					<ConfirmPopover
 						bind:open={confirmClearOpen}
@@ -428,9 +427,7 @@
 								class="h-6 text-xs px-2 {hasContent ? 'text-destructive hover:text-destructive' : 'text-muted-foreground/50 cursor-not-allowed'}"
 								disabled={!hasContent}
 							>
-								<Trash2 class="w-3.5 h-3.5" />
-								Clear
-							</Button>
+								<Trash2 class="w-3.5 h-3.5" />{m.containers_clear_selection()}</Button>
 						{/snippet}
 					</ConfirmPopover>
 				</div>

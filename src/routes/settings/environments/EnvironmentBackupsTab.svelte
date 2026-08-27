@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
@@ -186,7 +187,7 @@
 					<CronEditor value={batchSchedule} onchange={(v) => batchSchedule = v} />
 				</div>
 				<div class="flex items-center justify-end gap-2">
-					<Button variant="ghost" size="sm" class="text-xs" onclick={() => showBatch = false}>Cancel</Button>
+					<Button variant="ghost" size="sm" class="text-xs" onclick={() => showBatch = false}>{m.common_cancel()}</Button>
 					<Button size="sm" disabled={!batchDestId || batchSaving} onclick={batchApply}>
 						{#if batchSaving}<Loader2 class="w-3.5 h-3.5 mr-1 animate-spin" />{/if}
 						Schedule {unconfiguredLabel}

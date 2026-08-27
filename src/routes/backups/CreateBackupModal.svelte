@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import * as Select from '$lib/components/ui/select';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -381,8 +382,7 @@
 					{/if}
 
 					<div class="flex justify-end pt-2">
-						<Button size="sm" onclick={() => step = 3} disabled={!selectedDestId}>
-							Next <ArrowBigRight class="w-3.5 h-3.5 ml-1" />
+						<Button size="sm" onclick={() => step = 3} disabled={!selectedDestId}>{m.logs_next()}<ArrowBigRight class="w-3.5 h-3.5 ml-1" />
 						</Button>
 					</div>
 				</div>
@@ -418,7 +418,7 @@
 					{/if}
 
 					<div class="flex items-center gap-2 pt-2">
-						<Button variant="outline" size="sm" onclick={() => step = 2} disabled={saving}>Back</Button>
+						<Button variant="outline" size="sm" onclick={() => step = 2} disabled={saving}>{m.stacks_import_button_back()}</Button>
 						<div class="flex-1"></div>
 						{#if saveSchedule}
 							<Button variant="outline" size="sm" onclick={() => saveAndMaybeRun(false)} disabled={saving || scheduleInvalid || stackHelperFailed}>

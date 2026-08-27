@@ -1962,9 +1962,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 									type="button"
 									onclick={clearMultiModeSelection}
 									class="text-2xs text-muted-foreground hover:text-foreground transition-colors"
-								>
-									Clear
-								</button>
+								>{m.containers_clear_selection()}</button>
 							{:else}
 								<span>{m.logs_container_count({ count: containers.length, plural: containers.length !== 1 ? 's' : '' })}</span>
 							{/if}

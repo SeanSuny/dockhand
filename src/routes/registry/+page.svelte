@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
@@ -669,7 +670,7 @@
 			</p>
 			{#if !browseMode && supportsBrowsing()}
 				<p class="text-muted-foreground mt-2">
-					Tip: Large registries don't support search. Try <button class="text-primary underline" onclick={() => browse()}>Browse</button> and use the filter to find images.
+					Tip: Large registries don't support search. Try <button class="text-primary underline" onclick={() => browse()}>{m.templates_tab_browse()}</button> and use the filter to find images.
 				</p>
 			{/if}
 		</div>
@@ -700,11 +701,11 @@
 			<table class="w-full text-sm">
 				<thead class="bg-muted sticky top-0 z-10">
 					<tr class="border-b">
-						<th class="text-left py-1.5 px-2 font-medium">Name</th>
+						<th class="text-left py-1.5 px-2 font-medium">{m.common_name()}</th>
 						{#if !browseMode}
-							<th class="text-left py-1.5 px-2 font-medium">Description</th>
+							<th class="text-left py-1.5 px-2 font-medium">{m.settings_cfgset_modal_description()}</th>
 							<th class="text-center py-1.5 px-2 font-medium w-16">Stars</th>
-							<th class="text-center py-1.5 px-2 font-medium w-20">Type</th>
+							<th class="text-center py-1.5 px-2 font-medium w-20">{m.volumes_col_type()}</th>
 						{/if}
 					</tr>
 				</thead>
@@ -768,10 +769,10 @@
 											<table class="text-xs">
 												<thead class="text-muted-foreground sticky top-0 bg-background z-10">
 													<tr>
-														<th class="text-left py-1 px-2 pr-4 font-medium">Tag</th>
-														<th class="text-left py-1 px-2 pr-4 font-medium">Size</th>
-														<th class="text-left py-1 px-2 pr-4 font-medium">Modified</th>
-														<th class="text-left py-1 px-2 font-medium">Actions</th>
+														<th class="text-left py-1 px-2 pr-4 font-medium">{m.images_col_tag()}</th>
+														<th class="text-left py-1 px-2 pr-4 font-medium">{m.container_files_size()}</th>
+														<th class="text-left py-1 px-2 pr-4 font-medium">{m.container_files_modified()}</th>
+														<th class="text-left py-1 px-2 font-medium">{m.common_actions()}</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -843,9 +844,7 @@
 											<!-- Loading more indicator -->
 											{#if expandState.loadingMore}
 												<div class="flex items-center justify-center py-2 text-xs text-muted-foreground">
-													<Loader2 class="w-3 h-3 animate-spin mr-2" />
-													Loading more...
-												</div>
+													<Loader2 class="w-3 h-3 animate-spin mr-2" />{m.activity_loading_more()}</div>
 											{/if}
 										</div>
 										<!-- Tags count -->

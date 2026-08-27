@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
@@ -1483,9 +1484,7 @@
 				defaultIcon={Layers}
 			/>
 			<Button size="sm" variant="outline" onclick={fetchStacks}>
-				<RefreshCw class="w-3.5 h-3.5" />
-				Refresh
-			</Button>
+				<RefreshCw class="w-3.5 h-3.5" />{m.containers_refresh()}</Button>
 			<CheckUpdatesButton
 				{envId}
 				hasPendingUpdates={stacks.some((s) => s.updatesAvailable)}
@@ -1519,17 +1518,11 @@
 			</Button>
 			{#if $canAccess('stacks', 'create')}
 				<Button size="sm" variant="outline" onclick={() => openGitModal()}>
-					<GitBranch class="w-3.5 h-3.5" />
-					From Git
-				</Button>
+					<GitBranch class="w-3.5 h-3.5" />{m.stacks_from_git()}</Button>
 				<Button size="sm" variant="secondary" onclick={() => showCreateModal = true}>
-					<Plus class="w-3.5 h-3.5" />
-					Create
-				</Button>
+					<Plus class="w-3.5 h-3.5" />{m.common_create()}</Button>
 				<Button size="sm" variant="outline" onclick={() => showImportModal = true}>
-					<Import class="w-3.5 h-3.5" />
-					Adopt
-				</Button>
+					<Import class="w-3.5 h-3.5" />{m.stacks_adopt()}</Button>
 			{/if}
 		</div>
 	</div>
@@ -1543,9 +1536,7 @@
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
-			>
-				Clear
-			</button>
+			>{m.containers_clear_selection()}</button>
 			{#if selectedStopped.length > 0 && $canAccess('stacks', 'start')}
 				<ConfirmPopover
 					open={confirmBulkStart}
@@ -1560,9 +1551,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer">
-							<Play class="w-3 h-3" />
-							Start
-						</span>
+							<Play class="w-3 h-3" />{m.common_start()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1580,9 +1569,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-amber-600 hover:border-amber-500/40 hover:shadow transition-all cursor-pointer">
-							<RotateCcw class="w-3 h-3" />
-							Restart
-						</span>
+							<RotateCcw class="w-3 h-3" />{m.common_restart()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1599,9 +1586,7 @@
 				>
 					{#snippet children({ open })}
 						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer">
-							<Square class="w-3 h-3" />
-							Stop
-						</span>
+							<Square class="w-3 h-3" />{m.common_stop()}</span>
 					{/snippet}
 				</ConfirmPopover>
 			{/if}
@@ -1637,9 +1622,7 @@
 			>
 				{#snippet children({ open })}
 					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer">
-						<Trash2 class="w-3 h-3" />
-						Remove
-					</span>
+						<Trash2 class="w-3 h-3" />{m.common_remove()}</span>
 				{/snippet}
 			</ConfirmPopover>
 			{/if}
@@ -1809,11 +1792,9 @@
 								<span
 									class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 shadow-sm min-w-[5.5rem]"
 								>
-									<FileCode class="w-3 h-3" />
-									Internal
-								</span>
+									<FileCode class="w-3 h-3" />{m.stacks_source_internal()}</span>
 							</Tooltip.Trigger>
-							<Tooltip.Content>Managed by Dockhand</Tooltip.Content>
+							<Tooltip.Content>{m.stacks_source_internal_tooltip()}</Tooltip.Content>
 						</Tooltip.Root>
 					{:else}
 						<Tooltip.Root>
@@ -1821,13 +1802,9 @@
 								<span
 									class="inline-flex items-center justify-center gap-1 text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 shadow-sm min-w-[5.5rem]"
 								>
-									<ExternalLink class="w-3 h-3" />
-									Untracked
-								</span>
+									<ExternalLink class="w-3 h-3" />{m.stacks_source_untracked()}</span>
 							</Tooltip.Trigger>
-							<Tooltip.Content>
-								Compose file location unknown. Click the stack name or edit button to locate it.
-							</Tooltip.Content>
+							<Tooltip.Content>{m.stacks_source_untracked_tooltip()}</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
 				{:else if column.id === 'location'}
@@ -1856,7 +1833,7 @@
 										<span class="text-xs font-medium">{getContainerStateCounts(stack).running}</span>
 									</span>
 								</Tooltip.Trigger>
-								<Tooltip.Content>Running</Tooltip.Content>
+								<Tooltip.Content>{m.status_running()}</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).exited}
@@ -1867,7 +1844,7 @@
 										<span class="text-xs font-medium">{getContainerStateCounts(stack).exited}</span>
 									</span>
 								</Tooltip.Trigger>
-								<Tooltip.Content>Exited</Tooltip.Content>
+								<Tooltip.Content>{m.status_exited()}</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).paused}
@@ -1878,7 +1855,7 @@
 										<span class="text-xs font-medium">{getContainerStateCounts(stack).paused}</span>
 									</span>
 								</Tooltip.Trigger>
-								<Tooltip.Content>Paused</Tooltip.Content>
+								<Tooltip.Content>{m.status_paused()}</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).restarting}
@@ -1889,7 +1866,7 @@
 										<span class="text-xs font-medium">{getContainerStateCounts(stack).restarting}</span>
 									</span>
 								</Tooltip.Trigger>
-								<Tooltip.Content>Restarting</Tooltip.Content>
+								<Tooltip.Content>{m.status_restarting()}</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).created}
@@ -1900,7 +1877,7 @@
 										<span class="text-xs font-medium">{getContainerStateCounts(stack).created}</span>
 									</span>
 								</Tooltip.Trigger>
-								<Tooltip.Content>Created</Tooltip.Content>
+								<Tooltip.Content>{m.status_created()}</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 						{#if getContainerStateCounts(stack).dead}
@@ -1911,7 +1888,7 @@
 										<span class="text-xs font-medium">{getContainerStateCounts(stack).dead}</span>
 									</span>
 								</Tooltip.Trigger>
-								<Tooltip.Content>Dead</Tooltip.Content>
+								<Tooltip.Content>{m.status_dead()}</Tooltip.Content>
 							</Tooltip.Root>
 						{/if}
 						{#if stack.containers.length === 0}
@@ -2118,12 +2095,8 @@
 											<div class="flex flex-col gap-1.5">
 												<span class="text-xs text-muted-foreground">Restart stack <strong>{stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name}</strong></span>
 												<div class="flex items-center gap-1.5">
-													<Button size="sm" variant="secondary" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>
-														Restart
-													</Button>
-													<Button size="sm" variant="default" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>
-														Recreate (stop & up)
-													</Button>
+													<Button size="sm" variant="secondary" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>{m.common_restart()}</Button>
+													<Button size="sm" variant="default" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>{m.stacks_action_recreate()}</Button>
 												</div>
 											</div>
 										</Popover.Content>
@@ -2299,7 +2272,7 @@
 											<!-- Memory sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">Mem</span>
+													<span class="text-muted-foreground">{m.stacks_label_mem()}</span>
 													<span class="font-mono text-muted-foreground">{stats ? formatBytesCompact(stats.memoryUsage) : '-'}</span>
 												</div>
 												{#if history?.mem && history.mem.length >= 2}
@@ -2314,7 +2287,7 @@
 											<!-- Network I/O sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">Net</span>
+													<span class="text-muted-foreground">{m.stacks_label_net()}</span>
 													<span class="font-mono text-muted-foreground">{stats ? formatBytesCompact(stats.networkRx + stats.networkTx) : '-'}</span>
 												</div>
 												{#if history?.netRx && history.netRx.length >= 2}
@@ -2329,7 +2302,7 @@
 											<!-- Disk I/O sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">Disk</span>
+													<span class="text-muted-foreground">{m.stacks_label_disk()}</span>
 													<span class="font-mono text-muted-foreground">{stats ? formatBytesCompact(stats.blockRead + stats.blockWrite) : '-'}</span>
 												</div>
 												{#if history?.diskR && history.diskR.length >= 2}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Loader2, Network } from 'lucide-svelte';
@@ -83,7 +84,7 @@
 					<h3 class="text-sm font-semibold">Basic information</h3>
 					<div class="grid grid-cols-2 gap-3 text-sm">
 						<div>
-							<p class="text-muted-foreground">Name</p>
+							<p class="text-muted-foreground">{m.common_name()}</p>
 							<p class="font-medium">{networkData.Name}</p>
 						</div>
 						<div>
@@ -91,19 +92,19 @@
 							<code class="text-xs">{networkData.Id?.slice(0, 12)}</code>
 						</div>
 						<div>
-							<p class="text-muted-foreground">Driver</p>
+							<p class="text-muted-foreground">{m.container_inspect_driver()}</p>
 							<Badge variant="outline">{networkData.Driver}</Badge>
 						</div>
 						<div>
-							<p class="text-muted-foreground">Scope</p>
+							<p class="text-muted-foreground">{m.common_scope()}</p>
 							<Badge variant="secondary">{networkData.Scope}</Badge>
 						</div>
 						<div>
-							<p class="text-muted-foreground">Created</p>
+							<p class="text-muted-foreground">{m.status_created()}</p>
 							<p>{formatNetworkDate(networkData.Created)}</p>
 						</div>
 						<div>
-							<p class="text-muted-foreground">Internal</p>
+							<p class="text-muted-foreground">{m.stacks_source_internal()}</p>
 							<Badge variant={networkData.Internal ? 'destructive' : 'secondary'}>
 								{networkData.Internal ? 'Yes' : 'No'}
 							</Badge>
@@ -117,17 +118,17 @@
 						<h3 class="text-sm font-semibold">IPAM configuration</h3>
 						<div class="space-y-2">
 							<div class="text-sm">
-								<p class="text-muted-foreground">Driver</p>
+								<p class="text-muted-foreground">{m.container_inspect_driver()}</p>
 								<p>{networkData.IPAM.Driver || 'default'}</p>
 							</div>
 							{#if networkData.IPAM.Config && networkData.IPAM.Config.length > 0}
 								<div class="space-y-2">
-									<p class="text-muted-foreground text-sm">Subnets</p>
+									<p class="text-muted-foreground text-sm">{m.networks_inspect_subnets_label()}</p>
 									{#each networkData.IPAM.Config as config}
 										<div class="p-2 bg-muted rounded text-sm space-y-1">
 											{#if config.Subnet}
 												<div class="flex justify-between">
-													<span class="text-muted-foreground">Subnet:</span>
+													<span class="text-muted-foreground">{m.networks_inspect_subnet_label()}</span>
 													<code>{config.Subnet}</code>
 												</div>
 											{/if}
@@ -139,7 +140,7 @@
 											{/if}
 											{#if config.IPRange}
 												<div class="flex justify-between">
-													<span class="text-muted-foreground">IP Range:</span>
+													<span class="text-muted-foreground">{m.networks_inspect_ip_range_label()}</span>
 													<code>{config.IPRange}</code>
 												</div>
 											{/if}
@@ -169,9 +170,7 @@
 						</div>
 					</div>
 				{:else}
-					<div class="text-sm text-muted-foreground text-center py-4">
-						No containers connected to this network
-					</div>
+					<div class="text-sm text-muted-foreground text-center py-4">{m.networks_inspect_no_containers()}</div>
 				{/if}
 
 				<!-- Options -->
@@ -192,7 +191,7 @@
 				<!-- Labels -->
 				{#if networkData.Labels && Object.keys(networkData.Labels).length > 0}
 					<div class="space-y-3">
-						<h3 class="text-sm font-semibold">Labels</h3>
+						<h3 class="text-sm font-semibold">{m.common_labels()}</h3>
 						<div class="space-y-1">
 							{#each Object.entries(networkData.Labels) as [key, value]}
 								<div class="flex justify-between text-sm p-2 bg-muted rounded">
@@ -207,7 +206,7 @@
 		</div>
 
 		<Dialog.Footer class="shrink-0">
-			<Button variant="outline" onclick={() => (open = false)}>Close</Button>
+			<Button variant="outline" onclick={() => (open = false)}>{m.common_close()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

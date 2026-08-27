@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Select from '$lib/components/ui/select';
@@ -779,8 +780,7 @@
 					class="relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors {activeTab === 'settings' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
 					onclick={() => (activeTab = 'settings')}
 				>
-					<Settings2 class="h-3.5 w-3.5" /> Settings
-				</button>
+					<Settings2 class="h-3.5 w-3.5" />{m.sidebar_settings()}</button>
 				<button
 					type="button"
 					class="relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors {activeTab === 'backups' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
@@ -811,7 +811,7 @@
 			<!-- Repository selection -->
 			{#if !gitStack}
 				<div class="space-y-3">
-					<Label>Repository</Label>
+					<Label>{m.stacks_git_modal_label_repository()}</Label>
 					<div class="flex gap-2">
 						<Button
 							variant={formRepoMode === 'existing' ? 'default' : 'outline'}
@@ -849,7 +849,7 @@
 										<span class="text-muted-foreground text-xs truncate hidden sm:inline">({repoPath})</span>
 									</div>
 								{:else}
-									<span class="text-muted-foreground">Select a repository...</span>
+									<span class="text-muted-foreground">{m.stacks_git_modal_select_placeholder()}</span>
 								{/if}
 							</Select.Trigger>
 							<Select.Content>
@@ -876,14 +876,12 @@
 						{#if errors.repository}
 							<p class="text-xs text-destructive">{errors.repository}</p>
 						{:else if repositories.length === 0}
-							<p class="text-xs text-muted-foreground">
-								No repositories configured. Click "Add new" to add one.
-							</p>
+							<p class="text-xs text-muted-foreground">{m.stacks_git_modal_no_repositories_hint()}</p>
 						{/if}
 						<!-- Branch selection for existing repository -->
 						{#if formRepoMode === 'existing' && selectedRepo}
 							<div class="space-y-2">
-								<Label for="existing-repo-branch">Branch</Label>
+								<Label for="existing-repo-branch">{m.stacks_git_modal_label_branch()}</Label>
 								<BranchCombobox
 									id="existing-repo-branch"
 									value={formBranch ?? ''}
@@ -914,7 +912,7 @@
 								{/if}
 							</div>
 							<div class="space-y-2">
-								<Label for="new-repo-url">Repository URL</Label>
+								<Label for="new-repo-url">{m.stacks_git_modal_label_repo_url()}</Label>
 								<Input
 									id="new-repo-url"
 									bind:value={formNewRepoUrl}
@@ -928,7 +926,7 @@
 							</div>
 							<div class="grid grid-cols-2 items-start gap-3">
 								<div class="space-y-2">
-									<Label for="new-repo-branch">Branch</Label>
+									<Label for="new-repo-branch">{m.stacks_git_modal_label_branch()}</Label>
 									<!-- Free-text, searchable branch picker. Supports both discovered
 									     branches and arbitrary typed names: a new/private repository whose
 									     branch enumeration fails must not force the user onto "main" — they
@@ -949,7 +947,7 @@
 									<p class="text-xs text-muted-foreground">Type a name or pick from the list.</p>
 								</div>
 								<div class="space-y-2">
-									<Label for="new-repo-credential">Credential</Label>
+									<Label for="new-repo-credential">{m.stacks_git_modal_label_credential()}</Label>
 									<Select.Root
 										type="single"
 										value={formNewRepoCredentialId?.toString() ?? 'none'}
@@ -968,15 +966,13 @@
 												<span>{selectedCred.name} ({getAuthLabel(selectedCred.authType)})</span>
 											{:else}
 												<Key class="w-4 h-4 mr-2 text-muted-foreground" />
-												<span>None (public)</span>
+												<span>{m.stacks_git_modal_credential_none()}</span>
 											{/if}
 										</Select.Trigger>
 										<Select.Content>
 											<Select.Item value="none">
 												<span class="flex items-center gap-2">
-													<Key class="w-4 h-4 text-muted-foreground" />
-													None (public)
-												</span>
+													<Key class="w-4 h-4 text-muted-foreground" />{m.stacks_git_modal_credential_none()}</span>
 											</Select.Item>
 											{#each credentials as cred}
 												<Select.Item value={cred.id.toString()}>
@@ -1015,13 +1011,13 @@
 				{#if errors.stackName}
 					<p class="text-xs text-destructive">{errors.stackName}</p>
 				{:else}
-					<p class="text-xs text-muted-foreground">This will be the name of the deployed stack</p>
+					<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_stack_name()}</p>
 				{/if}
 			</div>
 
 			{#if gitStack && selectedRepo}
 				<div class="space-y-2">
-					<Label>Repository</Label>
+					<Label>{m.stacks_git_modal_label_repository()}</Label>
 					<div class="flex h-9 items-center gap-2 rounded-md border border-input bg-muted/50 px-3 py-1 text-sm text-muted-foreground">
 						<FolderGit2 class="w-4 h-4 shrink-0" />
 						<span class="truncate" title={selectedRepo.url}>{selectedRepo.url}</span>
@@ -1031,7 +1027,7 @@
 
 			{#if gitStack && selectedRepo}
 				<div class="space-y-2">
-					<Label for="stack-branch">Branch</Label>
+					<Label for="stack-branch">{m.stacks_git_modal_label_branch()}</Label>
 					<BranchCombobox
 						id="stack-branch"
 						value={formBranch ?? ''}
@@ -1048,15 +1044,15 @@
 			{/if}
 
 			<div class="space-y-2">
-				<Label for="compose-path">Compose file path</Label>
+				<Label for="compose-path">{m.stacks_git_modal_label_compose_path()}</Label>
 				<Input id="compose-path" bind:value={formComposePath} placeholder="compose.yaml" />
-				<p class="text-xs text-muted-foreground">Path to the compose file within the repository</p>
+				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_compose_path()}</p>
 			</div>
 
 			<!-- Additional env file for variable substitution -->
 			<div class="space-y-2">
 				<div class="flex items-center gap-1.5">
-					<Label for="env-file-path">Additional env file (optional)</Label>
+					<Label for="env-file-path">{m.stacks_git_modal_label_env_file()}</Label>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
 							<HelpCircle class="w-3.5 h-3.5 text-muted-foreground cursor-help" />
@@ -1065,7 +1061,7 @@
 							<div class="w-80">
 								<p class="text-xs">A <code class="bg-muted px-1 rounded">.env</code> file in the compose directory is always loaded automatically, if present.</p>
 								<p class="text-xs mt-2">Use this field for an additional env file with a non-standard name (e.g. <code class="bg-muted px-1 rounded">.env.production</code>). Its values override the default <code class="bg-muted px-1 rounded">.env</code>.</p>
-								<p class="text-xs mt-2">Overrides from the environment variables editor on the right always take highest precedence.</p>
+								<p class="text-xs mt-2">{m.stacks_git_modal_tooltip_env_file_3()}</p>
 							</div>
 						</Tooltip.Content>
 					</Tooltip.Root>
@@ -1075,22 +1071,22 @@
 						bind:value={formEnvFilePath}
 						placeholder=""
 					/>
-				<p class="text-xs text-muted-foreground">Additional env file to pass to Docker Compose</p>
+				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_env_file()}</p>
 			</div>
 
 			<!-- Context directory -->
 			<div class="space-y-2">
 				<div class="flex items-center gap-1.5">
-					<Label for="context-dir">Context directory (optional)</Label>
+					<Label for="context-dir">{m.stacks_git_modal_label_context_dir()}</Label>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
 							<HelpCircle class="w-3.5 h-3.5 text-muted-foreground cursor-help" />
 						</Tooltip.Trigger>
 						<Tooltip.Content>
 							<div class="w-80">
-								<p class="text-xs">Working directory for Docker Compose, relative to the repository root. All files in this directory will be available for volume mounts and build contexts.</p>
+								<p class="text-xs">{m.stacks_git_modal_tooltip_context_dir_1()}</p>
 								<p class="text-xs mt-2">Use <code class="bg-muted px-1 rounded">.</code> for the repository root when your compose file references files in sibling directories.</p>
-								<p class="text-xs mt-2">Defaults to the compose file's parent directory.</p>
+								<p class="text-xs mt-2">{m.stacks_git_modal_tooltip_context_dir_3()}</p>
 							</div>
 						</Tooltip.Content>
 					</Tooltip.Root>
@@ -1109,13 +1105,11 @@
 			<div class="flex items-center gap-3">
 				<div class="flex items-center gap-2 flex-1">
 					<RefreshCw class="w-4 h-4 text-muted-foreground" />
-					<Label class="text-sm font-normal">Enable scheduled sync</Label>
+					<Label class="text-sm font-normal">{m.stacks_git_modal_label_enable_scheduled_sync()}</Label>
 				</div>
 				<TogglePill bind:checked={formAutoUpdate} />
 			</div>
-				<p class="text-xs text-muted-foreground">
-					Automatically sync repository and redeploy stack if there are changes.
-				</p>
+				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_scheduled_sync()}</p>
 				{#if formAutoUpdate}
 					<CronEditor
 						value={formAutoUpdateCron}
@@ -1136,13 +1130,11 @@
 					onchange={() => { if (formWebhookEnabled && !formWebhookSecret) formWebhookSecret = generateWebhookSecret(); }}
 				/>
 			</div>
-				<p class="text-xs text-muted-foreground">
-					Receive push events from your Git provider to trigger sync and redeploy.
-				</p>
+				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_webhook()}</p>
 				{#if formWebhookEnabled}
 					{#if gitStack}
 						<div class="space-y-2">
-							<Label>Webhook URL</Label>
+							<Label>{m.stacks_git_modal_label_webhook_url()}</Label>
 							<div class="flex gap-2">
 								<Input
 									value={getWebhookUrl(gitStack.id)}
@@ -1160,7 +1152,7 @@
 											<Tooltip.Trigger>
 												<XCircle class="w-4 h-4 text-red-500" />
 											</Tooltip.Trigger>
-											<Tooltip.Content>Copy requires HTTPS</Tooltip.Content>
+											<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 										</Tooltip.Root>
 									{:else if copiedWebhookUrl === 'ok'}
 										<Check class="w-4 h-4 text-green-500" />
@@ -1193,7 +1185,7 @@
 											<Tooltip.Trigger>
 												<XCircle class="w-4 h-4 text-red-500" />
 											</Tooltip.Trigger>
-											<Tooltip.Content>Copy requires HTTPS</Tooltip.Content>
+											<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 										</Tooltip.Root>
 									{:else if copiedWebhookSecret === 'ok'}
 										<Check class="w-4 h-4 text-green-500" />
@@ -1220,13 +1212,9 @@
 						{/if}
 					</div>
 					{#if !gitStack}
-						<p class="text-xs text-muted-foreground">
-							The webhook URL will be available after creating the stack.
-						</p>
+						<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_webhook_url_after_create()}</p>
 					{:else}
-						<p class="text-xs text-muted-foreground">
-							Configure this URL in your Git provider. Secret is used for signature verification.
-						</p>
+						<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_webhook_configure()}</p>
 					{/if}
 				{/if}
 			</div>
@@ -1237,7 +1225,7 @@
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2 flex-1">
 						<Hammer class="w-4 h-4 text-muted-foreground" />
-						<Label class="text-sm font-normal">Build images on deploy</Label>
+						<Label class="text-sm font-normal">{m.stacks_git_modal_label_build_on_deploy()}</Label>
 					</div>
 					<TogglePill bind:checked={formBuildOnDeploy} />
 				</div>
@@ -1248,7 +1236,7 @@
 				<div class="flex items-center gap-3 ml-6">
 					<div class="flex items-center gap-2 flex-1">
 						<Ban class="w-4 h-4 text-muted-foreground" />
-						<Label class="text-sm font-normal">Disable build cache</Label>
+						<Label class="text-sm font-normal">{m.stacks_git_modal_label_disable_build_cache()}</Label>
 					</div>
 					<TogglePill bind:checked={formNoBuildCache} />
 				</div>
@@ -1259,7 +1247,7 @@
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-2 flex-1">
 						<ArrowDownToLine class="w-4 h-4 text-muted-foreground" />
-						<Label class="text-sm font-normal">Re-pull images</Label>
+						<Label class="text-sm font-normal">{m.stacks_git_modal_label_repull_images()}</Label>
 					</div>
 					<TogglePill bind:checked={formRepullImages} />
 				</div>
@@ -1273,9 +1261,7 @@
 					</div>
 					<TogglePill bind:checked={formForceRedeploy} />
 				</div>
-				<p class="text-xs text-muted-foreground">
-					Always redeploy the stack on webhook or scheduled sync, even if no git changes are detected.
-				</p>
+				<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_force_redeploy()}</p>
 			</div>
 
 			<!-- Deploy now option (only for new stacks) -->
@@ -1286,7 +1272,7 @@
 							<Rocket class="w-4 h-4 text-muted-foreground" />
 							<div class="flex-1">
 								<Label class="text-sm font-normal">Deploy now</Label>
-								<p class="text-xs text-muted-foreground">Clone and deploy the stack immediately</p>
+								<p class="text-xs text-muted-foreground">{m.stacks_git_modal_hint_deploy_now()}</p>
 							</div>
 						</div>
 						<TogglePill bind:checked={formDeployNow} />
@@ -1410,9 +1396,7 @@
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
-				<TriangleAlert class="w-5 h-5 text-amber-500" />
-				Stack already exists
-			</Dialog.Title>
+				<TriangleAlert class="w-5 h-5 text-amber-500" />{m.stacks_git_modal_exists_title()}</Dialog.Title>
 			<Dialog.Description>
 				A stack named "{formStackName}" already exists. Please choose a different name.
 			</Dialog.Description>

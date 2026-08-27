@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import * as m from '$lib/paraglide/messages';
 	import { page } from '$app/stores'; // BETA GATE: backups feature flag
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Label } from '$lib/components/ui/label';
@@ -491,7 +492,7 @@
 				{/if}
 			</div>
 			<div class="space-y-2">
-				<Label>Description (optional)</Label>
+				<Label>{m.settings_auth_role_modal_label_desc()}</Label>
 				<Input
 					bind:value={formDescription}
 					placeholder="Access to development resources"
@@ -507,7 +508,7 @@
 					<div class="flex items-center gap-2">
 						<Building2 class="w-4 h-4" />
 						<span class="font-medium text-sm">System permissions</span>
-						<span class="text-xs text-muted-foreground">(always global)</span>
+						<span class="text-xs text-muted-foreground">{m.settings_auth_role_modal_sec_sys_global()}</span>
 					</div>
 				</div>
 				<div class="p-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -526,17 +527,13 @@
 									type="button"
 									class="text-xs text-primary hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, true, permissions)}
-								>
-									All
-								</button>
+								>{m.common_all()}</button>
 								<span class="text-muted-foreground">|</span>
 								<button
 									type="button"
 									class="text-xs text-muted-foreground hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, false, permissions)}
-								>
-									Clear
-								</button>
+								>{m.containers_clear_selection()}</button>
 							</div>
 							<div class="flex flex-col gap-1.5">
 								{#each permissions as permission}
@@ -568,7 +565,7 @@
 						</div>
 						{#if environments.length > 0}
 							<div class="flex items-center gap-2">
-								<span class="text-xs text-muted-foreground">All environments (incl. new)</span>
+								<span class="text-xs text-muted-foreground">{m.settings_auth_role_modal_toggle_all_envs()}</span>
 								<TogglePill bind:checked={formAllEnvironments} />
 							</div>
 						{/if}
@@ -589,13 +586,13 @@
 								{/each}
 							</div>
 							{#if formEnvironmentIds.length === 0}
-								<p class="text-xs text-amber-600 mt-2">Select at least one environment for these permissions to be effective.</p>
+								<p class="text-xs text-amber-600 mt-2">{m.settings_auth_role_modal_warn_select_env()}</p>
 							{/if}
 						{:else}
-							<p class="text-xs text-muted-foreground mt-1">Permissions apply to all environments, including future ones.</p>
+							<p class="text-xs text-muted-foreground mt-1">{m.settings_auth_role_modal_info_all_future()}</p>
 						{/if}
 					{:else}
-						<p class="text-xs text-muted-foreground mt-1">Permissions apply to all environments.</p>
+						<p class="text-xs text-muted-foreground mt-1">{m.settings_auth_role_modal_info_all()}</p>
 					{/if}
 				</div>
 				<div class="p-3 grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -613,17 +610,13 @@
 									type="button"
 									class="text-xs text-primary hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, true, permissions)}
-								>
-									All
-								</button>
+								>{m.common_all()}</button>
 								<span class="text-muted-foreground">|</span>
 								<button
 									type="button"
 									class="text-xs text-muted-foreground hover:underline"
 									onclick={() => toggleAllPermissions(category as keyof typeof formPermissions, false, permissions)}
-								>
-									Clear
-								</button>
+								>{m.containers_clear_selection()}</button>
 							</div>
 							<div class="flex flex-col gap-1.5">
 								{#each permissions as permission}
@@ -647,7 +640,7 @@
 		</div>
 
 		<Dialog.Footer class="flex-shrink-0 pt-4">
-			<Button variant="outline" onclick={handleClose}>Cancel</Button>
+			<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 			<Button onclick={save} disabled={formSaving}>
 				{#if formSaving}
 					<RefreshCw class="w-4 h-4 mr-1 animate-spin" />

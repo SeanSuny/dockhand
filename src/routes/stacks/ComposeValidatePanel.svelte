@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import * as m from '$lib/paraglide/messages';
 	import { CircleX, TriangleAlert, Info, CheckCircle2, ArrowRight, Loader2, RefreshCw, X, ChevronDown, Wand2 } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import { findingKey, type QuickFix } from '$lib/utils/compose-quick-fix';
@@ -96,7 +97,7 @@
 	<!-- Body -->
 	<div class="cvp-body" bind:this={bodyEl}>
 		{#if loading}
-			<div class="cvp-center"><Loader2 class="h-5 w-5 animate-spin text-muted-foreground" /><p>Validating...</p></div>
+			<div class="cvp-center"><Loader2 class="h-5 w-5 animate-spin text-muted-foreground" /><p>{m.templates_src_validating()}</p></div>
 		{:else if error}
 			<div class="cvp-center cvp-error-state"><CircleX class="h-5 w-5" /><p>{error}</p></div>
 		{:else if clean}
@@ -136,9 +137,7 @@
 												title={f.fixDescription ?? 'Apply quick fix'}
 												onclick={() => onApplyFix?.(f)}
 											>
-												<Wand2 class="h-3 w-3" />
-												Fix
-											</button>
+												<Wand2 class="h-3 w-3" />{m.common_fix()}</button>
 										{/if}
 									</div>
 									<button

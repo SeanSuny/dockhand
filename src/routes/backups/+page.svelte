@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { formatBytes } from '$lib/utils/format';
@@ -706,8 +707,8 @@
 				</Select.Trigger>
 				<Select.Content>
 					<Select.Item value="all">All types</Select.Item>
-					<Select.Item value="container"><Box class="w-3 h-3 mr-1.5 inline text-muted-foreground" />Containers</Select.Item>
-					<Select.Item value="stack"><Layers class="w-3 h-3 mr-1.5 inline text-muted-foreground" />Stacks</Select.Item>
+					<Select.Item value="container"><Box class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{m.common_containers()}</Select.Item>
+					<Select.Item value="stack"><Layers class="w-3 h-3 mr-1.5 inline text-muted-foreground" />{m.sidebar_stacks()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
 			<Select.Root type="single" value={filterEnvId} onValueChange={(v) => { filterEnvId = v === 'all' ? '' : v; }}>
@@ -748,10 +749,10 @@
 				</Select.Trigger>
 				<Select.Content>
 					<Select.Item value="all">All status</Select.Item>
-					<Select.Item value="success"><CheckCircle class="w-3 h-3 mr-1 inline text-green-500" />Success</Select.Item>
-					<Select.Item value="failed"><XCircle class="w-3 h-3 mr-1 inline text-destructive" />Failed</Select.Item>
+					<Select.Item value="success"><CheckCircle class="w-3 h-3 mr-1 inline text-green-500" />{m.schedules_status_success()}</Select.Item>
+					<Select.Item value="failed"><XCircle class="w-3 h-3 mr-1 inline text-destructive" />{m.common_failed()}</Select.Item>
 					<Select.Item value="orphan"><AlertCircle class="w-3 h-3 mr-1 inline text-amber-500" />No schedule</Select.Item>
-					<Select.Item value="scheduled"><Clock class="w-3 h-3 mr-1 inline text-muted-foreground" />Scheduled</Select.Item>
+					<Select.Item value="scheduled"><Clock class="w-3 h-3 mr-1 inline text-muted-foreground" />{m.schedules_trigger_scheduled()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
 			<Button size="sm" variant="outline" onclick={fetchData} disabled={loading}>
@@ -877,7 +878,7 @@
 					{#if config.lastBackupAt}
 						<span class="text-xs">{formatDateTime(config.lastBackupAt)} <span class="text-muted-foreground opacity-60">({formatRelativeTime(config.lastBackupAt)})</span></span>
 					{:else}
-						<span class="text-xs text-muted-foreground">Never</span>
+						<span class="text-xs text-muted-foreground">{m.schedules_never()}</span>
 					{/if}
 				{:else if column.id === 'retention'}
 					{@const summary = retentionSummary(config.retention)}
@@ -987,10 +988,10 @@
 								<thead class="sticky top-0 bg-background z-10">
 									<tr class="text-xs text-muted-foreground border-b">
 										<th class="text-left py-1.5 w-24" style="padding-left:8px">ID</th>
-										<th class="text-left py-1.5 w-40" style="padding-left:8px">Created</th>
+										<th class="text-left py-1.5 w-40" style="padding-left:8px">{m.status_created()}</th>
 										<th class="text-left py-1.5 w-64" style="padding-left:8px">Stats</th>
 										<th class="text-left py-1.5 w-32" style="padding-left:8px">Repo</th>
-										<th class="text-right px-3 py-1.5 w-28">Actions</th>
+										<th class="text-right px-3 py-1.5 w-28">{m.common_actions()}</th>
 									</tr>
 								</thead>
 								<tbody>

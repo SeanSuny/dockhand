@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
@@ -405,28 +406,28 @@
 				{/if}
 				<span class="w-14">Test all</span>
 			</Button>
-			<Button size="sm" variant="outline" onclick={fetchEnvironments}>Refresh</Button>
+			<Button size="sm" variant="outline" onclick={fetchEnvironments}>{m.containers_refresh()}</Button>
 		</div>
 	</div>
 
 	{#if envLoading && environments.length === 0}
-		<p class="text-muted-foreground text-sm">Loading environments...</p>
+		<p class="text-muted-foreground text-sm">{m.settings_env_loading()}</p>
 	{:else if environments.length === 0}
-		<p class="text-muted-foreground text-sm">No environments found</p>
+		<p class="text-muted-foreground text-sm">{m.settings_env_none()}</p>
 	{:else}
 		<div class="border rounded-lg overflow-hidden">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-[200px]">Name</Table.Head>
-						<Table.Head>Connection</Table.Head>
-						<Table.Head class="w-[120px]">Labels</Table.Head>
-						<Table.Head class="w-[140px]">Timezone</Table.Head>
-						<Table.Head class="w-[100px]">Features</Table.Head>
-						<Table.Head class="w-[120px]">Status</Table.Head>
+						<Table.Head class="w-[200px]">{m.common_name()}</Table.Head>
+						<Table.Head>{m.settings_env_col_connection()}</Table.Head>
+						<Table.Head class="w-[120px]">{m.common_labels()}</Table.Head>
+						<Table.Head class="w-[140px]">{m.settings_env_updates_timezone()}</Table.Head>
+						<Table.Head class="w-[100px]">{m.settings_env_col_features()}</Table.Head>
+						<Table.Head class="w-[120px]">{m.common_status()}</Table.Head>
 						<Table.Head class="w-[100px]">Docker</Table.Head>
 						<Table.Head class="w-[100px]">Hawser</Table.Head>
-						<Table.Head class="w-[180px] text-right">Actions</Table.Head>
+						<Table.Head class="w-[180px] text-right">{m.common_actions()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -552,7 +553,7 @@
 											{:else}
 												<Wifi class="w-3.5 h-3.5" />
 											{/if}
-											<span>Connected</span>
+											<span>{m.settings_env_status_connected()}</span>
 										</div>
 									{:else}
 										<div class="flex items-center gap-1.5 text-red-600 dark:text-red-400 text-sm" title={testResult.error}>
@@ -561,13 +562,13 @@
 											{:else}
 												<WifiOff class="w-3.5 h-3.5" />
 											{/if}
-											<span>Failed</span>
+											<span>{m.common_failed()}</span>
 										</div>
 									{/if}
 								{:else if isTesting}
 									<div class="flex items-center gap-1.5 text-muted-foreground text-sm">
 										<RefreshCw class="w-3.5 h-3.5 animate-spin" />
-										<span>Testing...</span>
+										<span>{m.settings_env_status_testing()}</span>
 									</div>
 								{:else}
 									<span class="text-muted-foreground text-xs">Not tested</span>
@@ -698,16 +699,12 @@
 	<Dialog.Content class="max-w-2xl">
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
-				<AlertTriangle class="w-5 h-5 text-destructive" />
-				Delete environment?
-			</Dialog.Title>
+				<AlertTriangle class="w-5 h-5 text-destructive" />{m.settings_env_delete_title()}</Dialog.Title>
 			<Dialog.Description class="pt-2 space-y-3 text-sm">
 				{#if deleteEnvTarget}
 					<p>
 						The environment
-						<code class="text-xs bg-muted px-1 py-0.5 rounded">{deleteEnvTarget.name}</code>
-						and the following directories will be permanently removed from the Dockhand host:
-					</p>
+						<code class="text-xs bg-muted px-1 py-0.5 rounded">{deleteEnvTarget.name}</code>{m.settings_env_delete_intro_post()}</p>
 					<div class="space-y-1 text-xs font-mono bg-muted/40 rounded-md p-3 border overflow-x-auto">
 						<div class="flex items-center gap-2 whitespace-nowrap">
 							<Trash2 class="w-3.5 h-3.5 shrink-0 text-destructive" />
@@ -729,7 +726,7 @@
 							if you're sure what's deployed here.
 						</p>
 					{:else if deleteStackCount === 0 && deleteGitStackCount === 0}
-						<p>No stacks are currently tracked on this environment.</p>
+						<p>{m.settings_env_delete_no_stacks()}</p>
 					{:else}
 						<p>
 							{#if deleteStackCount > 0 && deleteGitStackCount > 0}
@@ -745,17 +742,14 @@
 							{/if}
 						</p>
 					{/if}
-					<p class="text-muted-foreground">
-						Running containers on the Docker/Hawser host are <strong>not</strong> stopped.
+					<p class="text-muted-foreground">{m.settings_env_delete_running_pre()}<strong>not</strong> stopped.
 						You can stop or remove them separately.
 					</p>
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="flex justify-end gap-2 mt-4">
-			<Button variant="outline" onclick={cancelDelete}>
-				Cancel
-			</Button>
+			<Button variant="outline" onclick={cancelDelete}>{m.common_cancel()}</Button>
 			<Button variant="destructive" onclick={confirmAndDelete}>
 				<Trash2 class="w-4 h-4 mr-2" />
 				Delete environment

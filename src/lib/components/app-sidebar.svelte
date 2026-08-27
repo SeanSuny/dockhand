@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import * as Sidebar from '$lib/components/ui/sidebar';
@@ -123,21 +124,21 @@
 	}
 
 	const menuItems: readonly MenuItem[] = [
-		{ href: '/?home', Icon: LayoutDashboard, label: 'Dashboard', permission: 'always' },
-		{ href: '/containers', Icon: Box, label: 'Containers', permission: 'containers' },
-		{ href: '/logs', Icon: ScrollText, label: 'Logs', permission: 'containers' },
-		{ href: '/terminal', Icon: Terminal, label: 'Shell', permission: 'containers' },
-		{ href: '/stacks', Icon: Layers, label: 'Stacks', permission: 'stacks' },
-		{ href: '/images', Icon: Images, label: 'Images', permission: 'images' },
-		{ href: '/volumes', Icon: HardDrive, label: 'Volumes', permission: 'volumes' },
-		{ href: '/networks', Icon: Network, label: 'Networks', permission: 'networks' },
-		{ href: '/templates', Icon: LibraryBig, label: 'Templates', permission: 'templates' },
-		{ href: '/registry', Icon: Download, label: 'Registry', permission: 'registries' },
-		{ href: '/activity', Icon: Activity, label: 'Activity', permission: 'activity' },
-		{ href: '/backups', Icon: Archive, label: 'Backups', permission: 'backups' },
-		{ href: '/schedules', Icon: Timer, label: 'Schedules', permission: 'schedules' },
-		{ href: '/audit', Icon: ClipboardList, label: 'Audit log', permission: 'audit_logs', enterpriseOnly: true },
-		{ href: '/settings', Icon: Settings, label: 'Settings', permission: 'settings' }
+		{ href: '/?home', Icon: LayoutDashboard, label: m.sidebar_dashboard(), permission: 'always' },
+		{ href: '/containers', Icon: Box, label: m.common_containers(), permission: 'containers' },
+		{ href: '/logs', Icon: ScrollText, label: m.sidebar_logs(), permission: 'containers' },
+		{ href: '/terminal', Icon: Terminal, label: m.sidebar_shell(), permission: 'containers' },
+		{ href: '/stacks', Icon: Layers, label: m.sidebar_stacks(), permission: 'stacks' },
+		{ href: '/images', Icon: Images, label: m.sidebar_images(), permission: 'images' },
+		{ href: '/volumes', Icon: HardDrive, label: m.sidebar_volumes(), permission: 'volumes' },
+		{ href: '/networks', Icon: Network, label: m.sidebar_networks(), permission: 'networks' },
+		{ href: '/templates', Icon: LibraryBig, label: m.sidebar_templates(), permission: 'templates' },
+		{ href: '/registry', Icon: Download, label: m.sidebar_registry(), permission: 'registries' },
+		{ href: '/activity', Icon: Activity, label: m.sidebar_activity(), permission: 'activity' },
+		{ href: '/backups', Icon: Archive, label: m.sidebar_backups(), permission: 'backups' },
+		{ href: '/schedules', Icon: Timer, label: m.sidebar_schedules(), permission: 'schedules' },
+		{ href: '/audit', Icon: ClipboardList, label: m.sidebar_audit_log(), permission: 'audit_logs', enterpriseOnly: true },
+		{ href: '/settings', Icon: Settings, label: m.sidebar_settings(), permission: 'settings' }
 	] as const;
 
 	// --- Sidebar customization (#1252): reorder + hide/show menu items ---
@@ -362,9 +363,7 @@
 						class="flex items-center gap-1 whitespace-nowrap font-medium text-muted-foreground hover:text-foreground transition-colors"
 						onclick={() => (editMode = false)}
 					>
-						<Check class="w-3 h-3 shrink-0 text-emerald-500" />
-						Apply
-					</button>
+						<Check class="w-3 h-3 shrink-0 text-emerald-500" />{m.container_files_apply()}</button>
 				</div>
 			{/if}
 		</Sidebar.Group>

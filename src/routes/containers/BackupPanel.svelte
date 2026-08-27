@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -588,7 +589,7 @@
 					<div class="flex items-center gap-2">
 						<Icon class="w-3.5 h-3.5 text-primary/70 flex-shrink-0" />
 						<span class="text-sm font-medium truncate">{dest?.name || 'Unknown'}</span>
-						{#if !cfg.enabled}<Badge variant="secondary" class="text-xs">Paused</Badge>{/if}
+						{#if !cfg.enabled}<Badge variant="secondary" class="text-xs">{m.status_paused()}</Badge>{/if}
 					</div>
 					<div class="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
 						<span>{cfg.schedule ? formatCron(cfg.schedule) : 'Manual'} · {volumeSummary(cfg)}{cfgRetentionSummary(cfg) ? ` · ${cfgRetentionSummary(cfg)}` : ''}</span>
@@ -657,7 +658,7 @@
 				<!-- Toggles -->
 				<div class="flex items-center gap-3 max-w-md">
 					<TogglePill bind:checked={editEnabled} />
-					<Label class="text-xs">Enabled</Label>
+					<Label class="text-xs">{m.toast_setting_enabled()}</Label>
 				</div>
 				<div class="flex items-center gap-3 max-w-md">
 					<TogglePill bind:checked={editStopBefore} />
@@ -702,11 +703,11 @@
 									<Input bind:value={editKeepLast} type="number" min="0" max="999" class="h-7 text-xs" />
 								</div>
 								<div class="space-y-0.5">
-									<label class="text-xs text-muted-foreground">Daily</label>
+									<label class="text-xs text-muted-foreground">{m.cron_daily()}</label>
 									<Input bind:value={editKeepDaily} type="number" min="0" max="365" class="h-7 text-xs" />
 								</div>
 								<div class="space-y-0.5">
-									<label class="text-xs text-muted-foreground">Weekly</label>
+									<label class="text-xs text-muted-foreground">{m.cron_weekly()}</label>
 									<Input bind:value={editKeepWeekly} type="number" min="0" max="52" class="h-7 text-xs" />
 								</div>
 								<div class="space-y-0.5">
@@ -747,7 +748,7 @@
 									<Select.Trigger class="h-9 w-full text-xs">{editCompression}</Select.Trigger>
 									<Select.Content>
 										<Select.Item value="auto">Auto</Select.Item>
-										<Select.Item value="off">Off</Select.Item>
+										<Select.Item value="off">{m.activity_collection_off()}</Select.Item>
 										<Select.Item value="max">Max</Select.Item>
 									</Select.Content>
 								</Select.Root>
@@ -782,7 +783,7 @@
 				     state (destination, schedule, volumes, retention, options) —
 				     they only differ in what happens after persistence. -->
 				<div class="flex justify-end gap-2 pt-2 border-t">
-					<Button size="sm" variant="outline" onclick={cancelEdit}>Cancel</Button>
+					<Button size="sm" variant="outline" onclick={cancelEdit}>{m.common_cancel()}</Button>
 					{#if editingConfig}
 						<Button size="sm" onclick={() => submitForm('save')} disabled={saving || editScheduleInvalid}>
 							{#if saving}<Loader2 class="w-3.5 h-3.5 mr-1 animate-spin" />{:else}<Save class="w-3.5 h-3.5 mr-1" />{/if}

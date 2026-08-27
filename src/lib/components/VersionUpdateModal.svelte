@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Box, ArrowRight, ExternalLink, Copy, Check, RefreshCw, ChevronDown, BookOpen, ShieldCheck, Info } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
@@ -225,7 +226,7 @@
 				{#if loading}
 					<div class="flex items-center justify-center py-10 text-muted-foreground">
 						<RefreshCw class="w-5 h-5 animate-spin" />
-						<span class="ml-2 text-sm">Loading release notes...</span>
+						<span class="ml-2 text-sm">{m.settings_selfupdate_loading_notes()}</span>
 					</div>
 				{:else if notes.length > 0}
 					{#each versionPath.slice().reverse() as version}
@@ -301,7 +302,7 @@
 					{/if}
 				</div>
 				<div class="flex gap-2">
-					<Button variant="outline" size="sm" onclick={close}>Close</Button>
+					<Button variant="outline" size="sm" onclick={close}>{m.common_close()}</Button>
 				</div>
 			</Dialog.Footer>
 		{/if}

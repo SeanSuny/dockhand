@@ -6,6 +6,7 @@
 	 * the merged-in lines highlighted before saving).
 	 */
 	import { Button } from '$lib/components/ui/button';
+	import * as m from '$lib/paraglide/messages';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ToggleSwitch } from '$lib/components/ui/toggle-pill';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -304,7 +305,7 @@
 
 		<!-- Toolbar -->
 		<div class="flex items-center gap-2 flex-wrap">
-			<span class="text-xs text-muted-foreground">Environment</span>
+			<span class="text-xs text-muted-foreground">{m.dashboard_col_environment()}</span>
 			<ToggleSwitch
 				value={envMode}
 				leftValue="user"
@@ -323,8 +324,7 @@
 				Copy
 			</Button>
 			<Button variant="outline" size="sm" onclick={doDownload}>
-				<Download class="h-3.5 w-3.5 mr-1.5" /> Download
-			</Button>
+				<Download class="h-3.5 w-3.5 mr-1.5" />{m.container_files_download()}</Button>
 			<Button size="sm" variant="outline" onclick={() => (stackModalOpen = true)}>
 				<FileCode class="h-3.5 w-3.5 mr-1.5" /> Save as new stack
 			</Button>
@@ -336,7 +336,7 @@
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end" class="w-64 max-h-72 overflow-auto">
 					{#if loadingStacks}
-						<div class="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading...</div>
+						<div class="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" />{m.common_loading()}</div>
 					{:else if existingStacks.length === 0}
 						<div class="px-2 py-2 text-xs text-muted-foreground">No internal stacks</div>
 					{:else}
@@ -360,7 +360,7 @@
 			<div class="flex items-center gap-2 text-xs rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
 				<Info class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
 				<span class="flex-1">Reviewing merge into <span class="font-semibold">{mergedIntoStack}</span>. The highlighted service is what will be added.</span>
-				<Button variant="ghost" size="sm" onclick={cancelMerge} disabled={merging}>Cancel</Button>
+				<Button variant="ghost" size="sm" onclick={cancelMerge} disabled={merging}>{m.common_cancel()}</Button>
 				<Button size="sm" onclick={saveToExisting} disabled={merging}>
 					{#if merging}<Loader2 class="h-3.5 w-3.5 mr-1.5 animate-spin" />{:else}<Save class="h-3.5 w-3.5 mr-1.5" />{/if}
 					Save to {mergedIntoStack}

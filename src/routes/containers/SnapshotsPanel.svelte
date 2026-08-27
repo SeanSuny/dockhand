@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import { Loader2, FolderOpen, RotateCcw, Trash2, ArrowLeftRight, HardDrive, Archive, RefreshCw } from 'lucide-svelte';
 	import ConfirmPopover from '$lib/components/ConfirmPopover.svelte';
@@ -282,8 +283,8 @@
 					<th class="py-1.5 pl-2 font-medium">Snapshot</th>
 					<th class="py-1.5 pl-2 font-medium">Taken</th>
 					<th class="py-1.5 pl-2 font-medium">Added</th>
-					<th class="py-1.5 pl-2 font-medium">Repository</th>
-					<th class="py-1.5 pr-3 text-right font-medium">Actions</th>
+					<th class="py-1.5 pl-2 font-medium">{m.stacks_git_modal_label_repository()}</th>
+					<th class="py-1.5 pr-3 text-right font-medium">{m.common_actions()}</th>
 				</tr>
 			</thead>
 			<tbody>

@@ -2689,5 +2689,6 @@
 	"templates_src_toast_add_failed": "Failed to add source",
 	"templates_src_toast_validation_failed": "{count} source(s) failed validation",
 	"templates_src_toast_all_reachable": "All sources are reachable",
-	"templates_src_toast_disabled_inactive": "Disabled {count} inactive source(s)"
+	"templates_src_toast_disabled_inactive": "Disabled {count} inactive source(s)",
+	"sidebar_backups": "Backups"
 }

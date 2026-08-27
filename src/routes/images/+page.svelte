@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -989,7 +990,7 @@
 				<Select.Trigger size="sm" class="w-36 text-sm">
 					{#if usageFilter === 'all'}
 						<Filter class="w-3.5 h-3.5 mr-1.5 text-muted-foreground shrink-0" />
-						<span class="text-muted-foreground">All</span>
+						<span class="text-muted-foreground">{m.common_all()}</span>
 					{:else if usageFilter === 'in-use'}
 						<CircleDot class="w-3.5 h-3.5 mr-1.5 text-emerald-500 shrink-0" />
 						<span>In use</span>
@@ -998,14 +999,12 @@
 						<span>Some unused</span>
 					{:else}
 						<Circle class="w-3.5 h-3.5 mr-1.5 text-muted-foreground shrink-0" />
-						<span>Unused</span>
+						<span>{m.images_filter_unused()}</span>
 					{/if}
 				</Select.Trigger>
 				<Select.Content>
 					<Select.Item value="all">
-						<Filter class="w-4 h-4 mr-2 text-muted-foreground" />
-						All
-					</Select.Item>
+						<Filter class="w-4 h-4 mr-2 text-muted-foreground" />{m.common_all()}</Select.Item>
 					<Select.Item value="in-use">
 						<CircleDot class="w-4 h-4 mr-2 text-emerald-500" />
 						In use
@@ -1015,9 +1014,7 @@
 						Some unused
 					</Select.Item>
 					<Select.Item value="unused">
-						<Circle class="w-4 h-4 mr-2 text-muted-foreground" />
-						Unused
-					</Select.Item>
+						<Circle class="w-4 h-4 mr-2 text-muted-foreground" />{m.images_filter_unused()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
 			{#if $canAccess('images', 'remove')}
@@ -1080,9 +1077,7 @@
 			{/if}
 			{#if $canAccess('images', 'pull')}
 			<Button size="sm" variant="default" onclick={() => showPullModal = true}>
-				<Download class="w-3.5 h-3.5 mr-1.5" />
-				Pull
-			</Button>
+				<Download class="w-3.5 h-3.5 mr-1.5" />{m.settings_env_modal_scanner_pull()}</Button>
 			{/if}
 			{#if $canAccess('images', 'load')}
 			<Button size="sm" variant="outline" onclick={() => loadFileInput?.click()} disabled={loadingImage}>
@@ -1097,7 +1092,7 @@
 				onchange={handleLoadTar}
 			/>
 			{/if}
-			<Button size="sm" variant="outline" onclick={fetchImages}>Refresh</Button>
+			<Button size="sm" variant="outline" onclick={fetchImages}>{m.containers_refresh()}</Button>
 		</div>
 		{/if}
 
@@ -1147,9 +1142,7 @@
 					<DropdownMenu.Trigger>
 						{#snippet child({ props })}
 							<Button size="sm" variant="outline" title="Export findings" {...props}>
-								<Download class="w-3.5 h-3.5" />
-								Export
-							</Button>
+								<Download class="w-3.5 h-3.5" />{m.images_scan_export()}</Button>
 						{/snippet}
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="start">
@@ -1168,9 +1161,7 @@
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 				<Button size="sm" variant="outline" onclick={refreshVulnerabilities} disabled={vulnList.loading}>
-					<RefreshCw class="w-3.5 h-3.5 {vulnList.loading ? 'animate-spin' : ''}" />
-					Refresh
-				</Button>
+					<RefreshCw class="w-3.5 h-3.5 {vulnList.loading ? 'animate-spin' : ''}" />{m.containers_refresh()}</Button>
 				{#if scannerEnabled}
 					<Button size="sm" variant="secondary" onclick={() => showVulnScanModal = true}>
 						<ShieldCheck class="w-3.5 h-3.5" />
@@ -1196,9 +1187,7 @@
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
 				onclick={selectNone}
-			>
-				Clear
-			</button>
+			>{m.containers_clear_selection()}</button>
 			{#if $canAccess('images', 'remove')}
 			<button
 				type="button"
@@ -1206,9 +1195,7 @@
 				onclick={bulkRemove}
 				disabled={selectedInFilter.length === 0}
 			>
-				<Trash2 class="w-3 h-3" />
-				Delete
-			</button>
+				<Trash2 class="w-3 h-3" />{m.common_delete()}</button>
 			{/if}
 			</div>
 		{/if}
@@ -1333,9 +1320,7 @@
 							</span>
 						{/if}
 						{#if group.containers === 0}
-							<Badge variant="outline" class="text-2xs px-1.5 py-0 border-amber-500/50 text-amber-600 dark:text-amber-400 shadow-[0_0_4px_rgba(245,158,11,0.4)]">
-								Unused
-							</Badge>
+							<Badge variant="outline" class="text-2xs px-1.5 py-0 border-amber-500/50 text-amber-600 dark:text-amber-400 shadow-[0_0_4px_rgba(245,158,11,0.4)]">{m.images_filter_unused()}</Badge>
 						{:else if group.tags.length > 1 && group.tags.some(t => t.containers === 0)}
 							<Badge variant="outline" class="text-2xs px-1.5 py-0 border-amber-500/30 text-amber-600/70 dark:text-amber-400/70 shadow-[0_0_3px_rgba(245,158,11,0.25)]" title="Some tags are unused">
 								<CircleDashed class="w-2.5 h-2.5 mr-0.5" />
@@ -1450,9 +1435,7 @@
 										{tagInfo.containers} container{tagInfo.containers === 1 ? '' : 's'}
 									</a>
 								{:else if tagInfo.containers === 0}
-									<Badge variant="outline" class="text-2xs px-1.5 py-0 border-amber-500/50 text-amber-600 dark:text-amber-400 shadow-[0_0_4px_rgba(245,158,11,0.4)]">
-										Unused
-									</Badge>
+									<Badge variant="outline" class="text-2xs px-1.5 py-0 border-amber-500/50 text-amber-600 dark:text-amber-400 shadow-[0_0_4px_rgba(245,158,11,0.4)]">{m.images_filter_unused()}</Badge>
 								{:else}
 									<span class="text-muted-foreground/50">—</span>
 								{/if}
@@ -1640,8 +1623,7 @@
 				<Tag class="w-5 h-5" />
 				Tag image
 			</Dialog.Title>
-			<Dialog.Description>
-				Add a new tag to <span class="font-mono text-foreground truncate" title={tagImageCurrentName}>{tagImageCurrentName.startsWith('sha256:') ? tagImageCurrentName.slice(0, 19) : tagImageCurrentName}</span>
+			<Dialog.Description>{m.images_tag_dialog_desc()}<span class="font-mono text-foreground truncate" title={tagImageCurrentName}>{tagImageCurrentName.startsWith('sha256:') ? tagImageCurrentName.slice(0, 19) : tagImageCurrentName}</span>
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="py-4 space-y-4">
@@ -1655,7 +1637,7 @@
 				/>
 			</div>
 			<div>
-				<Label for="tagTag">Tag</Label>
+				<Label for="tagTag">{m.images_col_tag()}</Label>
 				<Input
 					id="tagTag"
 					bind:value={tagNewTag}
@@ -1670,9 +1652,7 @@
 			</div>
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => showTagModal = false} disabled={tagging}>
-				Cancel
-			</Button>
+			<Button variant="outline" onclick={() => showTagModal = false} disabled={tagging}>{m.common_cancel()}</Button>
 			<Button
 				onclick={tagImage}
 				disabled={tagging || !tagNewRepo.trim() || !tagNewTag.trim()}

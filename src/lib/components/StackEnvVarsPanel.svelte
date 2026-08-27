@@ -380,17 +380,17 @@
 				<div class="flex gap-1 flex-wrap">
 					{#if effectiveValidation.missing.length > 0}
 						<span class="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-							{effectiveValidation.missing.length} missing
+							{m.stack_env_vars_missing({ n: effectiveValidation.missing.length })}
 						</span>
 					{/if}
 					{#if effectiveValidation.required.length > 0}
 						<span class="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-							{effectiveValidation.required.length - effectiveValidation.missing.length} defined
+							{m.stack_env_vars_defined({ n: effectiveValidation.required.length - effectiveValidation.missing.length })}
 						</span>
 					{/if}
 					{#if effectiveValidation.optional.length > 0}
 						<span class="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-							{effectiveValidation.optional.length} optional
+							{m.stack_env_vars_optional_count({ n: effectiveValidation.optional.length })}
 						</span>
 					{/if}
 				</div>

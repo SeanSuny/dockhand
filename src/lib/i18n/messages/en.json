@@ -3029,5 +3029,16 @@
 	"network_mode_ipvlan": "IPvlan",
 	"network_mode_macvlan": "Macvlan",
 	"network_mode_none": "None",
-	"network_mode_overlay": "Overlay"
+	"network_mode_overlay": "Overlay",
+	"stacks_delete_title": "Remove stack \"{name}\"",
+	"stacks_delete_description": "Choose what to remove. The stack's containers are always stopped and removed.",
+	"stacks_delete_loading": "Checking what can be removed…",
+	"stacks_delete_no_managed": "This stack has no files or named volumes Dockhand manages — only the stack record and its containers will be removed.",
+	"stacks_delete_will_happen": "What will happen",
+	"stacks_delete_named_volumes": "Delete named volumes",
+	"stacks_delete_containers": "Stop and remove the stack’s containers",
+	"stacks_delete_files_delete": "Delete the stack files on disk",
+	"stacks_delete_files_keep": "Keep the stack files on disk",
+	"stacks_delete_volumes_delete": "Delete {n} named volume(s) — data is unrecoverable",
+	"stacks_delete_volumes_keep": "Keep {n} named volume(s)"
 }

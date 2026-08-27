@@ -3029,5 +3029,16 @@
 	"network_mode_ipvlan": "IPvlan",
 	"network_mode_macvlan": "Macvlan",
 	"network_mode_none": "无",
-	"network_mode_overlay": "覆盖网络"
+	"network_mode_overlay": "覆盖网络",
+	"stacks_delete_title": "移除堆栈 \"{name}\"",
+	"stacks_delete_description": "选择要移除的内容。堆栈的容器始终会被停止并移除。",
+	"stacks_delete_loading": "正在检查可移除内容…",
+	"stacks_delete_no_managed": "此堆栈没有 Dockhand 管理的文件或命名卷 — 仅会移除堆栈记录及其容器。",
+	"stacks_delete_will_happen": "将要执行",
+	"stacks_delete_named_volumes": "删除命名卷",
+	"stacks_delete_containers": "停止并移除堆栈容器",
+	"stacks_delete_files_delete": "删除磁盘上的堆栈文件",
+	"stacks_delete_files_keep": "保留磁盘上的堆栈文件",
+	"stacks_delete_volumes_delete": "删除 {n} 个命名卷 — 数据不可恢复",
+	"stacks_delete_volumes_keep": "保留 {n} 个命名卷"
 }

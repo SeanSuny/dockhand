@@ -60,18 +60,18 @@
 	// choice (containers are always removed). `kind` picks the icon for the "kept" state.
 	const willHappen = $derived.by(() => {
 		const lines: { delete: boolean | null; kind: 'container' | 'files' | 'volumes'; text: string }[] = [
-			{ delete: null, kind: 'container', text: 'Stop and remove the stack’s containers' },
+			{ delete: null, kind: 'container', text: m.stacks_delete_containers() },
 		];
 		if (hasFiles) {
 			lines.push(removeFiles
-				? { delete: true, kind: 'files', text: 'Delete the stack files on disk' }
-				: { delete: false, kind: 'files', text: 'Keep the stack files on disk' });
+				? { delete: true, kind: 'files', text: m.stacks_delete_files_delete() }
+				: { delete: false, kind: 'files', text: m.stacks_delete_files_keep() });
 		}
 		if (hasVolumes) {
 			const n = preview!.namedVolumes.length;
 			lines.push(removeVolumes
-				? { delete: true, kind: 'volumes', text: `Delete ${n} named volume(s) — data is unrecoverable` }
-				: { delete: false, kind: 'volumes', text: `Keep ${n} named volume(s)` });
+				? { delete: true, kind: 'volumes', text: m.stacks_delete_volumes_delete({ n }) }
+				: { delete: false, kind: 'volumes', text: m.stacks_delete_volumes_keep({ n }) });
 		}
 		return lines;
 	});
@@ -92,16 +92,16 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<Trash2 class="w-5 h-5 text-destructive" />
-				Remove stack "{stackName}"
+				{m.stacks_delete_title({ name: stackName })}
 			</Dialog.Title>
 			<Dialog.Description>
-				Choose what to remove. The stack's containers are always stopped and removed.
+				{m.stacks_delete_description()}
 			</Dialog.Description>
 		</Dialog.Header>
 
 		{#if loading}
 			<div class="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-				<Loader2 class="w-4 h-4 animate-spin" /> Checking what can be removed…
+				<Loader2 class="w-4 h-4 animate-spin" /> {m.stacks_delete_loading()}
 			</div>
 		{:else if preview}
 			<div class="my-1 space-y-3">
@@ -129,7 +129,7 @@
 						<Checkbox bind:checked={removeVolumes} class="mt-0.5" />
 						<Database class="w-4 h-4 shrink-0 translate-y-0.5 text-blue-500" />
 						<div class="min-w-0">
-							<div class="text-sm">Delete named volumes <span class="text-muted-foreground">{m.stacks_delete_data_warning()}</span></div>
+							<div class="text-sm">{m.stacks_delete_named_volumes()} <span class="text-muted-foreground">{m.stacks_delete_data_warning()}</span></div>
 							<div class="flex flex-wrap gap-1 mt-0.5">
 								{#each preview.namedVolumes as v}
 									<code class="rounded bg-muted px-1.5 py-0.5 text-xs">{v}</code>
@@ -141,16 +141,15 @@
 
 				{#if !preview.canDeleteFiles && !hasVolumes}
 					<p class="text-sm text-muted-foreground">
-						This stack has no files or named volumes Dockhand manages — only the stack
-						record and its containers will be removed.
+						{m.stacks_delete_no_managed()}
 					</p>
 				{/if}
 			</div>
 
-			<!-- What will happen — fixed set of lines; each flips red(delete)/green(keep). -->
+			<!-- {m.stacks_delete_will_happen()} — fixed set of lines; each flips red(delete)/green(keep). -->
 			<div class="mt-2 rounded-md border bg-muted/30 p-3">
 				<div class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-					What will happen
+					{m.stacks_delete_will_happen()}
 				</div>
 				<ul class="space-y-1 text-sm">
 					{#each willHappen as w}

@@ -3040,5 +3040,21 @@
 	"stacks_delete_files_delete": "删除磁盘上的堆栈文件",
 	"stacks_delete_files_keep": "保留磁盘上的堆栈文件",
 	"stacks_delete_volumes_delete": "删除 {n} 个命名卷 — 数据不可恢复",
-	"stacks_delete_volumes_keep": "保留 {n} 个命名卷"
+	"stacks_delete_volumes_keep": "保留 {n} 个命名卷",
+	"stacks_icon_title": "选择图标",
+	"stacks_icon_tab_icons": "图标",
+	"stacks_icon_tab_logos": "应用图标",
+	"stacks_icon_tab_upload": "上传",
+	"stacks_icon_search_icons": "搜索图标…",
+	"stacks_icon_search_logos": "搜索应用图标（plex、jellyfin、grafana…）",
+	"stacks_icon_loading_list": "正在加载图标列表…",
+	"stacks_icon_no_logos": "没有匹配 \"{query}\" 的应用图标。",
+	"stacks_icon_upload_label": "点击上传图片并裁剪",
+	"stacks_icon_upload_formats": "PNG、SVG 或 WebP",
+	"stacks_icon_clear": "清除图标",
+	"stacks_icon_load_error": "无法加载 selfh.st 图标列表。请检查服务器是否可访问互联网。",
+	"stacks_icon_crop_title": "裁剪图标",
+	"stacks_icon_save_label": "保存图标",
+	"stacks_icon_attribution": "应用图标来自 <a href=\"https://selfh.st\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-0.5 underline hover:text-foreground\">selfh.st</a>，以 CC BY 4.0 许可。已获取并缓存在本地。",
+	"stacks_icon_legal": "产品名称、徽标和商标均为其各自所有者的财产，仅用于识别；其使用并不意味着认可。"
 }

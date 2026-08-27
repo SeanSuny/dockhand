@@ -3040,5 +3040,21 @@
 	"stacks_delete_files_delete": "Delete the stack files on disk",
 	"stacks_delete_files_keep": "Keep the stack files on disk",
 	"stacks_delete_volumes_delete": "Delete {n} named volume(s) — data is unrecoverable",
-	"stacks_delete_volumes_keep": "Keep {n} named volume(s)"
+	"stacks_delete_volumes_keep": "Keep {n} named volume(s)",
+	"stacks_icon_title": "Choose an icon",
+	"stacks_icon_tab_icons": "Icons",
+	"stacks_icon_tab_logos": "App logos",
+	"stacks_icon_tab_upload": "Upload",
+	"stacks_icon_search_icons": "Search icons...",
+	"stacks_icon_search_logos": "Search app logos (plex, jellyfin, grafana...)",
+	"stacks_icon_loading_list": "Loading icon list...",
+	"stacks_icon_no_logos": "No app logos match \"{query}\".",
+	"stacks_icon_upload_label": "Click to upload an image, then crop it",
+	"stacks_icon_upload_formats": "PNG, SVG or WebP",
+	"stacks_icon_clear": "Clear icon",
+	"stacks_icon_load_error": "Could not load the selfh.st icon list. Check the server has internet access.",
+	"stacks_icon_crop_title": "Crop icon",
+	"stacks_icon_save_label": "Save icon",
+	"stacks_icon_attribution": "App logos by <a href=\"https://selfh.st\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-0.5 underline hover:text-foreground\">selfh.st</a>, licensed CC BY 4.0. Fetched once and cached locally.",
+	"stacks_icon_legal": "Product names, logos and trademarks are the property of their respective owners and are shown for identification only; their use does not imply endorsement."
 }

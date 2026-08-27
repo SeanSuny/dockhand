@@ -2997,5 +2997,8 @@
 	"backups_schedule_yearly": "Yearly",
 	"backups_cancelling": "Cancelling…",
 	"backups_cancel_backup": "Cancel backup",
-	"containers_create_scan_images_hint": "Enable it in Settings -> Environments to scan images."
+	"containers_create_scan_images_hint": "Enable it in Settings -> Environments to scan images.",
+	"common_unsaved_changes": "Unsaved changes",
+	"container_edit_stack_warning": "This container is part of the {stack} compose stack. Changes may be overwritten when the stack is redeployed.",
+	"container_edit_rename_warning": "This container is part of the {stack} compose stack. Renaming it may cause issues with stack management."
 }

@@ -1207,7 +1207,7 @@
 						<Pencil class="w-3 h-3 text-muted-foreground hover:text-foreground" />
 					</button>
 					{#if $currentEnvironment}
-						<span class="font-semibold ml-1">on <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
+						<span class="font-semibold ml-1">{m.common_state_on()} <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
 					{/if}
 				{/if}
 			</Dialog.Title>
@@ -1255,13 +1255,13 @@
 				{#if showComposeRenameWarning}
 					<div class="mb-4 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-900/30 rounded-md flex items-start gap-2">
 						<Layers class="w-4 h-4 shrink-0 mt-0.5" />
-						<span>This container is part of the <strong>{composeStackName}</strong> compose stack. Renaming it may cause issues with stack management.</span>
+						<span>{m.container_edit_rename_warning({ stack: composeStackName })}</span>
 					</div>
 				{/if}
 				{#if showComposeConfigWarning}
 					<div class="mb-4 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-900/30 rounded-md flex items-start gap-2">
 						<Layers class="w-4 h-4 shrink-0 mt-0.5" />
-						<span>This container is part of the <strong>{composeStackName}</strong> compose stack. Changes may be overwritten when the stack is redeployed.</span>
+						<span>{m.container_edit_stack_warning({ stack: composeStackName })}</span>
 					</div>
 				{/if}
 
@@ -1354,7 +1354,7 @@
 <Dialog.Root bind:open={showConfirmClose}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>Unsaved changes</Dialog.Title>
+			<Dialog.Title>{m.common_unsaved_changes()}</Dialog.Title>
 			<Dialog.Description>{m.stacks_modal_dialog_unsaved_desc()}</Dialog.Description>
 		</Dialog.Header>
 		<div class="flex justify-end gap-1.5 mt-4">

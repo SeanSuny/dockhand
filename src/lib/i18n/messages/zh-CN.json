@@ -2997,5 +2997,8 @@
 	"backups_schedule_yearly": "每年",
 	"backups_cancelling": "正在取消…",
 	"backups_cancel_backup": "取消备份",
-	"containers_create_scan_images_hint": "在“设置 -> 环境”中启用，以扫描镜像。"
+	"containers_create_scan_images_hint": "在“设置 -> 环境”中启用，以扫描镜像。",
+	"common_unsaved_changes": "未保存的更改",
+	"container_edit_stack_warning": "此容器属于 {stack} 堆栈。重新部署堆栈时，这些更改可能会被覆盖。",
+	"container_edit_rename_warning": "此容器属于 {stack} 堆栈。重命名可能会影响堆栈管理。"
 }

@@ -1273,7 +1273,7 @@
 	<Dialog.Root open={showCloseConfirm} onOpenChange={(o) => { if (!o) showCloseConfirm = false; }}>
 		<Dialog.Content class="sm:max-w-md">
 			<Dialog.Header>
-				<Dialog.Title>Unsaved changes</Dialog.Title>
+				<Dialog.Title>{m.file_browser_unsaved_changes()}</Dialog.Title>
 				<Dialog.Description>
 					{editingFile?.name ?? 'This file'} has unsaved changes. Save them before closing?
 				</Dialog.Description>
@@ -1281,7 +1281,7 @@
 			<Dialog.Footer class="gap-2 sm:justify-between">
 				<Button variant="outline" onclick={() => showCloseConfirm = false}>{m.common_cancel()}</Button>
 				<div class="flex gap-2">
-					<Button variant="destructive" onclick={forceCloseEditor}>Discard</Button>
+					<Button variant="destructive" onclick={forceCloseEditor}>{m.file_browser_discard()}</Button>
 					<Button onclick={saveFile} disabled={savingFile}>{m.settings_env_modal_save_btn()}</Button>
 				</div>
 			</Dialog.Footer>
@@ -1329,7 +1329,7 @@
 <Dialog.Root bind:open={showCreateModal}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>Create {createType === 'file' ? 'File' : 'Directory'}</Dialog.Title>
+			<Dialog.Title>{createType === 'file' ? m.file_browser_create_file() : m.file_browser_create_directory()}</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
@@ -1365,7 +1365,7 @@
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
-				<Label for="rename-name">New name</Label>
+				<Label for="rename-name">{m.file_browser_new_name()}</Label>
 				<Input
 					id="rename-name"
 					bind:value={renameName}
@@ -1389,12 +1389,12 @@
 <Dialog.Root bind:open={showChmodModal}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Change permissions</Dialog.Title>
+			<Dialog.Title>{m.file_browser_change_permissions()}</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			{#if chmodEntry}
 				<p class="text-sm text-muted-foreground">{chmodEntry.name}</p>
-				<p class="text-xs text-muted-foreground">Current: {chmodEntry.permissions}</p>
+				<p class="text-xs text-muted-foreground">{m.file_browser_current_permissions({ permissions: chmodEntry.permissions })}</p>
 			{/if}
 
 			<!-- Permission checkboxes -->

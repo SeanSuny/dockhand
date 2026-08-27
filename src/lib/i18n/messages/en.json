@@ -2940,5 +2940,9 @@
 	"snapshots_browser_working_dir": "Working dir",
 	"snapshots_browser_privileged": "privileged",
 	"snapshots_browser_readonly_rootfs": "read-only rootfs",
-	"snapshots_browser_yes": "yes"
+	"snapshots_browser_yes": "yes",
+	"snapshots_panel_snapshot": "Snapshot",
+	"snapshots_panel_added": "Added",
+	"snapshots_panel_taken": "Taken",
+	"snapshots_panel_empty": "Run a backup from the Schedules tab to create one."
 }

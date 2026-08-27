@@ -2940,5 +2940,9 @@
 	"snapshots_browser_working_dir": "工作目录",
 	"snapshots_browser_privileged": "特权",
 	"snapshots_browser_readonly_rootfs": "只读 rootfs",
-	"snapshots_browser_yes": "是"
+	"snapshots_browser_yes": "是",
+	"snapshots_panel_snapshot": "快照",
+	"snapshots_panel_added": "添加时间",
+	"snapshots_panel_taken": "拍摄时间",
+	"snapshots_panel_empty": "从计划标签页运行一次备份即可创建。"
 }

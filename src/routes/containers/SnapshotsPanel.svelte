@@ -251,7 +251,7 @@
 	<div class="flex min-h-[60vh] flex-col items-center justify-center py-10 text-center">
 		<Archive class="mb-3 h-10 w-10 text-muted-foreground/40" />
 		<p class="text-sm text-muted-foreground">No snapshots yet for {targetName}.</p>
-		<p class="mt-1 text-xs text-muted-foreground">Run a backup from the Schedules tab to create one.</p>
+		<p class="mt-1 text-xs text-muted-foreground">{m.snapshots_panel_empty()}</p>
 	</div>
 {:else}
 	<!-- Repo filter chips (Option C) — only when the target spans more than one repo. -->
@@ -280,9 +280,9 @@
 		<table class="w-full text-xs">
 			<thead>
 				<tr class="border-b text-left text-muted-foreground">
-					<th class="py-1.5 pl-2 font-medium">Snapshot</th>
-					<th class="py-1.5 pl-2 font-medium">Taken</th>
-					<th class="py-1.5 pl-2 font-medium">Added</th>
+					<th class="py-1.5 pl-2 font-medium">{m.snapshots_panel_snapshot()}</th>
+					<th class="py-1.5 pl-2 font-medium">{m.snapshots_panel_taken()}</th>
+					<th class="py-1.5 pl-2 font-medium">{m.snapshots_panel_added()}</th>
 					<th class="py-1.5 pl-2 font-medium">{m.stacks_git_modal_label_repository()}</th>
 					<th class="py-1.5 pr-3 text-right font-medium">{m.common_actions()}</th>
 				</tr>

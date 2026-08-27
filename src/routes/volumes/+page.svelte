@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Volumes - Dockhand</title>
+	<title>{m.volumes_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">
@@ -490,7 +490,7 @@
 	<div class="h-4 shrink-0">
 		{#if selectedVolumes.size > 0}
 			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
-			<span>{selectedInFilter.length} selected</span>
+			<span>{m.common_x_selected({ n: selectedInFilter.length })}</span>
 			<button
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"

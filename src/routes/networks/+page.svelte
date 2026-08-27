@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>{m.sidebar_networks()} - Dockhand</title>
+	<title>{m.networks_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">

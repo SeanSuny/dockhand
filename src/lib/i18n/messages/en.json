@@ -3004,5 +3004,7 @@
 	"images_page_title": "Images - Dockhand",
 	"images_repository_name": "Repository name",
 	"images_some_unused": "Some unused",
-	"common_x_selected": "{n} selected"
+	"common_x_selected": "{n} selected",
+	"networks_page_title": "Networks - Dockhand",
+	"volumes_page_title": "Volumes - Dockhand"
 }

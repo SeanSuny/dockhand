@@ -3004,5 +3004,7 @@
 	"images_page_title": "镜像 - Dockhand",
 	"images_repository_name": "仓库名",
 	"images_some_unused": "部分未使用",
-	"common_x_selected": "已选择 {n}"
+	"common_x_selected": "已选择 {n}",
+	"networks_page_title": "网络 - Dockhand",
+	"volumes_page_title": "卷 - Dockhand"
 }

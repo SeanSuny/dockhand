@@ -75,20 +75,20 @@
 {:else if executions.length === 0}
 	<div class="flex min-h-[60vh] flex-col items-center justify-center py-10 text-center">
 		<Clock class="mb-3 h-10 w-10 text-muted-foreground/40" />
-		<p class="text-sm text-muted-foreground">No backup runs yet.</p>
-		<p class="mt-1 text-xs text-muted-foreground">Run a backup — its history appears here.</p>
+		<p class="text-sm text-muted-foreground">{m.backup_history_no_runs()}</p>
+		<p class="mt-1 text-xs text-muted-foreground">{m.backup_history_run_a_backup()}</p>
 	</div>
 {:else}
 	<div class="overflow-x-auto">
 		<table class="w-full text-xs">
 			<thead>
 				<tr class="border-b text-left text-muted-foreground">
-					<th class="py-1.5 pl-2 font-medium">Run</th>
+					<th class="py-1.5 pl-2 font-medium">{m.backup_history_run()}</th>
 					<th class="py-1.5 pl-2 text-center font-medium">{m.schedules_trigger()}</th>
 					<th class="py-1.5 pl-2 font-medium">{m.schedules_col_duration()}</th>
 					<th class="py-1.5 pl-2 text-center font-medium">{m.common_status()}</th>
-					<th class="py-1.5 pl-2 font-medium">Detail</th>
-					{#if showRepo}<th class="py-1.5 pl-2 font-medium">Repo</th>{/if}
+					<th class="py-1.5 pl-2 font-medium">{m.backup_history_detail()}</th>
+					{#if showRepo}<th class="py-1.5 pl-2 font-medium">{m.backup_history_repo()}</th>{/if}
 					<th class="py-1.5 pr-2 font-medium"></th>
 				</tr>
 			</thead>

@@ -1229,8 +1229,7 @@
 					</div>
 					<TogglePill bind:checked={formBuildOnDeploy} />
 				</div>
-				<p class="text-xs text-muted-foreground">
-					Run <code class="text-xs bg-muted px-1 rounded">--build</code> to build images from Dockerfiles before starting containers.
+				<p class="text-xs text-muted-foreground">{m.backup_history_run()}<code class="text-xs bg-muted px-1 rounded">--build</code> to build images from Dockerfiles before starting containers.
 				</p>
 				{#if formBuildOnDeploy}
 				<div class="flex items-center gap-3 ml-6">

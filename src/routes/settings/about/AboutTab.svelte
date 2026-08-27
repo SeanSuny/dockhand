@@ -507,7 +507,7 @@
 						{:else if updateCheckError}
 							<button class="flex items-center gap-1 text-xs text-foreground hover:text-muted-foreground transition-colors" onclick={checkForUpdates} title={updateCheckError}>
 								<TriangleAlert class="w-3.5 h-3.5 shrink-0" />
-								Update check unavailable — click to retry
+								{m.about_update_check_unavailable()}
 							</button>
 						{/if}
 					</div>
@@ -670,9 +670,9 @@
 								<Database class="w-3.5 h-3.5" />{m.settings_about_database()}</div>
 							<div class="text-sm pl-5 space-y-1">
 								<div class="flex items-center gap-2 flex-wrap">
-									{#if systemInfo.database.type === 'PostgreSQL'}
+									{#if systemInfo.database.type === '{m.about_postgresql()}'}
 										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-blue-500/20">
-											PostgreSQL
+											{m.about_postgresql()}
 										</span>
 										{#if systemInfo.database.host}
 											<span class="text-muted-foreground/50">|</span>
@@ -680,7 +680,7 @@
 										{/if}
 									{:else}
 										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-emerald-500/20">
-											SQLite
+											{m.about_sqlite()}
 										</span>
 									{/if}
 								</div>
@@ -745,7 +745,7 @@
 									{/if}
 								</div>
 								{#if !$licenseStore.isLicensed}
-									<p class="text-xs text-muted-foreground mt-2">Dockhand Community Edition is free and always will be. No strings attached. Like it? Fuel the dev with caffeine.</p>
+									<p class="text-xs text-muted-foreground mt-2">{m.about_community_edition()}</p>
 								{/if}
 							</div>
 						</div>

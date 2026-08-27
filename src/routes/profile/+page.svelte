@@ -365,13 +365,13 @@
 </script>
 
 <svelte:head>
-	<title>Profile - Dockhand</title>
+	<title>{m.profile_title()}</title>
 </svelte:head>
 
 <div class="container mx-auto p-6">
 	<div class="flex items-center gap-3 mb-6">
 		<PageHeader icon={User} title="Profile" showConnection={false}>
-			<p class="text-muted-foreground text-sm">Manage your account settings</p>
+			<p class="text-muted-foreground text-sm">{m.profile_manage_account()}</p>
 		</PageHeader>
 	</div>
 
@@ -471,7 +471,7 @@
 										{#if profile.isAdmin}
 											<Badge variant="default" class="gap-1 rounded-sm">
 												<Crown class="w-3 h-3" />
-												Admin
+												{m.profile_admin()}
 											</Badge>
 										{:else}
 											<Badge variant="secondary" class="rounded-sm">{m.common_user()}</Badge>
@@ -567,7 +567,7 @@
 								<Key class="w-5 h-5 text-muted-foreground" />
 								<div>
 									<p class="font-medium">{m.login_password()}</p>
-									<p class="text-sm text-muted-foreground">Change your password</p>
+									<p class="text-sm text-muted-foreground">{m.profile_change_password()}</p>
 								</div>
 							</div>
 							<Button variant="outline" onclick={() => showPasswordModal = true}>
@@ -580,7 +580,7 @@
 								<Key class="w-5 h-5 text-muted-foreground" />
 								<div>
 									<p class="font-medium">{m.login_password()}</p>
-									<p class="text-sm text-muted-foreground">Managed by your SSO provider</p>
+									<p class="text-sm text-muted-foreground">{m.profile_managed_by_sso()}</p>
 								</div>
 							</div>
 							<Badge class="gap-1 rounded-sm bg-yellow-500/20 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/30">
@@ -616,7 +616,7 @@
 							</div>
 							{#if profile.mfaEnabled}
 								<Button variant="outline" onclick={() => showDisableMfaModal = true}>
-									Disable MFA
+									{m.profile_disable_mfa()}
 								</Button>
 							{:else}
 								<Button onclick={setupMfa} disabled={mfaLoading}>
@@ -635,7 +635,7 @@
 								<Smartphone class="w-5 h-5 text-muted-foreground" />
 								<div>
 									<p class="font-medium">{m.settings_auth_user_modal_mfa_title()}</p>
-									<p class="text-sm text-muted-foreground">Managed by your SSO provider</p>
+									<p class="text-sm text-muted-foreground">{m.profile_managed_by_sso()}</p>
 								</div>
 							</div>
 							<Badge class="gap-1 rounded-sm bg-yellow-500/20 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/30">
@@ -667,19 +667,19 @@
 							Generate token
 						</Button>
 					</Card.Title>
-					<Card.Description>Create tokens for CI/CD pipelines and scripts</Card.Description>
+					<Card.Description>{m.profile_create_tokens()}</Card.Description>
 				</Card.Header>
 				<Card.Content>
 					{#if tokensLoading}
-						<p class="text-sm text-muted-foreground">Loading tokens...</p>
+						<p class="text-sm text-muted-foreground">{m.profile_loading_tokens()}</p>
 					{:else if apiTokens.length === 0}
-						<p class="text-sm text-muted-foreground">No API tokens created yet.</p>
+						<p class="text-sm text-muted-foreground">{m.profile_no_tokens()}</p>
 					{:else}
 						<Table.Root>
 							<Table.Header>
 								<Table.Row>
 									<Table.Head>{m.common_name()}</Table.Head>
-									<Table.Head>Prefix</Table.Head>
+									<Table.Head>{m.profile_prefix()}</Table.Head>
 									<Table.Head>Last used</Table.Head>
 									<Table.Head>{m.settings_license_expires()}</Table.Head>
 									<Table.Head class="w-[80px]"></Table.Head>
@@ -697,7 +697,7 @@
 										</Table.Cell>
 										<Table.Cell class="text-sm">
 											{#if isTokenExpired(token.expiresAt)}
-												<Badge variant="destructive">Expired</Badge>
+												<Badge variant="destructive">{m.profile_expired()}</Badge>
 											{:else if token.expiresAt}
 												{formatDateTime(token.expiresAt)}
 											{:else}
@@ -734,7 +734,7 @@
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
 						<Palette class="w-5 h-5" />{m.appearance_title()}</Card.Title>
-					<Card.Description>Customize the look of the application</Card.Description>
+					<Card.Description>{m.profile_customize_look()}</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-1">
@@ -770,7 +770,7 @@
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
 						<Compass class="w-5 h-5" />{m.command_palette_group_navigation()}</Card.Title>
-					<Card.Description>Your landing page and environment-click target. Leave on "Use global default" to follow the workspace setting.</Card.Description>
+					<Card.Description>{m.profile_landing_page_desc()}</Card.Description>
 				</Card.Header>
 				<Card.Content>
 					<NavigationSelector scope="user" />

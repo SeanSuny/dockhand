@@ -990,7 +990,7 @@
 										<th class="text-left py-1.5 w-24" style="padding-left:8px">ID</th>
 										<th class="text-left py-1.5 w-40" style="padding-left:8px">{m.status_created()}</th>
 										<th class="text-left py-1.5 w-64" style="padding-left:8px">Stats</th>
-										<th class="text-left py-1.5 w-32" style="padding-left:8px">Repo</th>
+										<th class="text-left py-1.5 w-32" style="padding-left:8px">{m.backup_history_repo()}</th>
 										<th class="text-right px-3 py-1.5 w-28">{m.common_actions()}</th>
 									</tr>
 								</thead>

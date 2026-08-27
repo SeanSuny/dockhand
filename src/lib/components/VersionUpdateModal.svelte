@@ -202,7 +202,7 @@
 			<!-- Version path. A version with release notes is a link that opens + scrolls to them. -->
 			{#if versionPath.length > 1}
 				<div class="flex items-center gap-1.5 flex-wrap text-xs px-1">
-					<span class="text-muted-foreground">Path:</span>
+					<span class="text-muted-foreground">{m.update_modal_path()}</span>
 					<span class="font-mono text-muted-foreground">{currentTag}</span>
 					{#each versionPath as v, i}
 						{@const isTarget = i === versionPath.length - 1}
@@ -263,9 +263,8 @@
 							<div class="flex items-start gap-2.5">
 								<Info class="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
 								<p class="text-sm text-muted-foreground">
-									GitHub's rate limit was hit while fetching release notes. Set a
-									<code class="text-xs">DOCKHAND_GITHUB_TOKEN</code> (a personal access token, no scopes needed)
-									to raise the limit from 60 to 5000 requests/hour.
+									{m.update_modal_github_rate_limit()}
+									<code class="text-xs">{m.update_modal_dockhand_github_token()}</code>{m.update_modal_github_token_hint()}
 								</p>
 							</div>
 							{#if changelogUrl}
@@ -282,7 +281,7 @@
 									Release notes for these versions aren't available inline.
 								{:else}
 									This image doesn't publish release notes Dockhand can read
-									(no <code class="text-xs">org.opencontainers.image.source</code> label pointing at a GitHub or Gitea/Forgejo repo).
+									(no <code class="text-xs">{m.update_modal_image_source_label()}</code> label pointing at a GitHub or Gitea/Forgejo repo).
 								{/if}
 							</p>
 							{#if changelogUrl}

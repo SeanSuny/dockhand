@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Settings - Dockhand</title>
+	<title>{m.settings_title()}</title>
 </svelte:head>
 
 <script lang="ts">
@@ -76,7 +76,7 @@
 			</Tabs.Trigger>
 			<Tabs.Trigger value="secrets" class="flex-1 flex items-center justify-center gap-1.5">
 				<KeyRound class="w-4 h-4" />
-				Secrets
+				{m.settings_secrets()}
 			</Tabs.Trigger>
 			<Tabs.Trigger value="config-sets" class="flex-1 flex items-center justify-center gap-1.5">
 				<Layers class="w-4 h-4" />

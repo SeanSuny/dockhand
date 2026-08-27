@@ -397,7 +397,7 @@ services:
 											<HelpCircle class="w-3.5 h-3.5 text-muted-foreground" />
 										</Tooltip.Trigger>
 										<Tooltip.Content side="top" class="w-96 max-w-[90vw]">
-											<p>Surface a release-notes link next to the image name on rows with updates available. The link is resolved from the image's <code>org.opencontainers.image.source</code> label, from the <code>ghcr.io</code> registry path, or from an explicit <code>dockhand.changelog.url</code> label override.</p>
+											<p>Surface a release-notes link next to the image name on rows with updates available. The link is resolved from the image's <code>{m.update_modal_image_source_label()}</code> label, from the <code>ghcr.io</code> registry path, or from an explicit <code>dockhand.changelog.url</code> label override.</p>
 										</Tooltip.Content>
 									</Tooltip.Root>
 									<TogglePill

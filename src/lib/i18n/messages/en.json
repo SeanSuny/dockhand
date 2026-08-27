@@ -3006,5 +3006,9 @@
 	"images_some_unused": "Some unused",
 	"common_x_selected": "{n} selected",
 	"networks_page_title": "Networks - Dockhand",
-	"volumes_page_title": "Volumes - Dockhand"
+	"volumes_page_title": "Volumes - Dockhand",
+	"stacks_page_title": "Stacks - Dockhand",
+	"stacks_restart_stack": "Restart stack",
+	"common_not_set": "Not set",
+	"stacks_update_status_unknown": "Update status unknown — often a Docker Hub rate limit. Try again later."
 }

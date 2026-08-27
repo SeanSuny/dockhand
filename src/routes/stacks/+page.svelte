@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Stacks - Dockhand</title>
+	<title>{m.stacks_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">
@@ -1531,7 +1531,7 @@
 	<div class="h-4 shrink-0">
 		{#if selectedStacks.size > 0}
 			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
-			<span>{selectedInFilter.length} selected</span>
+			<span>{m.common_x_selected({ n: selectedInFilter.length })}</span>
 			<button
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
@@ -1821,7 +1821,7 @@
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{:else}
-						<span class="text-xs text-muted-foreground/50 italic">Not set</span>
+						<span class="text-xs text-muted-foreground/50 italic">{m.common_not_set()}</span>
 					{/if}
 				{:else if column.id === 'containers'}
 					<div class="flex items-center gap-1">
@@ -2093,7 +2093,7 @@
 											sideOffset={8}
 										>
 											<div class="flex flex-col gap-1.5">
-												<span class="text-xs text-muted-foreground">Restart stack <strong>{stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name}</strong></span>
+												<span class="text-xs text-muted-foreground">{m.stacks_restart_stack()} <strong>{stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name}</strong></span>
 												<div class="flex items-center gap-1.5">
 													<Button size="sm" variant="secondary" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>{m.common_restart()}</Button>
 													<Button size="sm" variant="default" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>{m.stacks_action_recreate()}</Button>
@@ -2207,7 +2207,7 @@
 															Update check failed
 														</p>
 														<p class="text-muted-foreground text-xs break-words">{failedUpdateCheckErrors.get(container.id) ?? 'Could not query registry'}</p>
-														<p class="text-muted-foreground text-xs">Update status unknown — often a Docker Hub rate limit. Try again later.</p>
+														<p class="text-muted-foreground text-xs">{m.stacks_update_status_unknown()}</p>
 													</div>
 												</Tooltip.Content>
 											</Tooltip.Root>
@@ -2257,7 +2257,7 @@
 											<!-- CPU sparkline -->
 											<div class="space-y-0">
 												<div class="flex justify-between text-2xs">
-													<span class="text-muted-foreground">CPU</span>
+													<span class="text-muted-foreground">{m.common_cpu()}</span>
 													<span class="font-mono {stats?.cpuPercent && stats.cpuPercent > 80 ? 'text-red-500' : stats?.cpuPercent && stats.cpuPercent > 50 ? 'text-yellow-500' : 'text-muted-foreground'}">{stats?.cpuPercent?.toFixed(0) ?? '-'}%</span>
 												</div>
 												{#if history?.cpu && history.cpu.length >= 2}
@@ -2590,7 +2590,7 @@
 					<div class="p-4 pl-12 shadow-inner bg-muted/30">
 						<div class="flex items-center justify-center gap-2 py-4 text-muted-foreground text-sm">
 							<Box class="w-4 h-4" />
-							<span>No containers</span>
+							<span>{m.stacks_no_containers()}</span>
 						</div>
 					</div>
 				{/if}

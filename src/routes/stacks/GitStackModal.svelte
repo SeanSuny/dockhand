@@ -18,6 +18,10 @@
 	import StackEnvVarsPanel from '$lib/components/StackEnvVarsPanel.svelte';
 	import SecretProviderPicker from '$lib/components/SecretProviderPicker.svelte';
 	import BranchCombobox from './BranchCombobox.svelte';
+	import IconPickerModal from './IconPickerModal.svelte';
+	import StackIcon from '$lib/components/StackIcon.svelte';
+	import { appendEnvParam } from '$lib/stores/environment';
+	import { persistStackIcon } from '$lib/utils/stack-icon';
 	import { type EnvVar, type ValidationResult } from '$lib/components/StackEnvVarsEditor.svelte';
 	import { toast } from 'svelte-sonner';
 	import { focusFirstInput } from '$lib/utils';
@@ -73,13 +77,32 @@
 		open: boolean;
 		gitStack?: GitStack | null;
 		environmentId?: number | null;
+		icon?: string | null;
 		repositories: GitRepository[];
 		credentials: GitCredential[];
 		onClose: () => void;
 		onSaved: () => void;
 	}
 
-	let { open = $bindable(), gitStack = null, environmentId = null, repositories, credentials, onClose, onSaved }: Props = $props();
+	let { open = $bindable(), gitStack = null, environmentId = null, icon = null, repositories, credentials, onClose, onSaved }: Props = $props();
+
+	// Per-stack icon override (same name-based /icon endpoint as internal stacks, #1473).
+	let formIcon = $state<string | null>(icon);
+	let showIconPicker = $state(false);
+	$effect(() => { formIcon = icon; });
+
+	// value: '' clear, 'upload:<dataUrl>' custom upload, or a lucide name / 'selfhst:<ref>'.
+	async function onIconSelect(value: string) {
+		if (!gitStack?.stackName) return;
+		const target = appendEnvParam(`/api/stacks/${encodeURIComponent(gitStack.stackName)}/icon`, effectiveEnvId);
+		try {
+			const next = await persistStackIcon(target, value);
+			if (next !== undefined) formIcon = next; // undefined = POST failed, keep current
+			onSaved();
+		} catch (e) {
+			console.error('Failed to set stack icon:', e);
+		}
+	}
 
 	// Form state - repository selection or creation
 	let formRepoMode = $state<'existing' | 'new'>('existing');
@@ -747,9 +770,24 @@
 		<Dialog.Header class="px-5 py-3 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
-					<div class="p-1.5 rounded-md bg-zinc-200 dark:bg-zinc-700">
-						<GitBranch class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-					</div>
+					{#if gitStack}
+						<button
+							type="button"
+							title="Change stack icon"
+							onclick={() => (showIconPicker = true)}
+							class="p-1.5 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:ring-2 hover:ring-primary transition-shadow"
+						>
+							{#if formIcon}
+								<StackIcon icon={formIcon} stackName={gitStack.stackName} envId={effectiveEnvId} class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+							{:else}
+								<GitBranch class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+							{/if}
+						</button>
+					{:else}
+						<div class="p-1.5 rounded-md bg-zinc-200 dark:bg-zinc-700">
+							<GitBranch class="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+						</div>
+					{/if}
 					<div>
 						<Dialog.Title class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
 							{gitStack ? m.stacks_action_edit_git() : m.stacks_git_modal_title_deploy()}
@@ -1402,3 +1440,5 @@
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
+
+<IconPickerModal bind:open={showIconPicker} value={formIcon} onselect={onIconSelect} title="Choose a stack icon" />

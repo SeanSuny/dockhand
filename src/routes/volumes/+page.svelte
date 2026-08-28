@@ -70,8 +70,8 @@
 
 	// Usage filter options (static)
 	const usageOptions = [
-		{ value: 'in-use', label: m.volumes_filter_in_use(), icon: CircleDot, color: 'text-emerald-500' },
-		{ value: 'unused', label: m.volumes_filter_unused(), icon: Circle, color: 'text-muted-foreground' }
+		{ value: 'in-use', label: m.images_filter_in_use(), icon: CircleDot, color: 'text-emerald-500' },
+		{ value: 'unused', label: m.images_filter_unused(), icon: Circle, color: 'text-muted-foreground' }
 	];
 
 	// Confirmation popover state

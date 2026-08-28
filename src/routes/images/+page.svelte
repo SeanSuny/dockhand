@@ -996,7 +996,7 @@
 						<span>{m.images_filter_in_use()}</span>
 					{:else if usageFilter === 'some-unused'}
 						<CircleDot class="w-3.5 h-3.5 mr-1.5 text-amber-500 shrink-0" />
-						<span>{m.images_some_unused()}</span>
+						<span>{m.images_filter_some_unused()}</span>
 					{:else}
 						<Circle class="w-3.5 h-3.5 mr-1.5 text-muted-foreground shrink-0" />
 						<span>{m.images_filter_unused()}</span>

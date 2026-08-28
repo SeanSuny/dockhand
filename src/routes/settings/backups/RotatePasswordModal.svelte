@@ -90,7 +90,7 @@
 				<Input id="rotate-current" type="password" bind:value={currentPassword} autocomplete="current-password" />
 			</div>
 			<div class="space-y-1">
-				<Label for="rotate-new">{m.backups_rotate_new_password()}</Label>
+				<Label for="rotate-new">{m.settings_auth_user_modal_new_password()}</Label>
 				<Input id="rotate-new" type="password" bind:value={newPassword} autocomplete="new-password" />
 			</div>
 			<div class="space-y-1">

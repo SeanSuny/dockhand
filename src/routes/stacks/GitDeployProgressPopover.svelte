@@ -197,7 +197,7 @@
 				{:else}
 					<Rocket class="w-5 h-5 text-violet-500 shrink-0" />
 				{/if}
-				<span class="text-base font-semibold">{m.stacks_git_deploy()}</span>
+				<span class="text-base font-semibold">{m.stacks_git_deploy_title()}</span>
 				<code class="text-sm font-normal bg-muted px-1.5 py-0.5 rounded ml-1 truncate">{stackName}</code>
 				{#if overallStatus === 'complete'}
 					<Badge variant="outline" class="ml-auto shrink-0 text-green-600 border-green-600/30">{m.stacks_git_deploy_badge_complete()}</Badge>

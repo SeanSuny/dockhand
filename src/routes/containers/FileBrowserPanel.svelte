@@ -1329,7 +1329,7 @@
 <Dialog.Root bind:open={showCreateModal}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>{createType === 'file' ? m.file_browser_create_file() : m.file_browser_create_directory()}</Dialog.Title>
+			<Dialog.Title>{createType === 'file' ? m.container_files_create_file() : m.container_files_create_directory()}</Dialog.Title>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
@@ -1365,7 +1365,7 @@
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
 			<div class="space-y-2">
-				<Label for="rename-name">{m.file_browser_new_name()}</Label>
+				<Label for="rename-name">{m.container_files_label_new_name()}</Label>
 				<Input
 					id="rename-name"
 					bind:value={renameName}
@@ -1394,7 +1394,7 @@
 		<div class="space-y-4 py-4">
 			{#if chmodEntry}
 				<p class="text-sm text-muted-foreground">{chmodEntry.name}</p>
-				<p class="text-xs text-muted-foreground">{m.file_browser_current_permissions({ permissions: chmodEntry.permissions })}</p>
+				<p class="text-xs text-muted-foreground">{m.container_files_current_permissions({ permissions: chmodEntry.permissions })}</p>
 			{/if}
 
 			<!-- Permission checkboxes -->

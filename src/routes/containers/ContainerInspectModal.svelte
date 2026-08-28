@@ -846,7 +846,7 @@
 								<div class="p-3 border border-border rounded-lg">
 									<div class="flex items-center gap-2 mb-2">
 										<Cpu class="w-4 h-4 text-blue-500" />
-										<span class="text-xs font-medium">{m.container_inspect_cpu()}</span>
+										<span class="text-xs font-medium">{m.common_cpu()}</span>
 										<span class="ml-auto text-sm font-bold">{currentStats?.cpuPercent?.toFixed(1) ?? '—'}%</span>
 									</div>
 									{#if cpuHistory.length >= 2}
@@ -1793,7 +1793,7 @@
 										<h3 class="text-sm font-semibold mb-2">{m.common_status()}</h3>
 										<div class="grid grid-cols-2 gap-3 text-sm">
 											<div>
-												<p class="text-muted-foreground">{m.container_inspect_current_status()}</p>
+												<p class="text-muted-foreground">{m.container_inspect_health_current_status()}</p>
 												<Badge variant={healthState.Status === 'healthy' ? 'default' : healthState.Status === 'starting' ? 'secondary' : 'destructive'}>
 													{healthState.Status}
 												</Badge>

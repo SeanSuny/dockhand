@@ -205,7 +205,7 @@
 			<TerminalIcon class="w-4 h-4 text-zinc-400" />
 			<span class="text-sm text-zinc-200 font-medium">{containerName}</span>
 			{#if connected}
-				<span class="inline-flex items-center gap-1 text-xs text-green-500"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>{m.container_terminal_connected()}</span>
+				<span class="inline-flex items-center gap-1 text-xs text-green-500"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>{m.settings_env_status_connected()}</span>
 			{:else if error}
 				<span class="text-xs text-red-500">{error}</span>
 			{:else}

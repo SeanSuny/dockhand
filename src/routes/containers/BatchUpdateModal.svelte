@@ -473,7 +473,7 @@ const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 				{:else if status === 'complete'}
 					{m.container_batch_status_complete()}
 				{:else if status === 'error'}
-					{m.container_batch_status_error()}
+					{m.settings_env_event_auto_update_failed()}
 				{:else}
 					{m.container_batch_status_preparing({count: containerIds.length})}
 				{/if}
@@ -565,7 +565,7 @@ const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 										type="button"
 										onclick={() => toggleLogs(item.containerId)}
 										class="p-1 hover:bg-muted rounded cursor-pointer"
-										title={item.showLogs ? m.container_batch_hide_logs() : m.container_batch_show_logs()}
+										title={item.showLogs ? m.container_batch_hide_logs() : m.containers_action_show_logs()}
 									>
 										{#if item.showLogs}
 											<ChevronDown class="w-4 h-4 text-muted-foreground" />

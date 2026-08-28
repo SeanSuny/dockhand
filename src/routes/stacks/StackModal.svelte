@@ -1885,7 +1885,7 @@
 					<div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
 						<div class="flex gap-4 items-start">
 							<div class="flex-1 max-w-xs space-y-1">
-								<Label for="stack-name">{m.stacks_modal_stack_name()}</Label>
+								<Label for="stack-name">{m.stacks_git_modal_label_stack_name()}</Label>
 								<Input
 									id="stack-name"
 									bind:value={newStackName}
@@ -1908,7 +1908,7 @@
 							<AlertCircle class="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
 							<div class="flex-1 min-w-0">
 								<p class="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-									<span class="font-medium text-amber-800 dark:text-amber-300">{m.stacks_modal_untracked()}</span> — this stack is running in Docker but Dockhand doesn't know where its compose file is stored on disk. Browse to locate the file to start editing and managing it.
+									<span class="font-medium text-amber-800 dark:text-amber-300">{m.stacks_modal_state_untracked()}</span> — this stack is running in Docker but Dockhand doesn't know where its compose file is stored on disk. Browse to locate the file to start editing and managing it.
 								</p>
 								{#if stackContainers.length > 0}
 									<div class="text-xs text-zinc-500 dark:text-zinc-400">

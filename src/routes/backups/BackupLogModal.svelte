@@ -74,7 +74,7 @@
 					type="button"
 					class="absolute top-8 right-3 rounded border bg-background/80 p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
 					onclick={copyLogs}
-					title={m.backups_log_copy_title()}
+					title={m.stacks_modal_button_copy()}
 				>
 					{#if copied}<Check class="w-3.5 h-3.5 text-green-500" />{:else}<Copy class="w-3.5 h-3.5" />{/if}
 				</button>

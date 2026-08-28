@@ -529,14 +529,14 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>{m.settings_general_time_format()}</Label>
+									<Label>{m.appearance_time_format()}</Label>
 									<ToggleSwitch
 										value={timeFormat}
 										leftValue="24h"
 										rightValue="12h"
 										onchange={(newFormat) => {
 											appSettings.setTimeFormat(newFormat as '12h' | '24h');
-											toast.success(`{m.settings_general_time_format()} set to ${newFormat === '12h' ? '12-hour (AM/PM)' : '24-hour'}`);
+											toast.success(`{m.appearance_time_format()} set to ${newFormat === '12h' ? '12-hour (AM/PM)' : '24-hour'}`);
 										}}
 										disabled={!$canAccess('settings', 'edit')}
 									/>
@@ -545,14 +545,14 @@ services:
 							</div>
 							<div class="space-y-1">
 								<div class="flex items-center gap-3">
-									<Label>{m.settings_general_date_format()}</Label>
+									<Label>{m.appearance_date_format()}</Label>
 									<Select.Root
 										type="single"
 										value={dateFormat}
 										onValueChange={(value) => {
 											if (value) {
 												appSettings.setDateFormat(value as DateFormat);
-												toast.success(`{m.settings_general_date_format()} set to ${value}`);
+												toast.success(`{m.appearance_date_format()} set to ${value}`);
 											}
 										}}
 										disabled={!$canAccess('settings', 'edit')}
@@ -807,7 +807,7 @@ services:
 							disabled={!$canAccess('settings', 'edit')}
 							placeholder={"-o json -v {image}"}
 						/>
-						<p class="text-xs text-muted-foreground">{m.settings_general_placeholder_image({ placeholder: '{image}' })}</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_grype_args_desc({ placeholder: '{image}' })}</p>
 					</div>
 					<div class="space-y-2">
 						<Label for="trivy-args">{m.settings_general_trivy_args()}</Label>
@@ -818,7 +818,7 @@ services:
 							disabled={!$canAccess('settings', 'edit')}
 							placeholder={"image --format json {image}"}
 						/>
-						<p class="text-xs text-muted-foreground">{m.settings_general_placeholder_image({ placeholder: '{image}' })}</p>
+						<p class="text-xs text-muted-foreground">{m.settings_general_grype_args_desc({ placeholder: '{image}' })}</p>
 					</div>
 					<div class="pt-2">
 						<button
@@ -836,7 +836,7 @@ services:
 					</div>
 					{#if showAdvancedScannerSettings}
 						<div class="space-y-2">
-							<Label for="scanner-network-mode">{m.settings_general_network_mode()}</Label>
+							<Label for="scanner-network-mode">{m.container_inspect_network_mode()}</Label>
 							<Select.Root
 								type="single"
 								value={defaultScannerNetworkMode}
@@ -855,7 +855,7 @@ services:
 							<p class="text-xs text-muted-foreground">{m.settings_general_network_mode_desc({ mode: "host" })}</p>
 						</div>
 						<div class="space-y-2">
-							<Label for="scanner-dns">{m.settings_general_scanner_dns()}</Label>
+							<Label for="scanner-dns">{m.container_settings_dns_servers()}</Label>
 							<Input
 								id="scanner-dns"
 								value={defaultScannerDns.join(', ')}
@@ -1083,7 +1083,7 @@ services:
 					<div class="space-y-1 pt-2 border-t">
 						<div class="flex items-center gap-3">
 							<Label>{m.settings_general_volume_helper_cleanup()}</Label>
-							<Badge variant="secondary" class="text-xs">{m.settings_general_always_enabled()}</Badge>
+							<Badge variant="secondary" class="text-xs">{m.common_always_enabled()}</Badge>
 						</div>
 						<p class="text-xs text-muted-foreground">
 							Automatically removes temporary containers used for browsing volume contents.

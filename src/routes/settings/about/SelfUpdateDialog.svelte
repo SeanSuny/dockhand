@@ -223,7 +223,7 @@
 			if (contentType.includes('application/json')) {
 				const data = await response.json();
 				phase = 'error';
-				errorMessage = data.error || m.settings_selfupdate_error_failed();
+				errorMessage = data.error || m.settings_env_event_auto_update_failed();
 				return;
 			}
 
@@ -285,7 +285,7 @@
 			startProgressPolling();
 		} else if (event === 'error') {
 			phase = 'error';
-			errorMessage = data.message || m.settings_selfupdate_error_failed();
+			errorMessage = data.message || m.settings_env_event_auto_update_failed();
 			// Mark current active step as error
 			const currentId = activeStepId();
 			if (currentId) {
@@ -494,9 +494,9 @@
 						<span class="text-primary font-medium">{activeStep.label}...</span>
 						<span class="text-muted-foreground ml-2">({completedCount}/{ALL_STEPS.length})</span>
 					{:else if phase === 'completed'}
-						{m.settings_selfupdate_status_complete()}
+						{m.container_batch_status_complete()}
 					{:else if phase === 'error'}
-						{m.settings_selfupdate_status_failed()}
+						{m.settings_env_event_auto_update_failed()}
 					{:else}
 						{m.settings_selfupdate_status_preparing()}
 					{/if}

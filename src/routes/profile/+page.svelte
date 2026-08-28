@@ -519,7 +519,7 @@
 
 					<div class="space-y-4 flex-1">
 						<div class="space-y-2">
-							<Label>{m.profile_display_name()}</Label>
+							<Label>{m.settings_auth_user_modal_display_name()}</Label>
 							<Input
 								bind:value={formDisplayName}
 								placeholder="Enter display name"

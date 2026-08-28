@@ -343,7 +343,7 @@
 		<!-- Header row: title + info + view toggle + validation pills + actions -->
 		<div class="flex items-center gap-2 justify-between">
 			<div class="flex items-center gap-2 flex-wrap min-w-0">
-				<span class="text-xs text-zinc-500 dark:text-zinc-400 shrink-0">{m.stack_env_vars_title()}</span>
+				<span class="text-xs text-zinc-500 dark:text-zinc-400 shrink-0">{m.container_settings_environment_variables()}</span>
 			{#if infoText}
 				<Tooltip.Root>
 					<Tooltip.Trigger>

@@ -149,7 +149,7 @@
 									<Check class={cn('mr-2 h-4 w-4 shrink-0', value === branch.name ? 'opacity-100' : 'opacity-0')} />
 									<span class="truncate">{branch.name}</span>
 									{#if defaultBranch && branch.name === defaultBranch}
-										<span class="ml-2 shrink-0 text-[10px] font-medium uppercase tracking-wide text-amber-500">{m.common_default()}</span>
+										<span class="ml-2 shrink-0 text-[10px] font-medium uppercase tracking-wide text-amber-500">{m.container_inspect_default()}</span>
 									{/if}
 									<span class="ml-auto shrink-0 pl-2 font-mono text-xs text-muted-foreground">{branch.sha}</span>
 								</Command.Item>

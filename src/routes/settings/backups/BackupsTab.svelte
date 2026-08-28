@@ -544,10 +544,10 @@
 			</div>
 			<Select.Root type="single" value={statusFilter} onValueChange={(v) => statusFilter = (v as typeof statusFilter) ?? 'all'}>
 				<Select.Trigger class="h-8 w-40 text-sm">
-					{statusFilter === 'success' ? '{m.backups_initialized()}' : statusFilter === 'needs_init' ? '{m.backups_needs_init()}' : statusFilter === 'failed' ? 'Failed' : '{m.backups_all_statuses()}'}
+					{statusFilter === 'success' ? '{m.backups_initialized()}' : statusFilter === 'needs_init' ? '{m.backups_needs_init()}' : statusFilter === 'failed' ? 'Failed' : '{m.containers_filter_all_statuses()}'}
 				</Select.Trigger>
 				<Select.Content>
-					<Select.Item value="all">{m.backups_all_statuses()}</Select.Item>
+					<Select.Item value="all">{m.containers_filter_all_statuses()}</Select.Item>
 					<Select.Item value="success"><CheckCircle class="w-3.5 h-3.5 text-green-500 mr-1.5 inline" />{m.backups_initialized()}</Select.Item>
 					<Select.Item value="needs_init"><AlertCircle class="w-3.5 h-3.5 text-amber-500 mr-1.5 inline" />{m.backups_needs_init()}</Select.Item>
 					<Select.Item value="failed"><XCircle class="w-3.5 h-3.5 text-destructive mr-1.5 inline" />{m.common_failed()}</Select.Item>
@@ -662,7 +662,7 @@
 					{:else}
 						<div class="flex items-center gap-1.5">
 							<AlertCircle class="w-3.5 h-3.5 text-muted-foreground" />
-							<span class="text-xs text-muted-foreground">{m.backups_not_tested()}</span>
+							<span class="text-xs text-muted-foreground">{m.settings_env_status_not_tested()}</span>
 						</div>
 					{/if}
 				{:else if column.id === 'actions'}
@@ -842,7 +842,7 @@
 								<Table.Root>
 									<Table.Header class="sticky top-0 z-10 bg-background">
 										<Table.Row>
-											<Table.Head class="w-28 py-1.5 text-xs" style="padding-left:8px">{m.common_id()}</Table.Head>
+											<Table.Head class="w-28 py-1.5 text-xs" style="padding-left:8px">{m.container_inspect_id()}</Table.Head>
 											<Table.Head class="py-1.5 text-xs" style="padding-left:8px">{m.status_created()}</Table.Head>
 											<Table.Head class="w-16 py-1.5 text-xs text-right" style="padding-right:8px">{m.templates_tab_browse()}</Table.Head>
 										</Table.Row>

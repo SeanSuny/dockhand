@@ -278,7 +278,7 @@
 					{#if connected}
 						<span class="inline-flex items-center gap-1 text-xs text-green-500">
 							<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-							{m.container_terminal_connected()}
+							{m.settings_env_status_connected()}
 						</span>
 					{/if}
 				</div>

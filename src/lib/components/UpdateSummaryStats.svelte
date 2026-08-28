@@ -25,7 +25,7 @@
 		{#if updated > 0}
 			<div class="flex items-center gap-1.5 text-green-600">
 				<CheckCircle2 class="w-4 h-4" />
-				<span>{updated} {m.schedules_summary_updated()}</span>
+				<span>{updated} {m.container_batch_filter_updated()}</span>
 			</div>
 		{/if}
 		{#if blocked > 0}
@@ -54,7 +54,7 @@
 		<div class="flex items-center gap-1.5">
 			<CheckCircle2 class="w-4 h-4 text-green-500" />
 			<span class="font-bold text-green-500">{updated}</span>
-			<span class="text-muted-foreground">{m.schedules_summary_updated()}</span>
+			<span class="text-muted-foreground">{m.container_batch_filter_updated()}</span>
 		</div>
 		<div class="flex items-center gap-1.5">
 			<ShieldAlert class="w-4 h-4 text-amber-500" />

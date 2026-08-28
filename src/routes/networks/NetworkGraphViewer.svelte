@@ -637,7 +637,7 @@
 			<button
 				onclick={toggleGraphTheme}
 				class="h-6 w-6 flex items-center justify-center rounded text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-				title={graphTheme === "light" ? m.stacks_graph_tooltip_switch_dark() : m.stacks_graph_tooltip_switch_light()}
+				title={graphTheme === "light" ? m.container_files_switch_dark() : m.container_files_switch_light()}
 			>
 				{#if graphTheme === "light"}
 					<Moon class="w-3.5 h-3.5" />

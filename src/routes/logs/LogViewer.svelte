@@ -310,7 +310,7 @@
 			<button
 				onclick={copyLogs}
 				class="p-1 rounded hover:bg-zinc-800 transition-colors"
-				title={m.logs_copy_logs()}
+				title={m.stacks_git_deploy_copy_logs()}
 			>
 				<Copy class="w-3 h-3 text-zinc-500 hover:text-zinc-300" />
 			</button>

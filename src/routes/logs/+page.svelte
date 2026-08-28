@@ -953,9 +953,9 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 			eventSource.addEventListener('error', (event: Event) => {
 				try {
 					const data = JSON.parse((event as MessageEvent).data);
-					connectionError = data.error || m.logs_connection_error();
+					connectionError = data.error || m.container_terminal_connection_error();
 				} catch {
-					connectionError = m.logs_connection_error();
+					connectionError = m.container_terminal_connection_error();
 				}
 				handleStreamError();
 			});
@@ -1145,9 +1145,9 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 			eventSource.addEventListener('error', (event: Event) => {
 				try {
 					const data = JSON.parse((event as MessageEvent).data);
-					connectionError = data.error || m.logs_connection_error();
+					connectionError = data.error || m.container_terminal_connection_error();
 				} catch {
-					connectionError = m.logs_connection_error();
+					connectionError = m.container_terminal_connection_error();
 				}
 				handleStreamError();
 			});
@@ -1724,7 +1724,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 										<Layers class="w-3 h-3 shrink-0 text-purple-500" />
 										<div class="flex-1 min-w-0">
 											<div class="font-medium truncate text-xs leading-tight">{savedGroup.name}</div>
-											<div class="text-2xs text-muted-foreground truncate leading-tight">{m.logs_container_count({ count: savedGroup.containers.length, plural: savedGroup.containers.length !== 1 ? 's' : '' })}</div>
+											<div class="text-2xs text-muted-foreground truncate leading-tight">{m.containers_batch_restart_item({ count: savedGroup.containers.length, plural: savedGroup.containers.length !== 1 ? 's' : '' })}</div>
 										</div>
 										<button
 											type="button"
@@ -1964,7 +1964,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 									class="text-2xs text-muted-foreground hover:text-foreground transition-colors"
 								>{m.containers_clear_selection()}</button>
 							{:else}
-								<span>{m.logs_container_count({ count: containers.length, plural: containers.length !== 1 ? 's' : '' })}</span>
+								<span>{m.containers_batch_restart_item({ count: containers.length, plural: containers.length !== 1 ? 's' : '' })}</span>
 							{/if}
 						</div>
 						{#if multiModeSelections.size >= 2}
@@ -1994,7 +1994,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 								{#if isConnected}
 									<div class="flex items-center gap-1.5" title={m.logs_connected_live_streaming()}>
 										<Wifi class="w-3.5 h-3.5 text-green-500" />
-										<span class="text-xs text-green-500 font-medium">{m.logs_live()}</span>
+										<span class="text-xs text-green-500 font-medium">{m.container_inspect_live()}</span>
 									</div>
 								{:else if loading}
 									<div class="flex items-center gap-1.5" title={m.logs_connecting()}>
@@ -2010,7 +2010,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 							{:else}
 								<div class="flex items-center gap-1.5" title={m.logs_streaming_paused()}>
 									<Pause class="w-3.5 h-3.5 {darkMode ? 'text-zinc-500' : 'text-gray-400'}" />
-									<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.logs_paused()}</span>
+									<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.status_paused()}</span>
 								</div>
 							{/if}
 							<!-- Stack name / container name and color legend -->
@@ -2041,7 +2041,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 							>
 								{#if streamingEnabled}
 									<Pause class="w-3 h-3" />
-									<span>{m.containers_action_pause()}</span>
+									<span>{m.containers_batch_pause_action()}</span>
 								{:else}
 									<Play class="w-3 h-3" />
 									<span>{m.logs_stream()}</span>
@@ -2160,7 +2160,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 									<Search class="w-3 h-3 {darkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-gray-500 hover:text-gray-700'}" />
 								</button>
 							{/if}
-							<button onclick={copyLogs} class="p-1 rounded transition-colors {darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-200'}" title={m.logs_copy_logs()}>
+							<button onclick={copyLogs} class="p-1 rounded transition-colors {darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-200'}" title={m.stacks_git_deploy_copy_logs()}>
 								<Copy class="w-3 h-3 {darkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-gray-500 hover:text-gray-700'}" />
 							</button>
 							<button onclick={downloadLogs} class="p-1 rounded transition-colors {darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-200'}" title={m.logs_download_logs()}>
@@ -2197,7 +2197,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 						{#if isConnected}
 							<div class="flex items-center gap-1.5 transition-opacity duration-300" title={m.logs_connected_live_streaming()}>
 								<Wifi class="w-3.5 h-3.5 text-green-500" />
-								<span class="text-xs text-green-500 font-medium">{m.logs_live()}</span>
+								<span class="text-xs text-green-500 font-medium">{m.container_inspect_live()}</span>
 							</div>
 						{:else if loading}
 							<div class="flex items-center gap-1.5 transition-opacity duration-300" title={m.logs_connecting()}>
@@ -2216,13 +2216,13 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 						{:else}
 							<div class="flex items-center gap-1.5 transition-opacity duration-300" title={m.logs_disconnected()}>
 								<WifiOff class="w-3.5 h-3.5 {darkMode ? 'text-zinc-500' : 'text-gray-400'}" />
-								<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.logs_offline()}</span>
+								<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.dashboard_offline()}</span>
 							</div>
 						{/if}
 					{:else}
 						<div class="flex items-center gap-1.5 transition-opacity duration-300" title={m.logs_streaming_paused()}>
 							<Pause class="w-3.5 h-3.5 {darkMode ? 'text-zinc-500' : 'text-gray-400'}" />
-							<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.logs_paused()}</span>
+							<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.status_paused()}</span>
 						</div>
 					{/if}
 					<!-- Container name + terminal toggles -->
@@ -2261,7 +2261,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 					>
 						{#if streamingEnabled}
 							<Pause class="w-3 h-3" />
-							<span>{m.containers_action_pause()}</span>
+							<span>{m.containers_batch_pause_action()}</span>
 						{:else}
 							<Play class="w-3 h-3" />
 							<span>{m.logs_stream()}</span>
@@ -2407,7 +2407,7 @@ import type { FavoriteGroup } from '../api/preferences/favorite-groups/+server';
 					<button
 						onclick={copyLogs}
 						class="p-1 rounded transition-colors {darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-200'}"
-						title={m.logs_copy_logs()}
+						title={m.stacks_git_deploy_copy_logs()}
 					>
 						<Copy class="w-3 h-3 {darkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-gray-500 hover:text-gray-700'}" />
 					</button>

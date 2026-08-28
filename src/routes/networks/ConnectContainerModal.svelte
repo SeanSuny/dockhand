@@ -125,7 +125,7 @@
 				</div>
 			{:else}
 				<div class="space-y-2">
-					<Label for="container">{m.networks_connect_label_container()}</Label>
+					<Label for="container">{m.container_create_tab_container()}</Label>
 					<Select.Root type="single" bind:value={selectedContainer}>
 						<Select.Trigger id="container" class="w-full">
 							{#if selectedContainerInfo}

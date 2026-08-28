@@ -66,7 +66,7 @@
 		}
 	}
 	function triggerLabel(trigger: string) {
-		return trigger === 'cron' ? m.backup_history_scheduled() : trigger === 'webhook' ? m.backup_history_webhook() : m.backup_history_manual();
+		return trigger === 'cron' ? m.backup_history_scheduled() : trigger === 'webhook' ? m.schedules_trigger_webhook() : m.schedules_trigger_manual();
 	}
 </script>
 

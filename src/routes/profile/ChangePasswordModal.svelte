@@ -37,7 +37,7 @@
 		}
 
 		if (newPassword !== newPasswordRepeat) {
-			error = m.profile_change_password_error_mismatch();
+			error = m.settings_auth_user_modal_err_passwords_mismatch();
 			return;
 		}
 
@@ -91,7 +91,7 @@
 				</Alert.Root>
 			{/if}
 			<div class="space-y-2">
-				<Label>{m.profile_change_password_current_label()}</Label>
+				<Label>{m.backups_rotate_current_password()}</Label>
 				<Input
 					type="password"
 					bind:value={currentPassword}
@@ -100,21 +100,21 @@
 				/>
 			</div>
 			<div class="space-y-2">
-				<Label>{m.profile_change_password_new_label()}</Label>
+				<Label>{m.settings_auth_user_modal_new_password()}</Label>
 				<Input
 					type="password"
 					bind:value={newPassword}
-					placeholder={m.profile_change_password_new_placeholder()}
+					placeholder={m.settings_auth_user_modal_enter_new_password()}
 					autocomplete="new-password"
 				/>
 				<PasswordStrengthIndicator password={newPassword} />
 			</div>
 			<div class="space-y-2">
-				<Label>{m.profile_change_password_repeat_label()}</Label>
+				<Label>{m.settings_auth_user_modal_repeat_new_password()}</Label>
 				<Input
 					type="password"
 					bind:value={newPasswordRepeat}
-					placeholder={m.profile_change_password_repeat_placeholder()}
+					placeholder={m.settings_auth_user_modal_repeat_new_password()}
 					autocomplete="new-password"
 				/>
 			</div>

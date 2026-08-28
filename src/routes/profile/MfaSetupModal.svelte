@@ -137,12 +137,12 @@
 								<Tooltip.Trigger>
 									<XCircle class="w-4 h-4 text-red-500" />
 								</Tooltip.Trigger>
-								<Tooltip.Content>{m.profile_mfa_backup_copy_https()}</Tooltip.Content>
+								<Tooltip.Content>{m.settings_env_modal_copy_https()}</Tooltip.Content>
 							</Tooltip.Root>
 							{m.common_failed()}
 						{:else if copied === 'ok'}
 							<Check class="w-4 h-4" />
-							{m.profile_mfa_backup_copied()}
+							{m.container_inspect_copied()}
 						{:else}
 							<Copy class="w-4 h-4" />
 							{m.profile_mfa_backup_copy_codes()}
@@ -150,14 +150,14 @@
 					</Button>
 					<Button variant="outline" class="flex-1" onclick={downloadBackupCodes}>
 						<Download class="w-4 h-4" />
-						{m.profile_mfa_backup_download()}
+						{m.container_files_download()}
 					</Button>
 				</div>
 			</div>
 			<Dialog.Footer>
 				<Button onclick={handleDone}>
 					<ShieldCheck class="w-4 h-4" />
-					{m.profile_mfa_backup_done()}
+					{m.images_push_done()}
 				</Button>
 			</Dialog.Footer>
 		{:else}

@@ -205,8 +205,8 @@
 			outputSize={128}
 			outputFormat="image/webp"
 			outputQuality={0.85}
-			title={m.stacks_icon_crop_title()}
-			saveLabel={m.stacks_icon_save_label()}
+			title={m.settings_env_modal_crop_icon()}
+			saveLabel={m.settings_env_modal_save_icon()}
 			onCancel={() => (showIconCropper = false)}
 			onSave={handleIconCropSave}
 		/>

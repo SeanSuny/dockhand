@@ -183,7 +183,7 @@
 								<dd>{metadata.volumes?.length ?? 0}</dd>
 								{#if metadata.type === 'stack'}
 									{#if metadata.stack?.composeFileName}
-										<dt class="text-muted-foreground">{m.snapshots_browser_compose_file()}</dt>
+										<dt class="text-muted-foreground">{m.stacks_filesystem_compose_file()}</dt>
 										<dd class="font-mono">{metadata.stack.composeFileName}</dd>
 									{/if}
 									<dt class="text-muted-foreground">{m.snapshots_browser_stack_files({ n: metadata.stack.fileList.length })}</dt>
@@ -295,11 +295,11 @@
 										<dd class="break-all">{Object.keys(containerInspect.Config.ExposedPorts).join(', ')}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.RestartPolicy?.Name}
-										<dt class="text-muted-foreground">{m.snapshots_browser_restart_policy()}</dt>
+										<dt class="text-muted-foreground">{m.container_settings_restart_policy()}</dt>
 										<dd>{containerInspect.HostConfig.RestartPolicy.Name}{containerInspect.HostConfig.RestartPolicy.MaximumRetryCount ? ` (max ${containerInspect.HostConfig.RestartPolicy.MaximumRetryCount})` : ''}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.NetworkMode}
-										<dt class="text-muted-foreground">{m.snapshots_browser_network_mode()}</dt>
+										<dt class="text-muted-foreground">{m.container_inspect_network_mode()}</dt>
 										<dd class="break-all">{containerInspect.HostConfig.NetworkMode}</dd>
 									{/if}
 									{#if containerInspect.HostConfig?.Privileged}

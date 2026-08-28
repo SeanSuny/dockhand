@@ -770,7 +770,7 @@
 								<Input bind:value={editWebhookSuccess} class="h-7 text-xs font-mono" placeholder="https://healthchecks.io/ping/..." />
 							</div>
 							<div class="space-y-1">
-								<label class="text-xs text-muted-foreground">{m.backups_on_failure()}</label>
+								<label class="text-xs text-muted-foreground">{m.container_settings_restart_on_failure()}</label>
 								<Input bind:value={editWebhookFailure} class="h-7 text-xs font-mono" placeholder="https://hooks.slack.com/..." />
 							</div>
 							<p class="text-xs text-muted-foreground">{m.backups_webhook_hint()}</p>

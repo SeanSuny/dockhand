@@ -132,7 +132,7 @@
 			<div class="flex items-start gap-3">
 				<Bell class="w-5 h-5 text-muted-foreground mt-0.5" />
 				<div>
-					<p class="text-sm font-medium">{m.notifications_tab_title()}</p>
+					<p class="text-sm font-medium">{m.settings_env_modal_notif_channels()}</p>
 					<p class="text-xs text-muted-foreground mt-1">{m.notifications_tab_description()}</p>
 					<p class="text-xs text-amber-600 dark:text-amber-500 mt-2 flex items-center gap-1">
 						<Info class="w-3 h-3" />{m.settings_notif_per_env_hint()}</p>
@@ -149,7 +149,7 @@
 			{#if $canAccess('notifications', 'create')}
 				<Button size="sm" onclick={() => openNotifModal()}>
 					<Plus class="w-4 h-4" />
-					{m.notifications_add_channel()}
+					{m.settings_notif_add_channel()}
 				</Button>
 			{/if}
 			<Button size="sm" variant="outline" onclick={fetchNotifications}>{m.common_refresh()}</Button>
@@ -161,7 +161,7 @@
 	{:else if notifications.length === 0}
 		<EmptyState
 			icon={Bell}
-			title={m.notifications_empty_title()}
+			title={m.notifications_none()}
 			description={m.notifications_empty_desc()}
 		/>
 	{:else}
@@ -186,7 +186,7 @@
 								/>
 							{:else}
 								<Badge variant={notif.enabled ? 'default' : 'secondary'} class="text-xs">
-									{notif.enabled ? m.notifications_enabled() : m.notifications_disabled()}
+									{notif.enabled ? m.toast_setting_enabled() : m.toast_setting_disabled()}
 								</Badge>
 							{/if}
 						</div>

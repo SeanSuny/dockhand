@@ -171,7 +171,7 @@
 			<span class="text-xs text-zinc-400">{m.terminal_panel_label()}</span>
 			<span class="text-xs text-zinc-200 font-medium">{containerName}</span>
 			{#if connected}
-				<span class="inline-flex items-center gap-1 text-xs text-green-500"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>{m.container_terminal_connected()}</span>
+				<span class="inline-flex items-center gap-1 text-xs text-green-500"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>{m.settings_env_status_connected()}</span>
 			{:else}
 				<span class="text-xs text-zinc-500">{m.logs_disconnected()}</span>
 			{/if}

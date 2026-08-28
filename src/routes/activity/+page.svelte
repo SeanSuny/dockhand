@@ -151,8 +151,8 @@
 		{ value: 'die', label: m.activity_action_die() as string, icon: Skull, color: 'text-red-500' },
 		{ value: 'kill', label: m.activity_action_kill() as string, icon: Zap, color: 'text-red-500' },
 		{ value: 'restart', label: m.common_restart() as string, icon: RotateCcw, color: 'text-sky-500' },
-		{ value: 'pause', label: m.containers_action_pause() as string, icon: Pause, color: 'text-amber-500' },
-		{ value: 'unpause', label: m.containers_action_unpause() as string, icon: CirclePlay, color: 'text-emerald-500' },
+		{ value: 'pause', label: m.containers_batch_pause_action() as string, icon: Pause, color: 'text-amber-500' },
+		{ value: 'unpause', label: m.containers_batch_unpause_action() as string, icon: CirclePlay, color: 'text-emerald-500' },
 		{ value: 'destroy', label: m.activity_action_destroy() as string, icon: Trash2, color: 'text-red-500' },
 		{ value: 'rename', label: m.container_files_rename() as string, icon: Pencil, color: 'text-muted-foreground' },
 		{ value: 'update', label: m.common_update() as string, icon: Pencil, color: 'text-sky-500' },
@@ -934,7 +934,7 @@
 					</div>
 					{#if selectedEvent.image}
 						<div class="col-span-2">
-							<label class="text-sm font-medium text-muted-foreground">{m.containers_col_image()}</label>
+							<label class="text-sm font-medium text-muted-foreground">{m.container_inspect_image()}</label>
 							<p class="font-mono text-sm break-all">{selectedEvent.image}</p>
 						</div>
 					{/if}

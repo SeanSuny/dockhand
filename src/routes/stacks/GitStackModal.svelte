@@ -36,8 +36,8 @@
 	function getAuthLabel(authType: string) {
 		switch (authType) {
 			case 'ssh': return m.stacks_git_modal_auth_ssh();
-			case 'password': return m.stacks_git_modal_auth_password();
-			default: return m.stacks_git_modal_auth_none();
+			case 'password': return m.login_password();
+			default: return m.settings_env_event_none();
 		}
 	}
 
@@ -752,7 +752,7 @@
 					</div>
 					<div>
 						<Dialog.Title class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-							{gitStack ? m.stacks_git_modal_title_edit() : m.stacks_git_modal_title_deploy()}
+							{gitStack ? m.stacks_action_edit_git() : m.stacks_git_modal_title_deploy()}
 						</Dialog.Title>
 						<Dialog.Description class="text-xs text-zinc-500 dark:text-zinc-400">
 							{gitStack ? m.stacks_git_modal_description_edit() : m.stacks_git_modal_description_deploy()}
@@ -1356,7 +1356,7 @@
 					<Button variant="outline" onclick={() => saveGitStack(true)} disabled={formSaving}>
 						{#if formSaving}
 							<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-							{m.stacks_git_deploy_badge_deploying()}
+							{m.stacks_redeploy_deploying()}
 						{:else}
 							<Rocket class="w-4 h-4" />
 							{m.stacks_git_modal_button_save_and_deploy()}
@@ -1374,7 +1374,7 @@
 					<Button onclick={() => saveGitStack(formDeployNow)} disabled={formSaving}>
 						{#if formSaving}
 							<Loader2 class="w-4 h-4 mr-1 animate-spin" />
-							{formDeployNow ? m.stacks_git_deploy_badge_deploying() : m.stacks_modal_button_creating()}
+							{formDeployNow ? m.stacks_redeploy_deploying() : m.container_create_creating()}
 						{:else}
 							{formDeployNow ? m.common_deploy() : m.common_create()}
 						{/if}

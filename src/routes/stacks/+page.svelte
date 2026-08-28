@@ -1821,7 +1821,7 @@
 							</Tooltip.Content>
 						</Tooltip.Root>
 					{:else}
-						<span class="text-xs text-muted-foreground/50 italic">{m.common_not_set()}</span>
+						<span class="text-xs text-muted-foreground/50 italic">{m.container_settings_image_not_set()}</span>
 					{/if}
 				{:else if column.id === 'containers'}
 					<div class="flex items-center gap-1">

@@ -443,7 +443,7 @@
 				{#if renaming}
 					<Loader2 class="w-4 h-4 mr-2 animate-spin" />
 				{/if}
-				{m.container_files_rename_btn()}
+				{m.container_files_rename()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

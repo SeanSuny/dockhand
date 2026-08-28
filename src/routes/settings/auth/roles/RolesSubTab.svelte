@@ -198,7 +198,7 @@
 			case 'inspect':
 				return m.container_inspect_button();
 			case 'pull':
-				return m.container_create_tab_pull();
+				return m.settings_env_modal_scanner_pull();
 			case 'push':
 				return m.images_push_step_push();
 			case 'build':

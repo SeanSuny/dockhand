@@ -1,21 +1,27 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import { TogglePill } from '$lib/components/ui/toggle-pill';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Plus, Check, RefreshCw, Mail, Zap, Info, Send, CheckCircle2, XCircle, Key, ChevronDown, HelpCircle } from 'lucide-svelte';
+	import { Plus, Check, RefreshCw, Mail, Zap, Send, CheckCircle2, XCircle, Bell, HelpCircle, Settings } from 'lucide-svelte';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { toast } from 'svelte-sonner';
-	import * as m from '$lib/paraglide/messages';
 	import { focusFirstInput } from '$lib/utils';
 
 	// System-only events (configured at channel level, not per-environment)
 	const SYSTEM_EVENTS = [
-		{ id: 'license_expiring', label: m.settings_notif_modal_sys_license_label(), description: m.settings_notif_modal_sys_license_desc() }
+		{ id: 'license_expiring', label: 'License expiring', description: 'Enterprise license expiring soon' },
+		{ id: 'repo_prune_success', label: 'Backup repository prune success', description: 'Scheduled repository prune completed successfully' },
+		{ id: 'repo_prune_failed', label: 'Backup repository prune failed', description: 'Scheduled repository prune failed' },
+		{ id: 'repo_check_success', label: 'Backup repository check success', description: 'Scheduled integrity check completed successfully' },
+		{ id: 'repo_check_failed', label: 'Backup repository check failed', description: 'Scheduled integrity check found errors or failed' },
+		{ id: 'repo_verify_success', label: 'Backup repository data verification success', description: 'Scheduled data verification completed successfully' },
+		{ id: 'repo_verify_failed', label: 'Backup repository data verification failed', description: 'Scheduled data verification found corruption or failed' }
 	] as const;
 
 	export interface NotificationSetting {
@@ -57,7 +63,7 @@
 	let formAppriseUrls = $state('');
 	// System events
 	let formSystemEvents = $state<string[]>([]);
-	let showSystemEvents = $state(false);
+	let activeTab = $state<'channel' | 'events'>('channel');
 	let formError = $state('');
 	let formSaving = $state(false);
 	let formTesting = $state(false);
@@ -79,7 +85,7 @@
 		formSmtpToEmails = '';
 		formAppriseUrls = '';
 		formSystemEvents = [];
-		showSystemEvents = false;
+		activeTab = 'channel';
 		formError = '';
 		formSaving = false;
 		formTesting = false;
@@ -115,7 +121,7 @@
 				// Load system events (filter to only system-scoped events)
 				const systemEventIds = SYSTEM_EVENTS.map(e => e.id);
 				formSystemEvents = (notification.eventTypes || []).filter(e => systemEventIds.includes(e as typeof SYSTEM_EVENTS[number]['id']));
-				showSystemEvents = formSystemEvents.length > 0;
+				activeTab = 'channel';
 
 				formError = '';
 				formSaving = false;
@@ -156,11 +162,11 @@
 		const config = getFormConfig();
 		if (formType === 'smtp') {
 			if (!config.host || !config.from_email || !config.to_emails?.length) {
-				return m.settings_notif_modal_err_smtp_required();
+				return 'Host, from email, and at least one recipient are required';
 			}
 		} else {
 			if (!config.urls?.length) {
-				return m.settings_notif_modal_err_url_required();
+				return 'At least one webhook URL is required';
 			}
 		}
 		return null;
@@ -205,16 +211,16 @@
 
 			if (data.success) {
 				testResult = 'success';
-				toast.success(m.settings_notif_test_sent());
+				toast.success('Test notification sent successfully');
 				setTimeout(() => { testResult = 'idle'; }, 3000);
 			} else {
 				testResult = 'error';
-				formError = data.error || m.settings_notif_send_test_failed();
+				formError = data.error || 'Failed to send test notification';
 				setTimeout(() => { testResult = 'idle'; }, 3000);
 			}
 		} catch {
 			testResult = 'error';
-			formError = m.settings_notif_test_action_failed();
+			formError = 'Failed to test notification';
 			setTimeout(() => { testResult = 'idle'; }, 3000);
 		} finally {
 			formTesting = false;
@@ -223,19 +229,19 @@
 
 	async function save() {
 		if (!formName.trim()) {
-			formError = m.settings_env_modal_err_name_required();
+			formError = 'Name is required';
 			return;
 		}
 
 		const config = getFormConfig();
 		if (formType === 'smtp') {
 			if (!config.host || !config.from_email || !config.to_emails?.length) {
-				formError = m.settings_notif_modal_err_smtp_required();
+				formError = 'Host, from email, and at least one recipient are required';
 				return;
 			}
 		} else {
 			if (!config.urls?.length) {
-				formError = m.settings_notif_modal_err_url_required();
+				formError = 'At least one webhook URL is required';
 				return;
 			}
 		}
@@ -270,10 +276,10 @@
 				onSaved();
 			} else {
 				const data = await response.json();
-				formError = data.error || (isEditing ? m.settings_notif_modal_err_save_update() : m.settings_notif_modal_err_save_create());
+				formError = data.error || `Failed to ${isEditing ? 'update' : 'create'} notification`;
 			}
 		} catch {
-			formError = (isEditing ? m.settings_notif_modal_err_save_update() : m.settings_notif_modal_err_save_create());
+			formError = `Failed to ${isEditing ? 'update' : 'create'} notification`;
 		} finally {
 			formSaving = false;
 		}
@@ -294,25 +300,42 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={(o) => { if (o) { formError = ''; focusFirstInput(); } }}>
-	<Dialog.Content class="max-w-3xl max-h-[90vh] overflow-y-auto">
+	<Dialog.Content class="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
 		<Dialog.Header>
-			<Dialog.Title>{isEditing ? m.settings_notif_modal_title_edit() : m.settings_notif_modal_title_add()}</Dialog.Title>
+			<Dialog.Title>{isEditing ? 'Edit' : 'Add'} notification channel</Dialog.Title>
 		</Dialog.Header>
-		<div class="space-y-4">
-			{#if formError}
-				<div class="text-sm text-red-600 dark:text-red-400">{formError}</div>
-			{/if}
 
+		{#if formError}
+			<div class="text-sm text-red-600 dark:text-red-400">{formError}</div>
+		{/if}
+
+		<Tabs.Root bind:value={activeTab} class="flex-1 flex flex-col overflow-hidden mt-2">
+			<Tabs.List class="flex-shrink-0 mb-0 w-full grid grid-cols-2">
+				<Tabs.Trigger value="channel" class="flex items-center justify-center gap-1.5">
+					<Settings class="w-3.5 h-3.5" />
+					Channel
+				</Tabs.Trigger>
+				<Tabs.Trigger value="events" class="flex items-center justify-center gap-1.5">
+					<Bell class="w-3.5 h-3.5" />
+					System events
+					{#if formSystemEvents.length > 0}
+						<Badge variant="secondary" class="ml-1 h-4 px-1.5 text-[10px]">{formSystemEvents.length}</Badge>
+					{/if}
+				</Tabs.Trigger>
+			</Tabs.List>
+
+			<div class="overflow-y-auto pb-4 pr-2 h-[530px]">
+				<Tabs.Content value="channel" class="space-y-4 mt-0">
 			<div class="grid grid-cols-2 gap-4">
 				<div class="space-y-2">
 					<Label for="notif-name">{m.settings_cfgset_modal_name_label()}</Label>
-					<Input id="notif-name" bind:value={formName} placeholder={m.settings_notif_modal_name_ph()} />
+					<Input id="notif-name" bind:value={formName} placeholder="My notification channel" />
 				</div>
 				<div class="space-y-2">
 					<Label>{m.volumes_col_type()}</Label>
 					{#if isEditing}
 						<Badge variant="secondary" class="h-9 flex items-center justify-center">
-							{formType === 'smtp' ? m.settings_notif_modal_type_smtp() : m.settings_notif_modal_type_webhook()}
+							{formType === 'smtp' ? 'SMTP (Email)' : 'Webhooks'}
 						</Badge>
 					{:else}
 						<Select.Root
@@ -323,9 +346,9 @@
 							<Select.Trigger class="w-full">
 								<span class="flex items-center gap-2">
 									{#if formType === 'smtp'}
-										<Mail class="w-4 h-4" />{m.settings_notif_modal_type_smtp()}
+										<Mail class="w-4 h-4" />SMTP (Email)
 									{:else}
-										<Zap class="w-4 h-4" />{m.settings_notif_modal_type_webhook()}
+										<Zap class="w-4 h-4" />Webhooks
 									{/if}
 								</span>
 							</Select.Trigger>
@@ -344,21 +367,21 @@
 
 			<div class="flex items-center gap-2">
 				<Label>{m.common_status()}</Label>
-				<TogglePill bind:checked={formEnabled} onLabel={m.toast_setting_enabled()} offLabel={m.toast_setting_disabled()} />
+				<TogglePill bind:checked={formEnabled} onLabel="Enabled" offLabel="Disabled" />
 			</div>
 
 			{#if formType === 'smtp'}
 				<div class="space-y-4 border-t pt-4 min-h-[380px]">
 					<div class="flex items-center gap-2">
-						<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.settings_notif_modal_smtp_section()}</p>
+						<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">SMTP configuration</p>
 						<Tooltip.Root>
 							<Tooltip.Trigger>
 								<HelpCircle class="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-help" />
 							</Tooltip.Trigger>
 							<Tooltip.Portal>
 								<Tooltip.Content side="right" class="w-80">
-									<p class="text-xs"><span class="font-semibold">Gmail:</span> {m.settings_notif_modal_smtp_tip_gmail()}</p>
-									<p class="text-xs mt-1"><span class="font-semibold">Outlook:</span> {m.settings_notif_modal_smtp_tip_outlook()}</p>
+									<p class="text-xs"><span class="font-semibold">Gmail:</span>{m.settings_notif_modal_smtp_tip_gmail()}</p>
+									<p class="text-xs mt-1"><span class="font-semibold">Outlook:</span>{m.settings_notif_modal_smtp_tip_outlook()}</p>
 								</Tooltip.Content>
 							</Tooltip.Portal>
 						</Tooltip.Root>
@@ -376,11 +399,11 @@
 					<div class="flex items-center gap-4">
 						<div class="flex items-center gap-2">
 							<Label>TLS/SSL</Label>
-							<TogglePill bind:checked={formSmtpSecure} onLabel={m.container_inspect_yes()} offLabel={m.container_inspect_no()} />
+							<TogglePill bind:checked={formSmtpSecure} onLabel="Yes" offLabel="No" />
 						</div>
 						<div class="flex items-center gap-2">
 							<Label class="text-muted-foreground">{m.settings_notif_modal_smtp_skip_tls()}</Label>
-							<TogglePill bind:checked={formSmtpSkipTlsVerify} onLabel={m.container_inspect_yes()} offLabel={m.container_inspect_no()} />
+							<TogglePill bind:checked={formSmtpSkipTlsVerify} onLabel="Yes" offLabel="No" />
 						</div>
 					</div>
 					<div class="grid grid-cols-2 gap-4">
@@ -390,7 +413,7 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="notif-smtp-password">{m.login_password()}</Label>
-							<Input id="notif-smtp-password" type="password" bind:value={formSmtpPassword} placeholder={isEditing ? m.settings_notif_modal_smtp_pw_keep() : m.settings_notif_modal_smtp_pw_ph()} />
+							<Input id="notif-smtp-password" type="password" bind:value={formSmtpPassword} placeholder={isEditing ? 'Leave blank to keep existing' : 'App password or token'} />
 						</div>
 					</div>
 					<div class="grid grid-cols-2 gap-4">
@@ -399,7 +422,7 @@
 							<Input id="notif-smtp-from-email" bind:value={formSmtpFromEmail} placeholder="alerts@example.com" />
 						</div>
 						<div class="space-y-2">
-							<Label for="notif-smtp-from-name">{m.settings_notif_modal_smtp_from_name()}</Label>
+							<Label for="notif-smtp-from-name">From name</Label>
 							<Input id="notif-smtp-from-name" bind:value={formSmtpFromName} placeholder="Dockhand Alerts" />
 						</div>
 					</div>
@@ -410,7 +433,7 @@
 				</div>
 			{:else}
 				<div class="space-y-4 border-t pt-4 min-h-[380px]">
-					<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.settings_notif_modal_webhook_section()}</p>
+					<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Webhook configuration</p>
 					<div class="space-y-2">
 						<Label for="notif-apprise-urls">{m.settings_notif_modal_urls_label()}</Label>
 						<textarea
@@ -427,78 +450,71 @@ ntfy://my-topic
 ntfy://host/topic?auth=base64token&priority=3
 ntfys://host/topic?auth=base64token
 pushover://user_key/api_token
+pushover://user_key/api_token/device1/device2
+pover://user_key@api_token/device1/device2
+mqtt://user:pass@broker-host:1883/dockhand/events?qos=1&amp;retain=true
+mqtts://broker-host:8883/dockhand/events
 workflows://hostname/workflow/signature
 bark://bark_key
 bark://host/bark_key
 barks://host/bark_key
 signal://host:8080/+sender/+recipient
 apprise://host:8000/your-key
-jsons://hostname/webhook/path"
+jsons://hostname/webhook/path
+zabbix://hostname/api_jsonrpc.php?token=TOKEN&amp;host=HOST&amp;key=ITEM_KEY
+zabbixs://hostname/api_jsonrpc.php?token=TOKEN&amp;host=HOST&amp;key=ITEM_KEY"
 						class="flex min-h-[220px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 					></textarea>
 					<p class="text-xs text-muted-foreground">
-						{m.settings_notif_modal_urls_support()} {m.settings_notif_modal_urls_or_use()} <code>apprise://</code> {m.settings_notif_modal_urls_forward_to()} <a href="https://github.com/caronc/apprise-api" target="_blank" rel="noopener">caronc/apprise-api</a> {m.settings_notif_modal_urls_server_tail()}
-						</p>
+						Built-in channels: Discord, Slack, Mattermost, Telegram, ntfy, Gotify, Pushover, MQTT, Bark, Signal (via signal-cli-rest-api), Microsoft Teams (via Workflows), Zabbix (via history.push), and generic JSON.
+					</p>
+					<p class="flex gap-1.5 text-xs text-muted-foreground">
+						<HelpCircle class="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+						<span>Need a provider that is not in the list (Matrix, Nextcloud, Pushbullet, Home Assistant, ...)? Run a <a href="https://github.com/caronc/apprise-api" target="_blank" rel="noopener">caronc/apprise-api</a> server, configure the provider there, and point Dockhand at it with <code>apprise://host/key</code> (or <code>apprises://</code> for TLS). Every provider Apprise supports is then reachable.</span>
+					</p>
 					</div>
 				</div>
 			{/if}
 
-			<!-- System events configuration -->
-			<div class="border-t pt-4">
-				<button
-					type="button"
-					class="w-full flex items-center justify-between text-left"
-					onclick={() => showSystemEvents = !showSystemEvents}
-				>
-					<div class="flex items-center gap-2">
-						<Key class="w-4 h-4 text-muted-foreground" />
-						<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.settings_notif_modal_sys_events_section()}</span>
-					</div>
-					<ChevronDown class="w-4 h-4 text-muted-foreground transition-transform {showSystemEvents ? 'rotate-180' : ''}" />
-				</button>
-				{#if showSystemEvents}
-					<div class="mt-3 space-y-2">
-						<p class="text-xs text-muted-foreground mb-3">
-							{m.settings_notif_modal_sys_events_desc()}
-						</p>
+				</Tabs.Content>
+
+				<Tabs.Content value="events" class="space-y-3 mt-0">
+					<p class="text-xs text-muted-foreground">
+						These events are not tied to specific environments and are configured globally here.
+						Environment-specific events (containers, stacks, auto-updates) are configured in each environment's settings.
+					</p>
+					<div class="space-y-1">
 						{#each SYSTEM_EVENTS as event}
-							<label class="flex items-start gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
-								<Checkbox
+							<div class="flex items-center gap-3 p-2 rounded hover:bg-muted/50">
+								<TogglePill
 									checked={formSystemEvents.includes(event.id)}
-									onCheckedChange={(checked) => toggleSystemEvent(event.id, !!checked)}
+									onchange={() => toggleSystemEvent(event.id, !formSystemEvents.includes(event.id))}
 								/>
 								<div class="flex-1 min-w-0">
 									<span class="text-sm font-medium">{event.label}</span>
 									<p class="text-xs text-muted-foreground">{event.description}</p>
 								</div>
-							</label>
+							</div>
 						{/each}
 					</div>
-				{/if}
+				</Tabs.Content>
 			</div>
+		</Tabs.Root>
 
-			<!-- Info about per-env config -->
-			<div class="border-t pt-4">
-				<div class="text-xs text-muted-foreground bg-muted/50 rounded-md p-3 flex items-start gap-2">
-					<Info class="w-4 h-4 mt-0.5 shrink-0" />
-					<span>{m.settings_notif_modal_env_events_hint()}</span>
-				</div>
-			</div>
-		</div>
 		<Dialog.Footer class="flex justify-between sm:justify-between">
 			<Button variant="outline" onclick={testConfig} disabled={formTesting || formSaving}>
 				{#if formTesting}
 					<RefreshCw class="w-4 h-4 mr-1 animate-spin" />
-					{m.settings_env_status_testing()}
+					Testing...
 				{:else if testResult === 'success'}
 					<CheckCircle2 class="w-4 h-4 mr-1 text-green-500" />
-					{m.settings_notif_modal_test_sent_btn()}
+					Sent!
 				{:else if testResult === 'error'}
 					<XCircle class="w-4 h-4 mr-1 text-destructive" />
-					{m.common_failed()}
+					Failed
 				{:else}
 					<Send class="w-4 h-4" />
-					{m.settings_registry_modal_test()}
+					Test
 				{/if}
 			</Button>
 			<div class="flex gap-2">
@@ -511,7 +527,7 @@ jsons://hostname/webhook/path"
 					{:else}
 						<Plus class="w-4 h-4" />
 					{/if}
-					{isEditing ? m.common_save() : m.common_add()}
+					{isEditing ? 'Save' : 'Add'}
 				</Button>
 			</div>
 		</Dialog.Footer>

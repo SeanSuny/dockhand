@@ -151,8 +151,8 @@
 		{ value: 'die', label: m.activity_action_die() as string, icon: Skull, color: 'text-red-500' },
 		{ value: 'kill', label: m.activity_action_kill() as string, icon: Zap, color: 'text-red-500' },
 		{ value: 'restart', label: m.common_restart() as string, icon: RotateCcw, color: 'text-sky-500' },
-		{ value: 'pause', label: m.containers_action_pause() as string, icon: Pause, color: 'text-amber-500' },
-		{ value: 'unpause', label: m.containers_action_unpause() as string, icon: CirclePlay, color: 'text-emerald-500' },
+		{ value: 'pause', label: m.containers_batch_pause_action() as string, icon: Pause, color: 'text-amber-500' },
+		{ value: 'unpause', label: m.containers_batch_unpause_action() as string, icon: CirclePlay, color: 'text-emerald-500' },
 		{ value: 'destroy', label: m.activity_action_destroy() as string, icon: Trash2, color: 'text-red-500' },
 		{ value: 'rename', label: m.container_files_rename() as string, icon: Pencil, color: 'text-muted-foreground' },
 		{ value: 'update', label: m.common_update() as string, icon: Pencil, color: 'text-sky-500' },
@@ -648,7 +648,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.sidebar_activity()} - Dockhand</title>
+	<title>{m.activity_page_title()}</title>
 </svelte:head>
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
@@ -901,7 +901,7 @@
 
 <!-- Detail Dialog -->
 <Dialog.Root bind:open={showDetailDialog}>
-	<Dialog.Content class="max-w-2xl">
+	<Dialog.Content class="max-w-4xl">
 		<Dialog.Header>
 			<Dialog.Title>{m.activity_detail_title()}</Dialog.Title>
 		</Dialog.Header>
@@ -934,7 +934,7 @@
 					</div>
 					{#if selectedEvent.image}
 						<div class="col-span-2">
-							<label class="text-sm font-medium text-muted-foreground">{m.containers_col_image()}</label>
+							<label class="text-sm font-medium text-muted-foreground">{m.container_inspect_image()}</label>
 							<p class="font-mono text-sm break-all">{selectedEvent.image}</p>
 						</div>
 					{/if}
@@ -954,8 +954,8 @@
 								<tbody>
 									{#each Object.entries(selectedEvent.actorAttributes) as [key, value], i}
 										<tr class="{i % 2 === 0 ? 'bg-muted/50' : 'bg-background'}">
-											<td class="px-3 py-1.5 font-mono font-medium text-muted-foreground whitespace-nowrap align-top w-1/3">{key}</td>
-											<td class="px-3 py-1.5 font-mono break-all">{value}</td>
+											<td class="px-3 py-1.5 font-mono font-medium text-muted-foreground align-top break-all w-1/3">{key}</td>
+											<td class="px-3 py-1.5 font-mono break-all align-top">{value}</td>
 										</tr>
 									{/each}
 								</tbody>

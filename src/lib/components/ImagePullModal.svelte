@@ -269,7 +269,7 @@
 				disabled={isProcessing || (needsConfigureStep && pullStatus === 'idle')}
 			>
 				<Download class="w-3.5 h-3.5 inline mr-1.5" />
-				{m.container_create_tab_pull()}
+				{m.settings_env_modal_scanner_pull()}
 				{#if pullStatus === 'complete'}
 					<CheckCircle2 class="w-3.5 h-3.5 inline ml-1 text-green-500" />
 				{:else if pullStatus === 'error'}
@@ -479,7 +479,7 @@
 							disabled={!configImageName.trim()}
 						>
 							<Download class="w-4 h-4" />
-							{m.container_create_tab_pull()}
+							{m.settings_env_modal_scanner_pull()}
 						</Button>
 					{:else if pullStatus === 'complete' || scanStatus === 'complete'}
 						<Button
@@ -487,7 +487,7 @@
 							onclick={handleClose}
 							disabled={isProcessing}
 						>
-							{m.containers_toast_ok()}
+							{m.common_ok()}
 						</Button>
 					{/if}
 				{/if}

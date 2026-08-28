@@ -1,11 +1,11 @@
 <svelte:head>
-	<title>{m.sidebar_networks()} - Dockhand</title>
+	<title>{m.networks_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
-import * as m from '$lib/paraglide/messages';
+	import * as m from '$lib/paraglide/messages';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -25,7 +25,7 @@ import * as m from '$lib/paraglide/messages';
 	import { EmptyState, NoEnvironment } from '$lib/components/ui/empty-state';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { DataGrid } from '$lib/components/data-grid';
-	import { ipToNumber } from '$lib/utils/ip';
+	import { compareIps } from '$lib/utils/ip';
 	import NetworkGraphModal from './NetworkGraphModal.svelte';
 
 	type SortField = 'name' | 'driver' | 'containers' | 'subnet' | 'gateway';
@@ -227,10 +227,10 @@ import * as m from '$lib/paraglide/messages';
 					cmp = Object.keys(a.containers || {}).length - Object.keys(b.containers || {}).length;
 					break;
 				case 'subnet':
-					cmp = ipToNumber(getNetworkSubnet(a)) - ipToNumber(getNetworkSubnet(b));
+					cmp = compareIps(getNetworkSubnet(a), getNetworkSubnet(b));
 					break;
 				case 'gateway':
-					cmp = ipToNumber(getNetworkGateway(a)) - ipToNumber(getNetworkGateway(b));
+					cmp = compareIps(getNetworkGateway(a), getNetworkGateway(b));
 					break;
 			}
 			// Secondary sort by name for stability when primary values are equal
@@ -292,7 +292,7 @@ import * as m from '$lib/paraglide/messages';
 				clearErrorAfterDelay(id);
 				return;
 			}
-			toast.success(m.networks_toast_removed({ name }));
+			toast.success(m.toast_removed({ name }));
 			await fetchNetworks();
 		} catch (error) {
 			console.error('Failed to remove network:', error);
@@ -520,7 +520,7 @@ import * as m from '$lib/paraglide/messages';
 			<MultiSelectFilter
 				bind:value={selectedDrivers}
 				options={driverOptions}
-				placeholder={m.volumes_col_driver()}
+				placeholder={m.container_inspect_driver()}
 				pluralLabel={m.volumes_filter_driver_plural()}
 			/>
 			<!-- Scope filter -->
@@ -578,7 +578,7 @@ import * as m from '$lib/paraglide/messages';
 	<div class="h-4 shrink-0">
 		{#if selectedNetworks.size > 0}
 			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
-			<span>{m.networks_selected_count({ count: selectedInFilter.length })}</span>
+			<span>{m.stacks_selected_count({ count: selectedInFilter.length })}</span>
 			<button
 				type="button"
 				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"

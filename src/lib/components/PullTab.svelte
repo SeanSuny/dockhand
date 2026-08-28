@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -8,9 +9,8 @@
 	import { CheckCircle2, XCircle, Loader2, AlertCircle, Terminal, Sun, Moon, Download } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { appendEnvParam } from '$lib/stores/environment';
-	import { watchJob } from '$lib/utils/sse-fetch';
 	import { formatBytes } from '$lib/utils/format';
-	import * as m from '$lib/paraglide/messages';
+	import { watchJob } from '$lib/utils/sse-fetch';
 
 	interface LayerProgress {
 		id: string;
@@ -295,7 +295,7 @@
 	<!-- Image Input -->
 	{#if showImageInput}
 		<div class="space-y-2 shrink-0">
-			<Label for="pull-image" class="text-sm font-medium">{m.image_pull_image_name()}</Label>
+			<Label for="pull-image" class="text-sm font-medium">Image name</Label>
 			<div class="flex gap-2">
 				<Input
 					id="pull-image"
@@ -311,10 +311,10 @@
 				>
 					{#if isPulling}
 						<Download class="w-4 h-4 mr-2 animate-spin" />
-						{m.container_settings_pulling()}
+						Pulling...
 					{:else}
 						<Download class="w-4 h-4" />
-						{m.container_create_tab_pull()}
+						Pull
 					{/if}
 				</Button>
 			</div>
@@ -342,7 +342,7 @@
 					{#if status === 'pulling' || status === 'complete'}
 						<Badge variant="secondary" class="text-xs min-w-20 text-center">
 							{#if totalLayers > 0}
-								{completedLayers} / {totalLayers} {m.image_pull_layers()}
+								{completedLayers} / {totalLayers} layers
 							{:else}
 								...
 							{/if}
@@ -360,7 +360,7 @@
 					<Progress value={overallProgress} class="h-2" />
 					<div class="text-xs text-muted-foreground h-4">
 						{#if downloadStats.totalBytes > 0}
-							{m.image_pull_downloaded()} {formatBytes(downloadStats.downloadedBytes)} / {formatBytes(downloadStats.totalBytes)}
+							Downloaded: {formatBytes(downloadStats.downloadedBytes)} / {formatBytes(downloadStats.totalBytes)}
 						{/if}
 					</div>
 				</div>
@@ -442,9 +442,9 @@
 			<div class="flex items-center justify-between text-xs text-muted-foreground mb-2 shrink-0">
 				<div class="flex items-center gap-2">
 					<Terminal class="w-3.5 h-3.5" />
-					<span>{m.image_pull_output()} ({outputLines.length} {m.common_lines()})</span>
+					<span>Output ({outputLines.length} lines)</span>
 				</div>
-				<button type="button" onclick={toggleLogTheme} class="p-1 rounded hover:bg-muted transition-colors cursor-pointer" title={m.image_pull_toggle_log_theme()}>
+				<button type="button" onclick={toggleLogTheme} class="p-1 rounded hover:bg-muted transition-colors cursor-pointer" title="Toggle log theme">
 					{#if logDarkMode}
 						<Sun class="w-3.5 h-3.5" />
 					{:else}

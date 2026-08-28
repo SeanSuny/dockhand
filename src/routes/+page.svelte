@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Dashboard - Dockhand</title>
+	<title>{m.dashboards_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">
@@ -61,6 +61,9 @@
 	// Dashboard lock and view mode from preferences
 	let locked = $state(false);
 	let viewMode = $state<'grid' | 'list'>('grid');
+
+	// Where a tile click navigates (nav preference; default containers). Loaded in onMount.
+	let envClickPage = $state('containers');
 
 	// List view filter state
 	let listSearchQuery = $state('');
@@ -659,12 +662,12 @@
 		return tiles.find(t => t.id === id);
 	}
 
-	// Handle tile click - select environment and navigate to containers
+	// Handle tile click - select environment and navigate to the env-click target page
 	function handleTileClick(envId: number) {
 		const tile = getTileById(envId);
 		if (tile?.stats) {
 			currentEnvironment.set({ id: envId, name: tile.stats.name });
-			goto('/containers');
+			goto(`/${envClickPage}`);
 		}
 	}
 
@@ -940,6 +943,16 @@
 		// Chrome 77+ Page Lifecycle API - fires when frozen tab is resumed
 		document.addEventListener('resume', handleVisibilityChange);
 
+		// Env-click target for the tiles. The landing redirect itself lives in +page.ts (runs before
+		// this component mounts), so reaching here means we're staying on the dashboard.
+		try {
+			const res = await fetch('/api/settings/navigation');
+			if (res.ok) {
+				const nav = (await res.json())?.effective;
+				if (nav?.envClickPage) envClickPage = nav.envClickPage;
+			}
+		} catch { /* default env-click */ }
+
 		// Load label filter and custom label colors
 		loadLabelFilter();
 		labelColorOverrides.load();
@@ -1114,7 +1127,7 @@
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => applyAutoLayout(1, 2)} class="flex items-center gap-2 cursor-pointer">
 						<RectangleVertical class="w-4 h-4" />
-						<span>{m.dashboard_layout_standard()}</span>
+						<span>{m.dashboard_conn_standard()}</span>
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => applyAutoLayout(1, 4)} class="flex items-center gap-2 cursor-pointer">
 						<Rows3 class="w-4 h-4" />

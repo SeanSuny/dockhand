@@ -637,7 +637,7 @@
 			<button
 				onclick={toggleGraphTheme}
 				class="h-6 w-6 flex items-center justify-center rounded text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-				title={graphTheme === "light" ? m.stacks_graph_tooltip_switch_dark() : m.stacks_graph_tooltip_switch_light()}
+				title={graphTheme === "light" ? m.container_files_switch_dark() : m.container_files_switch_light()}
 			>
 				{#if graphTheme === "light"}
 					<Moon class="w-3.5 h-3.5" />
@@ -766,7 +766,7 @@
 								<div class="space-y-3 text-sm">
 									<!-- Driver -->
 									<div class="space-y-1.5">
-										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.volumes_col_driver()}</span>
+										<span class="text-xs font-medium text-zinc-600 dark:text-zinc-300">{m.container_inspect_driver()}</span>
 										<!-- Simulate the select element -->
 										<div class="flex items-center justify-between w-fit h-8 px-3 py-2 text-xs border rounded-md border-input bg-background shadow-sm dark:bg-input/30">
 											<span class="flex items-center gap-1.5">

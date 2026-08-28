@@ -9,7 +9,8 @@ import {
 	isDigestBasedImage,
 	getImageIdByTag,
 	removeTempImage,
-	tagImage
+	tagImage,
+	inspectImage
 } from '$lib/server/docker';
 import { auditContainer } from '$lib/server/audit';
 import { getScannerSettings, scanImage } from '$lib/server/scanner';
@@ -72,6 +73,16 @@ export interface UpdateProgress {
 /**
  * Batch update containers with streaming progress.
  * Expects JSON body: { containerIds: string[], vulnerabilityCriteria?: VulnerabilityCriteria }
+ *
+ * @openapi
+ * summary: Recreate a set of containers with live streaming progress (Server-Sent Events), optionally blocking on vulnerability criteria (requires the 'create' permission)
+ * description: Returns a `text/event-stream` reporting per-container progress. `vulnerabilityCriteria` (default "never") can block an update when a container's image scan exceeds the configured severity threshold. containerIds from GET /api/containers.
+ * query: env:integer The target environment ID (omit for the local/default Docker host) (from GET /api/environments)
+ * body: {containerIds:array<string>!, vulnerabilityCriteria:string}
+ * body-example: {"containerIds":["3f4a1c2b9d8e"],"vulnerabilityCriteria":"never"}
+ * resp-200: Server-Sent Events stream (text/event-stream) of per-container update progress
+ * resp-400: Invalid JSON body, or the containerIds array is missing or empty
+ * resp-403: Permission denied
  */
 export const POST: RequestHandler = async (event) => {
 	const { url, cookies, request } = event;
@@ -156,6 +167,17 @@ export const POST: RequestHandler = async (event) => {
 				const config = inspectData.Config;
 				const imageName = config.Image;
 				const currentImageId = inspectData.Image;
+
+				// Capture the OLD image's Env/Labels BEFORE pulling — once the tag is
+				// repointed the old digest may be untagged/GC'd and un-inspectable.
+				// Used by the env/label rebase in recreateContainer (#1226, #1256).
+				let oldImageConfig: { Env?: string[]; Labels?: Record<string, string>; Cmd?: string[] | null; Entrypoint?: string[] | null } | null = null;
+				try {
+					const oldImg = await inspectImage(currentImageId, envIdNum) as any;
+					oldImageConfig = { Env: oldImg?.Config?.Env, Labels: oldImg?.Config?.Labels, Cmd: oldImg?.Config?.Cmd ?? null, Entrypoint: oldImg?.Config?.Entrypoint ?? null };
+				} catch {
+					// Best-effort; rebase will fall back if unavailable.
+				}
 
 				// Skip system containers (Dockhand, Hawser)
 				const systemType = isSystemContainer(imageName);
@@ -459,7 +481,11 @@ export const POST: RequestHandler = async (event) => {
 					message: `Recreating ${containerName}...`
 				});
 
-				const recreateResult = await recreateContainer(containerName, envIdNum, logProgress, imageName);
+				const recreateResult = await recreateContainer(containerName, envIdNum, {
+					log: logProgress,
+					imageNameOverride: imageName,
+					oldImageConfig
+				});
 				if (recreateResult.success) {
 					const updatedContainers = await listContainers(true, envIdNum);
 					const updatedContainer = updatedContainers.find(c => c.name === containerName);

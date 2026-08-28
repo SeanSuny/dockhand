@@ -5,6 +5,8 @@
  * Supports both SQLite and PostgreSQL.
  */
 
+import type { SecretProviderConfig, SecretProviderType } from './secretproviders/shared';
+import { mergeProviderConfigForWrite } from './secretproviders/shared';
 import {
 	db,
 	isPostgres,
@@ -39,7 +41,9 @@ import {
 	gitCredentials,
 	gitRepositories,
 	gitStacks,
+	secretProviders,
 	stackSources,
+	containerIconOverrides,
 	vulnerabilityScans,
 	auditLogs,
 	containerEvents,
@@ -47,6 +51,8 @@ import {
 	scheduleExecutions,
 	stackEnvironmentVariables,
 	pendingContainerUpdates,
+	backupDestinations,
+	backupConfigs,
 	// Types
 	type Environment,
 	type Registry,
@@ -67,18 +73,22 @@ import {
 	type GitCredential,
 	type GitRepository,
 	type GitStack,
+	type SecretProviderRow,
 	type StackSource,
 	type VulnerabilityScan,
 	type AuditLog,
 	type ContainerEvent,
 	type ScheduleExecution,
 	type StackEnvironmentVariable,
-	type PendingContainerUpdate
+	type PendingContainerUpdate,
+	type BackupDestination,
+	type BackupConfig
 } from './db/drizzle.js';
 
 import type { AllGridPreferences, GridId, GridColumnPreferences } from '$lib/types';
-import { encrypt, decrypt } from './encryption.js';
+import { encrypt, decrypt, decryptStrict, isEncrypted } from './encryption.js';
 import { parseEnvInterpolation } from './env-interpolation';
+import { parseInjectedSecretKeys, serializeInjectedSecretKeys } from './stack-secret-keys';
 import { invalidateVulnerabilitiesCache } from './vulnerabilities-cache';
 
 // Re-export for backwards compatibility
@@ -98,6 +108,7 @@ export type {
 	GitCredential,
 	GitRepository,
 	GitStack,
+	SecretProviderRow,
 	StackSource,
 	VulnerabilityScan,
 	AuditLog,
@@ -294,6 +305,122 @@ export async function setDefaultRegistry(id: number): Promise<boolean> {
 }
 
 // =============================================================================
+// SECRET PROVIDER OPERATIONS
+// =============================================================================
+// Pluggable secret providers (1Password, Infisical, HashiCorp Vault, ...). The
+// per-provider `config` object is stored as an encrypted JSON blob; the `token`
+// or `host`/`token` fields live inside it. See src/lib/server/secretproviders.
+
+/** Row without the (secret) config, safe to return to the UI / list views. */
+export interface SecretProviderSummary {
+	id: number;
+	type: string;
+	name: string;
+	createdAt: string | null;
+	updatedAt: string | null;
+}
+
+/** Row with its config decrypted and parsed. Server-side use only. */
+export interface SecretProviderWithConfig extends SecretProviderSummary {
+	config: SecretProviderConfig;
+}
+
+export async function getSecretProviders(): Promise<SecretProviderSummary[]> {
+	const results = await db.select({
+		id: secretProviders.id,
+		type: secretProviders.type,
+		name: secretProviders.name,
+		createdAt: secretProviders.createdAt,
+		updatedAt: secretProviders.updatedAt
+	}).from(secretProviders).orderBy(asc(secretProviders.name));
+	return results;
+}
+
+export async function getSecretProviderById(id: number): Promise<SecretProviderWithConfig | undefined> {
+	const results = await db.select().from(secretProviders).where(eq(secretProviders.id, id));
+	if (!results[0]) return undefined;
+	const row = results[0];
+	const decrypted = decrypt(row.config);
+	const config = decrypted
+		? (JSON.parse(decrypted) as SecretProviderConfig)
+		: ({} as SecretProviderConfig);
+	return {
+		id: row.id,
+		type: row.type,
+		name: row.name,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
+		config
+	};
+}
+
+export async function createSecretProvider(data: {
+	type: SecretProviderType;
+	name: string;
+	config: SecretProviderConfig;
+}): Promise<SecretProviderSummary> {
+	const encrypted = encrypt(JSON.stringify(data.config));
+	if (!encrypted) throw new Error('Config is required');
+	const result = await db.insert(secretProviders).values({
+		type: data.type,
+		name: data.name,
+		config: encrypted
+	}).returning();
+	const { config: _omit, ...safe } = result[0];
+	return safe;
+}
+
+export async function updateSecretProvider(
+	id: number,
+	data: { name?: string; type?: SecretProviderType; config?: SecretProviderConfig }
+): Promise<SecretProviderSummary | undefined> {
+	const updateData: Record<string, any> = { updatedAt: new Date().toISOString() };
+	if (data.name !== undefined) updateData.name = data.name;
+	if (data.type !== undefined) updateData.type = data.type;
+	if (data.config !== undefined) {
+		// The edit form pre-fills non-secret fields but leaves the token blank to mean
+		// "keep the stored secret". Merge the incoming config OVER the existing one so a
+		// blank/absent secret keeps its stored value instead of being wiped. The edit
+		// form always sends `type` (its dropdown is read-only), so gate on the type not
+		// CHANGING rather than on it being absent - a genuine type change is a full
+		// re-config and skips the merge. (#1432)
+		let merged: Record<string, unknown> = { ...(data.config as Record<string, unknown>) };
+		const existing = await getSecretProviderById(id);
+		const typeUnchanged = data.type === undefined || (existing !== undefined && data.type === existing.type);
+		if (typeUnchanged && existing) {
+			merged = mergeProviderConfigForWrite(
+				data.config as Record<string, unknown>,
+				existing.config as Record<string, unknown>
+			);
+		}
+		const encrypted = encrypt(JSON.stringify(merged));
+		if (encrypted) updateData.config = encrypted;
+	}
+	await db.update(secretProviders).set(updateData).where(eq(secretProviders.id, id));
+	const results = await db.select({
+		id: secretProviders.id,
+		type: secretProviders.type,
+		name: secretProviders.name,
+		createdAt: secretProviders.createdAt,
+		updatedAt: secretProviders.updatedAt
+	}).from(secretProviders).where(eq(secretProviders.id, id));
+	return results[0];
+}
+
+export async function deleteSecretProvider(id: number): Promise<SecretProviderSummary | null> {
+	const rows = await db.delete(secretProviders)
+		.where(eq(secretProviders.id, id))
+		.returning({
+			id: secretProviders.id,
+			type: secretProviders.type,
+			name: secretProviders.name,
+			createdAt: secretProviders.createdAt,
+			updatedAt: secretProviders.updatedAt
+		});
+	return rows[0] ?? null;
+}
+
+// =============================================================================
 // STACK EVENT LOGGING
 // =============================================================================
 
@@ -347,6 +474,24 @@ export async function deleteSetting(key: string): Promise<void> {
 	await db.delete(settings).where(eq(settings.key, key));
 }
 
+/**
+ * Return every setting whose key starts with `prefix`, JSON-parsed. Used by the
+ * backup operation journal (one durable row per in-flight op, keyed
+ * `backup:op:<uuid>`) so concurrent ops write DISTINCT rows and cannot
+ * lost-update a shared array — see src/lib/server/backups/journal.ts.
+ */
+export async function listSettingsByPrefix(prefix: string): Promise<Array<{ key: string; value: any }>> {
+	// Escape LIKE metacharacters in the prefix so `%`/`_` in a key are literal.
+	const escaped = prefix.replace(/[\\%_]/g, (c) => '\\' + c);
+	const rows = await db.select().from(settings)
+		.where(sql`${settings.key} LIKE ${escaped + '%'} ESCAPE '\\'`);
+	return rows.map((r: { key: string; value: string }) => {
+		let value: any;
+		try { value = JSON.parse(r.value); } catch { value = r.value; }
+		return { key: r.key, value };
+	});
+}
+
 export async function getEnvSetting(key: string, envId?: number): Promise<any> {
 	if (envId !== undefined) {
 		const envKey = `env_${envId}_${key}`;
@@ -393,8 +538,9 @@ export async function getUserThemePreferences(userId: number): Promise<{
 	animateIcons: boolean;
 	coloredActionButtons: boolean;
 	actionIconSize: string;
+	editorIndentGuides: boolean;
 }> {
-const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, animateIcons, coloredActionButtons, actionIconSize] = await Promise.all([
+	const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont, editorFont, animateIcons, coloredActionButtons, actionIconSize, editorIndentGuides] = await Promise.all([
 		getUserSetting(userId, 'locale'),
 		getUserSetting(userId, 'light_theme'),
 		getUserSetting(userId, 'dark_theme'),
@@ -405,7 +551,8 @@ const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont
 		getUserSetting(userId, 'editor_font'),
 		getUserSetting(userId, 'animate_icons'),
 		getUserSetting(userId, 'colored_action_buttons'),
-		getUserSetting(userId, 'action_icon_size')
+		getUserSetting(userId, 'action_icon_size'),
+		getUserSetting(userId, 'editor_indent_guides')
 	]);
 	return {
 		// null = user never chose a locale; client must not override current locale with a fake default
@@ -421,13 +568,15 @@ const [locale, lightTheme, darkTheme, font, fontSize, gridFontSize, terminalFont
 		animateIcons: animateIcons === 'false' ? false : true,
 		// Default OFF — only true when explicitly stored
 		coloredActionButtons: coloredActionButtons === 'true',
-		actionIconSize: actionIconSize || 'normal'
+		actionIconSize: actionIconSize || 'normal',
+		// Default OFF — only true when explicitly stored (#1410)
+		editorIndentGuides: editorIndentGuides === 'true'
 	};
 }
 
 export async function setUserThemePreferences(
 	userId: number,
-prefs: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean; coloredActionButtons?: boolean; actionIconSize?: string }
+	prefs: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string; fontSize?: string; gridFontSize?: string; terminalFont?: string; editorFont?: string; animateIcons?: boolean; coloredActionButtons?: boolean; actionIconSize?: string; editorIndentGuides?: boolean }
 ): Promise<void> {
 	const updates: Promise<void>[] = [];
 	if (prefs.locale !== undefined) {
@@ -462,6 +611,9 @@ prefs: { locale?: string; lightTheme?: string; darkTheme?: string; font?: string
 	}
 	if (prefs.actionIconSize !== undefined) {
 		updates.push(setUserSetting(userId, 'action_icon_size', prefs.actionIconSize));
+	}
+	if (prefs.editorIndentGuides !== undefined) {
+		updates.push(setUserSetting(userId, 'editor_indent_guides', prefs.editorIndentGuides ? 'true' : 'false'));
 	}
 	await Promise.all(updates);
 }
@@ -829,6 +981,7 @@ export const NOTIFICATION_EVENT_TYPES = [
 	{ id: 'auto_update_failed', label: 'Auto-update failed', description: 'Container auto-update failed (pull error, start error)', group: 'auto_update', scope: 'environment' },
 	{ id: 'auto_update_blocked', label: 'Auto-update blocked', description: 'Update blocked due to vulnerability criteria', group: 'auto_update', scope: 'environment' },
 	{ id: 'updates_detected', label: 'Updates detected', description: 'Container image updates are available (scheduled check)', group: 'auto_update', scope: 'environment' },
+	{ id: 'newer_version_available', label: 'Newer version tag', description: 'A newer version tag is published for a pinned image (semver, advisory)', group: 'auto_update', scope: 'environment' },
 	{ id: 'batch_update_success', label: 'Batch update completed', description: 'Scheduled container updates completed successfully', group: 'auto_update', scope: 'environment' },
 
 	// Git stack events (environment-scoped)
@@ -847,12 +1000,24 @@ export const NOTIFICATION_EVENT_TYPES = [
 	{ id: 'vulnerability_high', label: 'High vulnerabilities', description: 'High severity vulnerabilities found in image scan', group: 'security', scope: 'environment' },
 	{ id: 'vulnerability_any', label: 'Any vulnerabilities', description: 'Any vulnerabilities found in image scan (medium/low)', group: 'security', scope: 'environment' },
 
+	// Backup events (environment-scoped)
+	{ id: 'backup_success', label: 'Backup success', description: 'Backup completed successfully', group: 'backup', scope: 'environment' },
+	{ id: 'backup_failed', label: 'Backup failed', description: 'Backup failed', group: 'backup', scope: 'environment' },
+	{ id: 'restore_success', label: 'Restore success', description: 'Restore completed successfully', group: 'backup', scope: 'environment' },
+	{ id: 'restore_failed', label: 'Restore failed', description: 'Restore failed', group: 'backup', scope: 'environment' },
+
 	// System events (global - configured at channel level, not per-environment)
 	{ id: 'environment_offline', label: 'Environment offline', description: 'Environment became unreachable', group: 'system', scope: 'environment' },
 	{ id: 'environment_online', label: 'Environment online', description: 'Environment came back online', group: 'system', scope: 'environment' },
 	{ id: 'disk_space_warning', label: 'Disk space warning', description: 'Docker disk usage exceeds threshold', group: 'system', scope: 'environment' },
 	{ id: 'image_prune_success', label: 'Image prune success', description: 'Scheduled image prune completed successfully', group: 'system', scope: 'environment' },
 	{ id: 'image_prune_failed', label: 'Image prune failed', description: 'Scheduled image prune failed', group: 'system', scope: 'environment' },
+	{ id: 'repo_prune_success', label: 'Backup repository prune success', description: 'Scheduled repository prune completed successfully', group: 'system', scope: 'system' },
+	{ id: 'repo_prune_failed', label: 'Backup repository prune failed', description: 'Scheduled repository prune failed', group: 'system', scope: 'system' },
+	{ id: 'repo_check_success', label: 'Backup repository check success', description: 'Scheduled integrity check completed successfully', group: 'system', scope: 'system' },
+	{ id: 'repo_check_failed', label: 'Backup repository check failed', description: 'Scheduled integrity check found errors or failed', group: 'system', scope: 'system' },
+	{ id: 'repo_verify_success', label: 'Backup repository data verification success', description: 'Scheduled data verification completed successfully', group: 'system', scope: 'system' },
+	{ id: 'repo_verify_failed', label: 'Backup repository data verification failed', description: 'Scheduled data verification found corruption or failed', group: 'system', scope: 'system' },
 	{ id: 'license_expiring', label: 'License expiring', description: 'Enterprise license expiring soon (global)', group: 'system', scope: 'system' }
 ] as const;
 
@@ -862,6 +1027,7 @@ export const NOTIFICATION_EVENT_GROUPS = [
 	{ id: 'git_stack', label: 'Git stack events' },
 	{ id: 'stack', label: 'Stack events' },
 	{ id: 'security', label: 'Security events' },
+	{ id: 'backup', label: 'Backup events' },
 	{ id: 'system', label: 'System events' }
 ] as const;
 
@@ -1175,6 +1341,8 @@ export interface Permissions {
 	audit_logs: string[];
 	activity: string[];
 	schedules: string[];
+	secrets: string[];
+	backups: string[];
 }
 
 export interface AuthSettingsData {
@@ -2135,6 +2303,7 @@ export interface GitStackData {
 	environmentId: number | null;
 	repositoryId: number;
 	composePath: string;
+	branch: string | null; // Per-stack branch override; null = use repository default
 	envFilePath: string | null;
 	autoUpdate: boolean;
 	autoUpdateSchedule: 'daily' | 'weekly' | 'custom';
@@ -2173,6 +2342,7 @@ export async function getGitStacks(environmentId?: number): Promise<GitStackWith
 			stackName: gitStacks.stackName,
 			environmentId: gitStacks.environmentId,
 			repositoryId: gitStacks.repositoryId,
+			branch: gitStacks.branch,
 			composePath: gitStacks.composePath,
 			envFilePath: gitStacks.envFilePath,
 			autoUpdate: gitStacks.autoUpdate,
@@ -2206,6 +2376,7 @@ export async function getGitStacks(environmentId?: number): Promise<GitStackWith
 			stackName: gitStacks.stackName,
 			environmentId: gitStacks.environmentId,
 			repositoryId: gitStacks.repositoryId,
+			branch: gitStacks.branch,
 			composePath: gitStacks.composePath,
 			envFilePath: gitStacks.envFilePath,
 			autoUpdate: gitStacks.autoUpdate,
@@ -2239,6 +2410,7 @@ export async function getGitStacks(environmentId?: number): Promise<GitStackWith
 		stackName: row.stackName,
 		environmentId: row.environmentId,
 		repositoryId: row.repositoryId,
+		branch: row.branch ?? null,
 		composePath: row.composePath,
 		envFilePath: row.envFilePath,
 		autoUpdate: row.autoUpdate,
@@ -2274,6 +2446,7 @@ export async function getGitStacksForEnvironmentOnly(environmentId: number): Pro
 		stackName: gitStacks.stackName,
 		environmentId: gitStacks.environmentId,
 		repositoryId: gitStacks.repositoryId,
+		branch: gitStacks.branch,
 		composePath: gitStacks.composePath,
 		envFilePath: gitStacks.envFilePath,
 		autoUpdate: gitStacks.autoUpdate,
@@ -2307,6 +2480,7 @@ export async function getGitStacksForEnvironmentOnly(environmentId: number): Pro
 		stackName: row.stackName,
 		environmentId: row.environmentId,
 		repositoryId: row.repositoryId,
+		branch: row.branch ?? null,
 		composePath: row.composePath,
 		envFilePath: row.envFilePath,
 		autoUpdate: row.autoUpdate,
@@ -2341,6 +2515,7 @@ export async function getGitStack(id: number): Promise<GitStackWithRepo | null> 
 		stackName: gitStacks.stackName,
 		environmentId: gitStacks.environmentId,
 		repositoryId: gitStacks.repositoryId,
+		branch: gitStacks.branch,
 		composePath: gitStacks.composePath,
 		envFilePath: gitStacks.envFilePath,
 		autoUpdate: gitStacks.autoUpdate,
@@ -2376,6 +2551,7 @@ export async function getGitStack(id: number): Promise<GitStackWithRepo | null> 
 		stackName: row.stackName,
 		environmentId: row.environmentId,
 		repositoryId: row.repositoryId,
+		branch: row.branch ?? null,
 		composePath: row.composePath,
 		envFilePath: row.envFilePath,
 		autoUpdate: row.autoUpdate,
@@ -2411,6 +2587,7 @@ export async function getGitStackByName(stackName: string, environmentId?: numbe
 		stackName: gitStacks.stackName,
 		environmentId: gitStacks.environmentId,
 		repositoryId: gitStacks.repositoryId,
+		branch: gitStacks.branch,
 		composePath: gitStacks.composePath,
 		envFilePath: gitStacks.envFilePath,
 		autoUpdate: gitStacks.autoUpdate,
@@ -2450,6 +2627,7 @@ export async function getGitStackByName(stackName: string, environmentId?: numbe
 		stackName: row.stackName,
 		environmentId: row.environmentId,
 		repositoryId: row.repositoryId,
+		branch: row.branch ?? null,
 		composePath: row.composePath,
 		envFilePath: row.envFilePath,
 		autoUpdate: row.autoUpdate,
@@ -2484,6 +2662,7 @@ export async function getGitStackByWebhookSecret(secret: string): Promise<GitSta
 		stackName: gitStacks.stackName,
 		environmentId: gitStacks.environmentId,
 		repositoryId: gitStacks.repositoryId,
+		branch: gitStacks.branch,
 		composePath: gitStacks.composePath,
 		envFilePath: gitStacks.envFilePath,
 		autoUpdate: gitStacks.autoUpdate,
@@ -2518,6 +2697,7 @@ export async function getGitStackByWebhookSecret(secret: string): Promise<GitSta
 		stackName: row.stackName,
 		environmentId: row.environmentId,
 		repositoryId: row.repositoryId,
+		branch: row.branch ?? null,
 		composePath: row.composePath,
 		envFilePath: row.envFilePath,
 		autoUpdate: row.autoUpdate,
@@ -2550,6 +2730,7 @@ export async function createGitStack(data: {
 	stackName: string;
 	environmentId?: number | null;
 	repositoryId: number;
+	branch?: string | null;
 	composePath?: string;
 	envFilePath?: string | null;
 	autoUpdate?: boolean;
@@ -2567,6 +2748,7 @@ export async function createGitStack(data: {
 		stackName: data.stackName,
 		environmentId: data.environmentId ?? null,
 		repositoryId: data.repositoryId,
+		branch: data.branch || null,
 		composePath: data.composePath || 'compose.yaml',
 		envFilePath: data.envFilePath || null,
 		contextDir: data.contextDir || null,
@@ -2589,6 +2771,7 @@ export async function updateGitStack(id: number, data: Partial<GitStackData>): P
 	if (data.stackName !== undefined) updateData.stackName = data.stackName;
 	if (data.repositoryId !== undefined) updateData.repositoryId = data.repositoryId;
 	if (data.composePath !== undefined) updateData.composePath = data.composePath;
+	if (data.branch !== undefined) updateData.branch = data.branch || null;
 	if (data.envFilePath !== undefined) updateData.envFilePath = data.envFilePath;
 	if (data.autoUpdate !== undefined) updateData.autoUpdate = data.autoUpdate;
 	if (data.autoUpdateSchedule !== undefined) updateData.autoUpdateSchedule = data.autoUpdateSchedule;
@@ -2661,6 +2844,7 @@ export async function getEnabledAutoUpdateGitStacks(): Promise<GitStackWithRepo[
 		stackName: row.stackName,
 		environmentId: row.environmentId,
 		repositoryId: row.repositoryId,
+		branch: row.branch ?? null,
 		composePath: row.composePath,
 		envFilePath: row.envFilePath,
 		autoUpdate: row.autoUpdate,
@@ -2726,6 +2910,7 @@ export async function getAllAutoUpdateGitStacks(): Promise<GitStackWithRepo[]> {
 		stackName: row.stackName,
 		environmentId: row.environmentId,
 		repositoryId: row.repositoryId,
+		branch: row.branch ?? null,
 		composePath: row.composePath,
 		autoUpdate: row.autoUpdate,
 		autoUpdateSchedule: row.autoUpdateSchedule,
@@ -2768,6 +2953,8 @@ export interface StackSourceData {
 	gitStackId: number | null;
 	composePath: string | null;
 	envPath: string | null;
+	secretProviderId: number | null;
+	icon: string | null;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -2875,6 +3062,8 @@ export async function upsertStackSource(data: {
 	gitStackId?: number | null;
 	composePath?: string | null;
 	envPath?: string | null;
+	secretProviderId?: number | null;
+	icon?: string | null;
 }): Promise<StackSourceData> {
 	const existing = await getStackSource(data.stackName, data.environmentId);
 
@@ -2896,7 +3085,11 @@ export async function upsertStackSource(data: {
 				gitStackId: newStackId,
 				composePath: data.composePath ?? null,
 				envPath: data.envPath ?? null,
-				updatedAt: new Date().toISOString()
+				updatedAt: new Date().toISOString(),
+				// Preserve existing binding when caller (like git) omits it
+				...(data.secretProviderId !== undefined && { secretProviderId: data.secretProviderId }),
+				// Same preserve-on-omit for the icon, so a git sync doesn't wipe a user's choice
+				...(data.icon !== undefined && { icon: data.icon })
 			})
 			.where(eq(stackSources.id, existing.id));
 		return getStackSource(data.stackName, data.environmentId) as Promise<StackSourceData>;
@@ -2909,7 +3102,9 @@ export async function upsertStackSource(data: {
 			gitRepositoryId: data.gitRepositoryId || null,
 			gitStackId: data.gitStackId || null,
 			composePath: data.composePath ?? null,
-			envPath: data.envPath ?? null
+			envPath: data.envPath ?? null,
+			secretProviderId: data.secretProviderId ?? null,
+			icon: data.icon ?? null
 		});
 		return getStackSource(data.stackName, data.environmentId) as Promise<StackSourceData>;
 	}
@@ -2918,7 +3113,7 @@ export async function upsertStackSource(data: {
 export async function updateStackSource(
 	stackName: string,
 	environmentId: number | null,
-	updates: { composePath?: string | null; envPath?: string | null }
+	updates: { composePath?: string | null; envPath?: string | null; secretProviderId?: number | null; icon?: string | null }
 ): Promise<boolean> {
 	const existing = await getStackSource(stackName, environmentId);
 	if (!existing) return false;
@@ -2927,11 +3122,47 @@ export async function updateStackSource(
 		.set({
 			composePath: updates.composePath !== undefined ? updates.composePath : existing.composePath,
 			envPath: updates.envPath !== undefined ? updates.envPath : existing.envPath,
+			secretProviderId: updates.secretProviderId !== undefined ? updates.secretProviderId : existing.secretProviderId,
+			icon: updates.icon !== undefined ? updates.icon : existing.icon,
 			updatedAt: new Date().toISOString()
 		})
 		.where(eq(stackSources.id, existing.id));
 
 	return true;
+}
+
+/**
+ * Persist the names (no values) of secret keys injected from the bound provider on
+ * the last deploy, so container inspect can mask them without a live provider call.
+ * Stored as a JSON array on stack_sources; null clears it. No-op if the stack has
+ * no source row.
+ */
+export async function setStackInjectedSecretKeys(
+	stackName: string,
+	environmentId: number | null | undefined,
+	keys: string[]
+): Promise<void> {
+	const existing = await getStackSource(stackName, environmentId ?? null);
+	if (!existing) return;
+	await db.update(stackSources)
+		.set({
+			injectedSecretKeys: serializeInjectedSecretKeys(keys),
+			updatedAt: new Date().toISOString()
+		})
+		.where(eq(stackSources.id, existing.id));
+}
+
+/**
+ * Read back the provider-injected secret key names for a stack (empty if none).
+ * Tolerates a malformed/legacy value by returning an empty set.
+ */
+export async function getStackInjectedSecretKeys(
+	stackName: string,
+	environmentId?: number | null
+): Promise<Set<string>> {
+	const source = await getStackSource(stackName, environmentId ?? null);
+	const raw = (source as { injectedSecretKeys?: string | null } | null)?.injectedSecretKeys;
+	return parseInjectedSecretKeys(raw);
 }
 
 export async function deleteStackSource(stackName: string, environmentId?: number | null): Promise<boolean> {
@@ -2974,6 +3205,53 @@ export async function updateStackSourceName(
 				: isNull(stackSources.environmentId)
 		));
 	return true;
+}
+
+// =============================================================================
+// CONTAINER ICON OVERRIDES
+// =============================================================================
+// A user-picked icon for a container, keyed by (name, env). Absent -> the UI's
+// automatic image/name matching applies. The value is a lucide name,
+// 'selfhst:<ref>', or 'custom:container' (bytes on disk via container-icons.ts).
+
+function containerEnvClause(environmentId: number | null) {
+	return environmentId !== null
+		? eq(containerIconOverrides.environmentId, environmentId)
+		: isNull(containerIconOverrides.environmentId);
+}
+
+/** The icon override for one container, or null if none is set. */
+export async function getContainerIconOverride(containerName: string, environmentId: number | null): Promise<string | null> {
+	const rows = await db.select().from(containerIconOverrides)
+		.where(and(eq(containerIconOverrides.containerName, containerName), containerEnvClause(environmentId)))
+		.limit(1);
+	return rows[0]?.icon ?? null;
+}
+
+/** All overrides for an environment as a name->icon map, for the list page (no N+1). */
+export async function getContainerIconOverrides(environmentId: number | null): Promise<Record<string, string>> {
+	const rows = await db.select().from(containerIconOverrides).where(containerEnvClause(environmentId));
+	const map: Record<string, string> = {};
+	for (const row of rows) map[row.containerName] = row.icon;
+	return map;
+}
+
+/** Upsert the icon override for a container. */
+export async function setContainerIconOverride(containerName: string, environmentId: number | null, icon: string): Promise<void> {
+	const existing = await getContainerIconOverride(containerName, environmentId);
+	if (existing !== null) {
+		await db.update(containerIconOverrides)
+			.set({ icon, updatedAt: new Date().toISOString() })
+			.where(and(eq(containerIconOverrides.containerName, containerName), containerEnvClause(environmentId)));
+	} else {
+		await db.insert(containerIconOverrides).values({ containerName, environmentId, icon });
+	}
+}
+
+/** Remove a container's icon override (fall back to automatic matching). */
+export async function deleteContainerIconOverride(containerName: string, environmentId: number | null): Promise<void> {
+	await db.delete(containerIconOverrides)
+		.where(and(eq(containerIconOverrides.containerName, containerName), containerEnvClause(environmentId)));
 }
 
 // =============================================================================
@@ -3268,12 +3546,14 @@ export async function deleteOldScans(keepDays = 30): Promise<number> {
 export type AuditAction =
 	| 'create' | 'update' | 'delete' | 'start' | 'stop' | 'restart' | 'down'
 	| 'pause' | 'unpause' | 'pull' | 'push' | 'prune' | 'login'
-	| 'logout' | 'view' | 'exec' | 'connect' | 'disconnect' | 'deploy' | 'sync' | 'rename' | 'webhook';
+	| 'logout' | 'view' | 'exec' | 'connect' | 'disconnect' | 'deploy' | 'sync' | 'rename' | 'webhook'
+	| 'backup' | 'restore' | 'verify';
 
 export type AuditEntityType =
 	| 'container' | 'image' | 'stack' | 'volume' | 'network'
 	| 'user' | 'role' | 'settings' | 'environment' | 'registry' | 'git_repository' | 'git_credential'
-	| 'config_set' | 'notification' | 'oidc_provider' | 'ldap_config' | 'git_stack' | 'api_token';
+	| 'config_set' | 'notification' | 'oidc_provider' | 'ldap_config' | 'git_stack' | 'api_token'
+	| 'secret_provider' | 'backup_destination' | 'backup_config';
 
 export interface AuditLogData {
 	id: number;
@@ -3976,9 +4256,23 @@ export async function saveDashboardPreferences(data: {
 // SCHEDULE EXECUTION OPERATIONS
 // =============================================================================
 
-export type ScheduleType = 'container_update' | 'git_stack_sync' | 'system_cleanup' | 'env_update_check';
+export type ScheduleType = 'container_update' | 'git_stack_sync' | 'system_cleanup' | 'env_update_check' | 'image_prune' | 'backup' | 'restore';
 export type ScheduleTrigger = 'cron' | 'webhook' | 'manual' | 'startup';
-export type ScheduleStatus = 'queued' | 'running' | 'success' | 'failed' | 'skipped';
+export type ScheduleStatus =
+	| 'queued'
+	| 'running'
+	| 'success'
+	| 'failed'
+	| 'skipped'
+	// Richer terminal states used by the backup/restore operation records:
+	// 'warning' = completed with a caveat (e.g. a partial read); 'error' = ran and
+	// failed (with a machine code in details); 'cancelled' = aborted by the user;
+	// 'stale' = interrupted by a process restart (re-run it). The status column is
+	// free text, so these coexist with the legacy values.
+	| 'warning'
+	| 'error'
+	| 'cancelled'
+	| 'stale';
 
 export interface ScheduleExecutionData {
 	id: number;
@@ -4072,12 +4366,54 @@ export async function updateScheduleExecution(id: number, data: ScheduleExecutio
 	return getScheduleExecution(id);
 }
 
-export async function appendScheduleExecutionLog(id: number, logLine: string): Promise<void> {
-	const execution = await getScheduleExecution(id);
-	if (!execution) return;
+/**
+ * Mark any execution still in a non-terminal state ('queued'/'running') as
+ * 'failed'. Called on startup (audit #49/#50): a process crash mid-backup leaves
+ * the row 'running' forever, so it shows as perpetually in-progress in the UI and
+ * the config looks busy. Returns the number of rows swept.
+ */
+export async function failStaleRunningExecutions(): Promise<number> {
+	const now = new Date().toISOString();
+	const res = await db.update(scheduleExecutions)
+		.set({
+			status: 'failed',
+			completedAt: now,
+			errorMessage: 'Interrupted — Dockhand restarted while this run was in progress'
+		})
+		.where(inArray(scheduleExecutions.status, ['queued', 'running']))
+		.returning({ id: scheduleExecutions.id });
+	return res.length;
+}
 
-	const newLogs = execution.logs ? execution.logs + '\n' + logLine : logLine;
-	await db.update(scheduleExecutions).set({ logs: newLogs }).where(eq(scheduleExecutions.id, id));
+export async function appendScheduleExecutionLog(id: number, logLine: string): Promise<void> {
+	// Atomic SQL-side concatenation. Previous implementation (SELECT current logs,
+	// concat in JS, UPDATE) raced when adjacent log() callers didn't await each
+	// other — two near-simultaneous appends would both read the same `logs`
+	// snapshot and the second UPDATE would silently overwrite the first,
+	// dropping log lines. Observable as intermittently missing options in
+	// backup logs (e.g. Upload limit fired but Download limit silently dropped,
+	// even though both code paths ran).
+	//
+	// `||` is the SQL string-concat operator in both SQLite and PostgreSQL.
+	// The CASE expression conditionally adds a newline only when the row
+	// already has content, so the very first append doesn't get a leading \n.
+	//
+	// (audit medium #17) Many callers invoke this fire-and-forget (unawaited), so a
+	// rejected DB write would become an unhandled rejection and the log line would
+	// vanish with no trace. Swallow the write failure HERE so every caller — awaited
+	// or not — is uniformly protected: a failed append surfaces exactly one stderr
+	// line (with the execution id) and never rejects. Execution success/failure
+	// status is persisted separately via awaited create/updateScheduleExecution, so
+	// only the free-text detail log is affected.
+	try {
+		await db.update(scheduleExecutions)
+			.set({
+				logs: sql`CASE WHEN ${scheduleExecutions.logs} IS NULL OR ${scheduleExecutions.logs} = '' THEN ${logLine} ELSE ${scheduleExecutions.logs} || ${'\n' + logLine} END`
+			})
+			.where(eq(scheduleExecutions.id, id));
+	} catch (e) {
+		console.error('[scheduler] failed to persist execution log line', { executionId: id, error: e });
+	}
 }
 
 export async function getScheduleExecution(id: number): Promise<ScheduleExecutionData | undefined> {
@@ -4218,6 +4554,48 @@ export async function getScheduleStats(): Promise<{
 		lastRunSecondsByType: ageMap(lastAny),
 		lastSuccessSecondsByType: ageMap(lastOk)
 	};
+}
+
+/**
+ * Per-backup-config health for the metrics endpoint (audit medium #16). The
+ * type-level schedule gauges can't isolate a single silently-failing backup
+ * config; this surfaces per-config last-success age and last status so one broken
+ * target is alertable. Cardinality is bounded by the number of backup configs.
+ * `lastSuccessSeconds` is left null when the config has no SUCCESSFUL backup so a
+ * never-succeeded config is visibly absent rather than defaulting to green.
+ */
+export async function getBackupConfigMetrics(): Promise<Array<{
+	configId: number;
+	target: string;
+	envId: number | null;
+	lastSuccessSeconds: number | null;
+	status: string | null;
+}>> {
+	const rows = await db
+		.select({
+			id: backupConfigs.id,
+			target: backupConfigs.targetName,
+			envId: backupConfigs.environmentId,
+			lastBackupAt: backupConfigs.lastBackupAt,
+			lastBackupStatus: backupConfigs.lastBackupStatus
+		})
+		.from(backupConfigs);
+
+	const now = Date.now();
+	return rows.map((r) => {
+		let lastSuccessSeconds: number | null = null;
+		if (r.lastBackupStatus === 'success' && r.lastBackupAt) {
+			const t = new Date(r.lastBackupAt).getTime();
+			if (!Number.isNaN(t)) lastSuccessSeconds = Math.max(0, Math.round((now - t) / 1000));
+		}
+		return {
+			configId: r.id,
+			target: r.target,
+			envId: r.envId ?? null,
+			lastSuccessSeconds,
+			status: r.lastBackupStatus ?? null
+		};
+	});
 }
 
 export async function getLastExecutionForSchedule(
@@ -4570,6 +4948,48 @@ export interface EnvUpdateCheckSettings {
 	vulnerabilityCriteria: VulnerabilityCriteria;
 }
 
+/**
+ * Global newer-version-tag (semver) detection config. Per-env settings decide
+ * WHEN/whether to check on a schedule; this decides HOW versions are read, and
+ * applies to every check - scheduled and manual alike.
+ */
+export interface GlobalSemverConfig {
+	enabled: boolean;
+	maxBump: 'patch' | 'minor' | 'major';
+	matchFlavor: boolean;
+	includePrerelease: boolean;
+}
+
+const GLOBAL_SEMVER_KEY = 'global_semver_check';
+const DEFAULT_SEMVER_CONFIG: GlobalSemverConfig = {
+	enabled: false,
+	maxBump: 'major',
+	matchFlavor: true,
+	includePrerelease: false
+};
+
+export async function getGlobalSemverConfig(): Promise<GlobalSemverConfig> {
+	const result = await db.select().from(settings).where(eq(settings.key, GLOBAL_SEMVER_KEY));
+	if (!result[0]) return { ...DEFAULT_SEMVER_CONFIG };
+	try {
+		return { ...DEFAULT_SEMVER_CONFIG, ...JSON.parse(result[0].value) };
+	} catch {
+		return { ...DEFAULT_SEMVER_CONFIG };
+	}
+}
+
+export async function setGlobalSemverConfig(config: GlobalSemverConfig): Promise<void> {
+	const value = JSON.stringify(config);
+	const existing = await db.select().from(settings).where(eq(settings.key, GLOBAL_SEMVER_KEY));
+	if (existing.length > 0) {
+		await db.update(settings)
+			.set({ value, updatedAt: new Date().toISOString() })
+			.where(eq(settings.key, GLOBAL_SEMVER_KEY));
+	} else {
+		await db.insert(settings).values({ key: GLOBAL_SEMVER_KEY, value });
+	}
+}
+
 export async function getEnvUpdateCheckSettings(envId: number): Promise<EnvUpdateCheckSettings | null> {
 	const key = `env_${envId}_update_check`;
 	const result = await db.select().from(settings).where(eq(settings.key, key));
@@ -4871,6 +5291,40 @@ export async function getSecretEnvVarsAsRecord(
 }
 
 /**
+ * Get a stack's SECRET env vars as their RAW at-rest ciphertext (enc:v1:...), keyed
+ * by name. Unlike the *AsRecord helpers this does NOT decrypt: it returns the exact
+ * bytes stored in the DB. Used by backup to carry secrets in a snapshot still
+ * encrypted under this instance's key — never plaintext. A value that is somehow
+ * stored plaintext (legacy) is encrypted here so a snapshot never holds a bare secret.
+ */
+export async function getStackSecretCiphertexts(
+	stackName: string,
+	environmentId?: number | null
+): Promise<Array<{ key: string; value: string }>> {
+	let rows;
+	if (environmentId === undefined) {
+		rows = await db.select().from(stackEnvironmentVariables)
+			.where(eq(stackEnvironmentVariables.stackName, stackName));
+	} else if (environmentId === null) {
+		rows = await db.select().from(stackEnvironmentVariables)
+			.where(and(
+				eq(stackEnvironmentVariables.stackName, stackName),
+				isNull(stackEnvironmentVariables.environmentId)
+			));
+	} else {
+		rows = await db.select().from(stackEnvironmentVariables)
+			.where(and(
+				eq(stackEnvironmentVariables.stackName, stackName),
+				eq(stackEnvironmentVariables.environmentId, environmentId)
+			));
+	}
+	return rows
+		.filter((r: typeof rows[number]) => r.isSecret && r.value)
+		.map((r: typeof rows[number]) => ({ key: r.key, value: isEncrypted(r.value) ? r.value : (encrypt(r.value) ?? '') }))
+		.filter((r: { key: string; value: string }) => r.value);
+}
+
+/**
  * Get only NON-SECRET environment variables as a key-value record.
  * Used for .env file operations where secrets should be excluded.
  * @param stackName - Name of the stack
@@ -4965,6 +5419,12 @@ export async function getSecretKeysToMask(
 ): Promise<Set<string>> {
 	const vars = await getStackEnvVars(stackName, environmentId, true);
 	const secretKeyNames = new Set(vars.filter(v => v.isSecret).map(v => v.key));
+
+	// Provider-injected secrets (Vault/Doppler bulk keys, promoted op:// refs) live
+	// only in the provider, never in stack_env_vars, so add the names persisted on
+	// the last deploy. Without this they leak plaintext in container inspect.
+	const injected = await getStackInjectedSecretKeys(stackName, environmentId);
+	for (const key of injected) secretKeyNames.add(key);
 
 	if (secretKeyNames.size === 0) return secretKeyNames;
 
@@ -5104,8 +5564,15 @@ export async function addPendingContainerUpdate(
 	environmentId: number,
 	containerId: string,
 	containerName: string,
-	currentImage: string
+	currentImage: string,
+	// A row can exist for a digest update, a newer-version-tag (semver) suggestion,
+	// or both. Both flags default to the classic "digest update only" shape so
+	// existing callers keep working unchanged.
+	options: { hasImageUpdate?: boolean; newerVersion?: unknown | null } = {}
 ): Promise<void> {
+	const hasImageUpdate = options.hasImageUpdate ?? true;
+	const newerVersion = options.newerVersion != null ? JSON.stringify(options.newerVersion) : null;
+	const now = new Date().toISOString();
 	// Use insert with onConflictDoUpdate for upsert behavior
 	await db.insert(pendingContainerUpdates)
 		.values({
@@ -5113,14 +5580,18 @@ export async function addPendingContainerUpdate(
 			containerId,
 			containerName,
 			currentImage,
-			checkedAt: new Date().toISOString()
+			hasImageUpdate,
+			newerVersion,
+			checkedAt: now
 		})
 		.onConflictDoUpdate({
 			target: [pendingContainerUpdates.environmentId, pendingContainerUpdates.containerId],
 			set: {
 				containerName,
 				currentImage,
-				checkedAt: new Date().toISOString()
+				hasImageUpdate,
+				newerVersion,
+				checkedAt: now
 			}
 		});
 }
@@ -5134,4 +5605,216 @@ export async function removePendingContainerUpdate(environmentId: number, contai
 			eq(pendingContainerUpdates.environmentId, environmentId),
 			eq(pendingContainerUpdates.containerId, containerId)
 		));
+}
+
+// =============================================================================
+// BACKUP DESTINATION OPERATIONS
+// =============================================================================
+
+export type { BackupDestination, BackupConfig };
+
+export async function getBackupDestinations(): Promise<BackupDestination[]> {
+	return db.select().from(backupDestinations).orderBy(desc(backupDestinations.createdAt));
+}
+
+export async function getBackupDestination(id: number): Promise<BackupDestination | undefined> {
+	const results = await db.select().from(backupDestinations).where(eq(backupDestinations.id, id));
+	return results[0];
+}
+
+export async function createBackupDestination(data: {
+	name: string;
+	repository: string;
+	password: string;
+	envVars?: string | null;
+	flags?: string | null;
+	hostPath?: string | null;
+	policies?: string | null;
+	cacert?: string | null;
+	tlsClientCert?: string | null;
+}): Promise<BackupDestination> {
+	const result = await db.insert(backupDestinations).values({
+		name: data.name,
+		repository: data.repository,
+		password: encrypt(data.password)!,
+		envVars: data.envVars ? encrypt(data.envVars) : null,
+		flags: data.flags ?? null,
+		hostPath: data.hostPath ?? null,
+		policies: data.policies ?? null,
+		cacert: data.cacert ? encrypt(data.cacert) : null,
+		tlsClientCert: data.tlsClientCert ? encrypt(data.tlsClientCert) : null
+	}).returning();
+	return result[0];
+}
+
+export async function updateBackupDestination(id: number, data: {
+	name?: string;
+	repository?: string;
+	password?: string;
+	envVars?: string | null;
+	flags?: string | null;
+	hostPath?: string | null;
+	policies?: string | null;
+	cacert?: string | null;
+	tlsClientCert?: string | null;
+	lastTestAt?: string | null;
+	lastTestStatus?: string | null;
+	lastTestError?: string | null;
+}): Promise<BackupDestination | undefined> {
+	const updateData: Record<string, any> = { updatedAt: new Date().toISOString() };
+	if (data.name !== undefined) updateData.name = data.name;
+	if (data.repository !== undefined) updateData.repository = data.repository;
+	// Only write the password when a non-empty value is supplied. A partial /
+	// metadata-only edit sends an empty or undefined password; writing encrypt('')
+	// there would clobber the stored secret (audit #39).
+	if (data.password) updateData.password = encrypt(data.password)!;
+	// Same guard for envVars: an empty string would null out stored cloud creds.
+	// (An explicit '{}' JSON string is truthy and still clears them intentionally.)
+	if (data.envVars) updateData.envVars = encrypt(data.envVars);
+	// Certs (optional): undefined = keep, '' = clear (user removed it), value = encrypt.
+	if (data.cacert !== undefined) updateData.cacert = data.cacert ? encrypt(data.cacert) : null;
+	if (data.tlsClientCert !== undefined) updateData.tlsClientCert = data.tlsClientCert ? encrypt(data.tlsClientCert) : null;
+	if (data.flags !== undefined) updateData.flags = data.flags;
+	if (data.hostPath !== undefined) updateData.hostPath = data.hostPath;
+	if (data.policies !== undefined) updateData.policies = data.policies;
+	if (data.lastTestAt !== undefined) updateData.lastTestAt = data.lastTestAt;
+	if (data.lastTestStatus !== undefined) updateData.lastTestStatus = data.lastTestStatus;
+	if (data.lastTestError !== undefined) updateData.lastTestError = data.lastTestError;
+
+	await db.update(backupDestinations).set(updateData).where(eq(backupDestinations.id, id));
+	return getBackupDestination(id);
+}
+
+export async function deleteBackupDestination(id: number): Promise<void> {
+	await db.delete(backupDestinations).where(eq(backupDestinations.id, id));
+}
+
+export async function updateBackupDestinationTestStatus(id: number, status: 'success' | 'failed' | 'needs_init', error?: string | null): Promise<void> {
+	await db.update(backupDestinations).set({
+		lastTestAt: new Date().toISOString(),
+		lastTestStatus: status,
+		lastTestError: error ?? null,
+		updatedAt: new Date().toISOString()
+	}).where(eq(backupDestinations.id, id));
+}
+
+/**
+ * Decrypt sensitive fields from a backup destination for runtime use.
+ */
+export function decryptBackupDestination(dest: BackupDestination): BackupDestination & { decryptedPassword: string; decryptedEnvVars: Record<string, string>; decryptedCacert: string | null; decryptedTlsClientCert: string | null } {
+	// (audit low #55) Fail closed: if the stored password is a genuine ciphertext
+	// blob that can't be decrypted (wrong/rotated key), decryptStrict throws rather
+	// than forwarding the literal `enc:v1:...` string as RESTIC_PASSWORD.
+	const decryptedPassword = decryptStrict(dest.password) || '';
+	let decryptedEnvVars: Record<string, string> = {};
+	if (dest.envVars) {
+		const raw = decryptStrict(dest.envVars); // throws if envVars can't be decrypted
+		if (raw) {
+			try {
+				decryptedEnvVars = JSON.parse(raw);
+			} catch {
+				// decrypted OK but not valid JSON — leave envVars empty.
+			}
+		}
+	}
+	// PEM certs for a self-signed TLS backend (#1451). Same fail-closed rule as the
+	// password: a genuine ciphertext that can't be decrypted throws rather than passing
+	// the literal enc:v1 string to restic.
+	const decryptedCacert = dest.cacert ? (decryptStrict(dest.cacert) || null) : null;
+	const decryptedTlsClientCert = dest.tlsClientCert ? (decryptStrict(dest.tlsClientCert) || null) : null;
+	return { ...dest, decryptedPassword, decryptedEnvVars, decryptedCacert, decryptedTlsClientCert };
+}
+
+// =============================================================================
+// BACKUP CONFIG OPERATIONS
+// =============================================================================
+
+export async function getBackupConfigs(filters?: {
+	type?: string;
+	targetName?: string;
+	environmentId?: number;
+}): Promise<BackupConfig[]> {
+	const conditions: any[] = [];
+	if (filters?.type) conditions.push(eq(backupConfigs.type, filters.type));
+	if (filters?.targetName) conditions.push(eq(backupConfigs.targetName, filters.targetName));
+	if (filters?.environmentId !== undefined) conditions.push(eq(backupConfigs.environmentId, filters.environmentId));
+
+	const query = conditions.length > 0
+		? db.select().from(backupConfigs).where(and(...conditions))
+		: db.select().from(backupConfigs);
+	return query.orderBy(desc(backupConfigs.createdAt));
+}
+
+export async function getBackupConfig(id: number): Promise<BackupConfig | undefined> {
+	const results = await db.select().from(backupConfigs).where(eq(backupConfigs.id, id));
+	return results[0];
+}
+
+export async function getEnabledBackupConfigs(): Promise<BackupConfig[]> {
+	return db.select().from(backupConfigs).where(eq(backupConfigs.enabled, true));
+}
+
+export async function createBackupConfig(data: {
+	type?: string;
+	targetName: string;
+	environmentId?: number | null;
+	destinationId: number;
+	enabled?: boolean;
+	allVolumes?: boolean;
+	selectedVolumes?: string | null;
+	stopBeforeBackup?: boolean;
+	schedule?: string | null;
+	retention?: string | null;
+	options?: string | null;
+	tags?: string | null;
+}): Promise<BackupConfig> {
+	const result = await db.insert(backupConfigs).values({
+		type: data.type || 'container',
+		targetName: data.targetName,
+		environmentId: data.environmentId ?? null,
+		destinationId: data.destinationId,
+		enabled: data.enabled ?? true,
+		allVolumes: data.allVolumes ?? true,
+		selectedVolumes: data.selectedVolumes ?? null,
+		stopBeforeBackup: data.stopBeforeBackup ?? false,
+		schedule: data.schedule ?? null,
+		retention: data.retention ?? null,
+		options: data.options ?? null,
+		tags: data.tags ?? null
+	}).returning();
+	return result[0];
+}
+
+export async function updateBackupConfig(id: number, data: {
+	destinationId?: number;
+	enabled?: boolean;
+	allVolumes?: boolean;
+	selectedVolumes?: string | null;
+	stopBeforeBackup?: boolean;
+	schedule?: string | null;
+	retention?: string | null;
+	options?: string | null;
+	tags?: string | null;
+	lastBackupAt?: string | null;
+	lastBackupStatus?: string | null;
+}): Promise<BackupConfig | undefined> {
+	const updateData: Record<string, any> = { updatedAt: new Date().toISOString() };
+	if (data.destinationId !== undefined) updateData.destinationId = data.destinationId;
+	if (data.enabled !== undefined) updateData.enabled = data.enabled;
+	if (data.allVolumes !== undefined) updateData.allVolumes = data.allVolumes;
+	if (data.selectedVolumes !== undefined) updateData.selectedVolumes = data.selectedVolumes;
+	if (data.stopBeforeBackup !== undefined) updateData.stopBeforeBackup = data.stopBeforeBackup;
+	if (data.schedule !== undefined) updateData.schedule = data.schedule;
+	if (data.retention !== undefined) updateData.retention = data.retention;
+	if (data.options !== undefined) updateData.options = data.options;
+	if (data.tags !== undefined) updateData.tags = data.tags;
+	if (data.lastBackupAt !== undefined) updateData.lastBackupAt = data.lastBackupAt;
+	if (data.lastBackupStatus !== undefined) updateData.lastBackupStatus = data.lastBackupStatus;
+
+	await db.update(backupConfigs).set(updateData).where(eq(backupConfigs.id, id));
+	return getBackupConfig(id);
+}
+
+export async function deleteBackupConfig(id: number): Promise<void> {
+	await db.delete(backupConfigs).where(eq(backupConfigs.id, id));
 }

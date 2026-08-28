@@ -1,13 +1,14 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Loader2, HardDrive, Layers } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { currentEnvironment, appendEnvParam } from '$lib/stores/environment';
+	import ModalHeader from '$lib/components/ModalHeader.svelte';
 	import { formatDateTime } from '$lib/stores/settings';
-	import * as m from '$lib/paraglide/messages';
 
 	interface Props {
 		open: boolean;
@@ -33,11 +34,11 @@
 			const envId = $currentEnvironment?.id ?? null;
 			const response = await fetch(appendEnvParam(`/api/volumes/${encodeURIComponent(volumeName)}/inspect`, envId));
 			if (!response.ok) {
-				throw new Error(m.volumes_inspect_fetch_failed());
+				throw new Error('Failed to fetch volume details');
 			}
 			volumeData = await response.json();
 		} catch (err: any) {
-			error = err.message || m.volumes_inspect_load_failed();
+			error = err.message || 'Failed to load volume details';
 			console.error('Failed to fetch volume inspect:', err);
 		} finally {
 			loading = false;
@@ -45,41 +46,41 @@
 	}
 
 	function formatDate(dateString: string): string {
-		if (!dateString) return m.volumes_na();
+		if (!dateString) return 'N/A';
 		return formatDateTime(dateString);
 	}
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="max-w-4xl max-h-[90vh] flex flex-col">
+	<Dialog.Content class="max-w-4xl max-h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
 		<Dialog.Header class="shrink-0">
-			<Dialog.Title class="flex items-center gap-2 flex-wrap">
-				<HardDrive class="w-5 h-5" />
-				{m.volumes_inspect_title({ name: volumeName })}<span class="text-muted-foreground font-normal break-all">{volumeName}</span>
-				{@const composeStack = volumeData?.Labels?.['com.docker.compose.project']}
-				{#if composeStack && !loading}
-					<Tooltip.Root>
-						<Tooltip.Trigger>
-							<button
-								type="button"
-								onclick={() => {
-									open = false;
-									goto(appendEnvParam(`/stacks?search=${encodeURIComponent(composeStack)}`, $currentEnvironment?.id ?? null));
-								}}
-								class="cursor-pointer inline-flex items-center"
-							>
-								<Badge variant="outline" class="text-xs py-0 px-1.5 hover:bg-primary/10 hover:border-primary/50 transition-colors gap-1">
-									<Layers class="w-3 h-3" />
-									{composeStack}
-								</Badge>
-							</button>
-						</Tooltip.Trigger>
-						<Tooltip.Content>
-							<p class="text-xs whitespace-nowrap">{m.container_inspect_open_stack({ composeStack })}</p>
-						</Tooltip.Content>
-					</Tooltip.Root>
-				{/if}
-			</Dialog.Title>
+			<ModalHeader icon={HardDrive} title="Volume" name={volumeName}>
+				{#snippet extra()}
+					{@const composeStack = volumeData?.Labels?.['com.docker.compose.project']}
+					{#if composeStack && !loading}
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								<button
+									type="button"
+									onclick={() => {
+										open = false;
+										goto(appendEnvParam(`/stacks?search=${encodeURIComponent(composeStack)}`, $currentEnvironment?.id ?? null));
+									}}
+									class="cursor-pointer inline-flex items-center"
+								>
+									<Badge variant="outline" class="text-xs py-0 px-1.5 hover:bg-primary/10 hover:border-primary/50 transition-colors gap-1">
+										<Layers class="w-3 h-3" />
+										{composeStack}
+									</Badge>
+								</button>
+							</Tooltip.Trigger>
+							<Tooltip.Content>
+								<p class="text-xs whitespace-nowrap">Open stack "{composeStack}"</p>
+							</Tooltip.Content>
+						</Tooltip.Root>
+					{/if}
+				{/snippet}
+			</ModalHeader>
 		</Dialog.Header>
 
 		<div class="flex-1 overflow-auto space-y-4 min-h-0">
@@ -94,7 +95,7 @@
 			{:else if volumeData}
 				<!-- Basic Info -->
 				<div class="space-y-3">
-					<h3 class="text-sm font-semibold">{m.container_inspect_basic_info()}</h3>
+					<h3 class="text-sm font-semibold">Basic information</h3>
 					<div class="grid grid-cols-2 gap-3 text-sm">
 						<div>
 							<p class="text-muted-foreground">{m.common_name()}</p>
@@ -109,7 +110,7 @@
 							<Badge variant="secondary">{volumeData.Scope}</Badge>
 						</div>
 						<div>
-							<p class="text-muted-foreground">{m.container_inspect_created()}</p>
+							<p class="text-muted-foreground">{m.status_created()}</p>
 							<p class="text-xs">{formatDate(volumeData.CreatedAt)}</p>
 						</div>
 					</div>
@@ -121,15 +122,13 @@
 					<div class="p-2 bg-muted rounded">
 						<code class="text-xs break-all">{volumeData.Mountpoint}</code>
 					</div>
-					<p class="text-xs text-muted-foreground">
-						{m.volumes_inspect_mountpoint_desc()}
-					</p>
+					<p class="text-xs text-muted-foreground">{m.volumes_inspect_mountpoint_desc()}</p>
 				</div>
 
 				<!-- Driver Options -->
 				{#if volumeData.Options && Object.keys(volumeData.Options).length > 0}
 					<div class="space-y-3">
-						<h3 class="text-sm font-semibold">{m.stacks_graph_label_driver_options()}</h3>
+						<h3 class="text-sm font-semibold">Driver options</h3>
 						<div class="space-y-1">
 							{#each Object.entries(volumeData.Options) as [key, value]}
 								<div class="flex justify-between text-sm p-2 bg-muted rounded">
@@ -141,7 +140,7 @@
 					</div>
 				{:else}
 					<div class="space-y-2">
-						<h3 class="text-sm font-semibold">{m.stacks_graph_label_driver_options()}</h3>
+						<h3 class="text-sm font-semibold">Driver options</h3>
 						<p class="text-sm text-muted-foreground">{m.volumes_create_no_driver_options()}</p>
 					</div>
 				{/if}

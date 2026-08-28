@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatErrorLines } from '$lib/utils/format';
 	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
@@ -207,7 +208,7 @@
 						{#if currentStep?.step && currentStep?.totalSteps}
 							{currentStep.step}/{currentStep.totalSteps}
 						{:else}
-							{m.stacks_git_deploy_badge_deploying()}
+							Deploying...
 						{/if}
 					</Badge>
 				{/if}
@@ -227,7 +228,8 @@
 					<div class="space-y-1">
 						<p class="font-medium">{m.stacks_git_deploy_confirm_title()}</p>
 						<p class="text-sm text-muted-foreground">
-							{@html m.stacks_git_deploy_confirm_desc({ stackName })}
+							This will pull the latest changes for <strong class="text-foreground">{stackName}</strong>.
+							Containers will only restart if the configuration changed.
 						</p>
 					</div>
 				</div>
@@ -257,7 +259,7 @@
 				<div class="mt-3 mx-2 p-3 rounded-md bg-destructive/10 border border-destructive/20">
 					<div class="flex items-start gap-2 text-sm text-destructive">
 						<AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
-						<span class="break-all">{errorMessage}</span>
+						<span class="whitespace-pre-wrap break-words">{formatErrorLines(errorMessage)}</span>
 					</div>
 				</div>
 			{/if}
@@ -273,10 +275,10 @@
 					<Button variant="outline" size="sm" onclick={copyLogs} class="gap-1.5">
 						{#if copied}
 							<Check class="w-3.5 h-3.5" />
-							{m.stacks_git_deploy_copied()}
+							Copied!
 						{:else}
 							<Copy class="w-3.5 h-3.5" />
-							{m.stacks_git_deploy_copy_logs()}
+							Copy logs
 						{/if}
 					</Button>
 				{/if}
@@ -286,9 +288,7 @@
 			<div class="flex gap-2">
 				{#if overallStatus === 'confirming'}
 					<Button onclick={handleConfirmDeploy}>
-						<Rocket class="w-4 h-4" />
-						{m.common_deploy()}
-					</Button>
+						<Rocket class="w-4 h-4" />{m.common_deploy()}</Button>
 				{:else}
 					<Button
 						variant={overallStatus === 'complete' ? 'default' : 'secondary'}
@@ -297,9 +297,9 @@
 					>
 						{#if isDeploying}
 							<Loader2 class="w-4 h-4 animate-spin" />
-							{m.stacks_git_deploy_badge_deploying()}
+							Deploying...
 						{:else}
-							{m.common_close()}
+							Close
 						{/if}
 					</Button>
 				{/if}

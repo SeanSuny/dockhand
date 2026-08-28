@@ -18,7 +18,9 @@ export interface Permissions {
 	audit_logs: string[];
 	activity: string[];
 	schedules: string[];
+	backups: string[];
 	templates: string[];
+	secrets: string[];
 }
 
 export interface AuthUser {

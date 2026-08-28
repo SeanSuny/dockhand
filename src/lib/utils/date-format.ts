@@ -14,23 +14,42 @@ export interface DateTimeFormatters {
 	time: Intl.DateTimeFormat;
 }
 
-// A corrupt/unknown timezone string (e.g. a stale "stream" in settings) makes
-// Intl.DateTimeFormat throw RangeError, which would crash every grid that renders
-// a date. Probe once and fall back to the runtime's local zone if it's invalid.
-function safeTimeZone(timeZone: string | undefined): string | undefined {
-	if (!timeZone) return undefined;
+// A timezone designator at the END of an ISO string: `Z`, or a `+hh:mm` / `-hh:mm`
+// offset after the time part. The leading anchor requires a `T` or space + time first
+// so the `-` in the DATE part (2026-08-08) never counts as an offset.
+const HAS_TZ = /(\d{2}:\d{2}(:\d{2})?(\.\d+)?)(Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * Parse a server timestamp into a Date. Every timestamp the app stores is UTC
+ * (`.toISOString()` on SQLite, PG `NOW()`), but PostgreSQL columns are
+ * `timestamp without time zone`, so Drizzle hands back a NAIVE string
+ * (`2026-08-08 15:22:19.7`) with no `Z`. `new Date(naive)` would read that as
+ * BROWSER-LOCAL time, double-shifting once the formatter re-applies the zone.
+ * Treat a zone-less string as UTC; leave Date/number and already-zoned strings alone.
+ */
+export function parseTimestamp(value: Date | string | number): Date {
+	if (value instanceof Date) return value;
+	// Anything unparseable becomes Invalid Date, NEVER a throw - the formatters render
+	// hundreds of rows and guard on isValidDate, so one bad value degrades to a
+	// placeholder instead of blanking the list. `new Date(bigint)` throws TypeError, so
+	// the whole body is wrapped.
 	try {
-		new Intl.DateTimeFormat('en-GB', { timeZone });
-		return timeZone;
+		if (value == null) return new Date(NaN); // also catches undefined (== not ===)
+		if (typeof value !== 'string') return new Date(value as number);
+		const s = value.trim();
+		if (!s) return new Date(NaN);
+		if (HAS_TZ.test(s)) return new Date(s);
+		// Zone-less -> it's UTC. Normalize the space form to ISO and append Z.
+		return new Date(s.replace(' ', 'T') + 'Z');
 	} catch {
-		return undefined;
+		return new Date(NaN);
 	}
 }
 
 // Intl.DateTimeFormat construction is expensive; the caller caches one pair per
 // timezone and rebuilds only when the timezone setting changes.
 export function buildFormatters(timeZone: string | undefined): DateTimeFormatters {
-	const tz = safeTimeZone(timeZone);
+	const tz = timeZone || undefined;
 	return {
 		date: new Intl.DateTimeFormat('en-GB', {
 			timeZone: tz,
@@ -52,7 +71,17 @@ function pickPart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPar
 	return parts.find((p) => p.type === type)?.value ?? '';
 }
 
+// Placeholder for an unparseable timestamp. `Intl.formatToParts(Invalid Date)`
+// THROWS RangeError, and these formatters render hundreds of rows, so one bad
+// value would blank the whole list. Guard here instead.
+const INVALID_PLACEHOLDER = '-';
+
+function isValidDate(d: Date): boolean {
+	return d instanceof Date && !Number.isNaN(d.getTime());
+}
+
 export function formatDatePartWith(d: Date, dateFormatter: Intl.DateTimeFormat, dateFormat: DateFormat): string {
+	if (!isValidDate(d)) return INVALID_PLACEHOLDER;
 	const parts = dateFormatter.formatToParts(d);
 	const day = pickPart(parts, 'day');
 	const month = pickPart(parts, 'month');
@@ -77,6 +106,7 @@ export function formatTimePartWith(
 	timeFormat: TimeFormat,
 	includeSeconds = false
 ): string {
+	if (!isValidDate(d)) return INVALID_PLACEHOLDER;
 	const parts = timeFormatter.formatToParts(d);
 	const hours = parseInt(pickPart(parts, 'hour'), 10);
 	const minutes = pickPart(parts, 'minute');

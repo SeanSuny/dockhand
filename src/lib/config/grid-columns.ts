@@ -5,18 +5,18 @@ import * as m from '$lib/paraglide/messages';
 export const containerColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
 	{ id: 'name', get label() { return m.common_name(); }, sortable: true, sortField: 'name', width: 140, minWidth: 80, grow: true },
-	{ id: 'image', get label() { return m.containers_col_image(); }, sortable: true, sortField: 'image', width: 180, minWidth: 100, grow: true },
-	{ id: 'state', get label() { return m.containers_col_state(); }, sortable: true, sortField: 'state', width: 90, minWidth: 70, noTruncate: true },
+	{ id: 'image', get label() { return m.container_inspect_image(); }, sortable: true, sortField: 'image', width: 180, minWidth: 100, grow: true },
+	{ id: 'state', get label() { return m.container_inspect_state(); }, sortable: true, sortField: 'state', width: 90, minWidth: 70, noTruncate: true },
 	{ id: 'health', get label() { return m.containers_col_health(); }, sortable: true, sortField: 'health', width: 55, minWidth: 40 },
 	{ id: 'uptime', get label() { return m.containers_col_uptime(); }, sortable: true, sortField: 'uptime', width: 80, minWidth: 60 },
 	{ id: 'restartCount', get label() { return m.containers_col_restarts(); }, width: 70, minWidth: 50 },
 	{ id: 'cpu', get label() { return m.common_cpu(); }, sortable: true, sortField: 'cpu', width: 50, minWidth: 40, align: 'right' },
 	{ id: 'memory', get label() { return m.common_memory(); }, sortable: true, sortField: 'memory', width: 95, minWidth: 70, align: 'right' },
 	{ id: 'networkIO', get label() { return m.containers_col_network_io(); }, width: 85, minWidth: 70, align: 'right' },
-	{ id: 'diskIO', get label() { return m.containers_col_disk_io(); }, width: 85, minWidth: 70, align: 'right' },
+	{ id: 'diskIO', get label() { return m.container_inspect_disk_io(); }, width: 85, minWidth: 70, align: 'right' },
 	{ id: 'ip', get label() { return m.containers_col_ip(); }, sortable: true, sortField: 'ip', width: 100, minWidth: 80 },
 	{ id: 'ports', get label() { return m.containers_col_ports(); }, sortable: true, sortField: 'ports', width: 120, minWidth: 60 },
-	{ id: 'autoUpdate', get label() { return m.containers_col_auto_update(); }, width: 95, minWidth: 70 },
+	{ id: 'autoUpdate', get label() { return m.container_settings_auto_update(); }, width: 95, minWidth: 70 },
 	{ id: 'stack', get label() { return m.containers_col_stack(); }, sortable: true, sortField: 'stack', width: 100, minWidth: 60 },
 	{ id: 'actions', label: '', fixed: 'end', width: 200, minWidth: 150, resizable: true }
 ];
@@ -25,7 +25,7 @@ export const containerColumns: ColumnConfig[] = [
 export const imageColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
 	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
-	{ id: 'image', get label() { return m.containers_col_image(); }, sortable: true, sortField: 'name', width: 220, minWidth: 120, grow: true },
+	{ id: 'image', get label() { return m.container_inspect_image(); }, sortable: true, sortField: 'name', width: 220, minWidth: 120, grow: true },
 	{ id: 'tags', get label() { return m.images_col_tags(); }, sortable: true, sortField: 'tags', width: 80, minWidth: 50 },
 	{ id: 'size', get label() { return m.container_files_size(); }, sortable: true, sortField: 'size', width: 80, minWidth: 60 },
 	{ id: 'updated', get label() { return m.images_col_updated(); }, sortable: true, sortField: 'created', width: 140, minWidth: 100 },
@@ -46,7 +46,7 @@ export const imageTagColumns: ColumnConfig[] = [
 export const networkColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
 	{ id: 'name', get label() { return m.common_name(); }, sortable: true, sortField: 'name', width: 260, minWidth: 120, grow: true },
-	{ id: 'driver', get label() { return m.volumes_col_driver(); }, sortable: true, sortField: 'driver', width: 100, resizable: false },
+	{ id: 'driver', get label() { return m.container_inspect_driver(); }, sortable: true, sortField: 'driver', width: 100, resizable: false },
 	{ id: 'scope', get label() { return m.common_scope(); }, width: 80, minWidth: 50 },
 	{ id: 'subnet', get label() { return m.stacks_graph_label_subnet(); }, sortable: true, sortField: 'subnet', width: 160, minWidth: 100 },
 	{ id: 'gateway', get label() { return m.container_inspect_gateway(); }, sortable: true, sortField: 'gateway', width: 140, minWidth: 100 },
@@ -65,10 +65,10 @@ export const stackColumns: ColumnConfig[] = [
 	{ id: 'containers', get label() { return m.common_containers(); }, sortable: true, sortField: 'containers', width: 100, minWidth: 70 },
 	{ id: 'cpu', label: 'CPU', sortable: true, sortField: 'cpu', width: 60, minWidth: 50, align: 'right' },
 	{ id: 'memory', get label() { return m.common_memory(); }, sortable: true, sortField: 'memory', width: 70, minWidth: 50, align: 'right' },
-	{ id: 'networkIO', get label() { return m.stacks_col_network_io(); }, width: 100, minWidth: 70, align: 'right' },
-	{ id: 'diskIO', get label() { return m.stacks_col_disk_io(); }, width: 100, minWidth: 70, align: 'right' },
-	{ id: 'networks', get label() { return m.stacks_col_networks(); }, width: 80, minWidth: 60 },
-	{ id: 'volumes', get label() { return m.stacks_col_volumes(); }, width: 80, minWidth: 60 },
+	{ id: 'networkIO', get label() { return m.containers_col_network_io(); }, width: 100, minWidth: 70, align: 'right' },
+	{ id: 'diskIO', get label() { return m.container_inspect_disk_io(); }, width: 100, minWidth: 70, align: 'right' },
+	{ id: 'networks', get label() { return m.sidebar_networks(); }, width: 80, minWidth: 60 },
+	{ id: 'volumes', get label() { return m.sidebar_volumes(); }, width: 80, minWidth: 60 },
 	{ id: 'actions', label: '', fixed: 'end', width: 180, resizable: false }
 ];
 
@@ -76,12 +76,12 @@ export const stackColumns: ColumnConfig[] = [
 export const volumeColumns: ColumnConfig[] = [
 	{ id: 'select', label: '', fixed: 'start', width: 32, resizable: false },
 	{ id: 'name', get label() { return m.common_name(); }, sortable: true, sortField: 'name', width: 400, minWidth: 150, grow: true },
-	{ id: 'driver', get label() { return m.volumes_col_driver(); }, sortable: true, sortField: 'driver', width: 80, minWidth: 60 },
+	{ id: 'driver', get label() { return m.container_inspect_driver(); }, sortable: true, sortField: 'driver', width: 80, minWidth: 60 },
 	{ id: 'type', get label() { return m.volumes_col_type(); }, sortable: true, sortField: 'type', width: 80, minWidth: 60 },
 	{ id: 'scope', get label() { return m.common_scope(); }, width: 70, minWidth: 50 },
 	{ id: 'stack', get label() { return m.containers_col_stack(); }, sortable: true, sortField: 'stack', width: 120, minWidth: 80 },
 	{ id: 'usedBy', get label() { return m.images_col_used_by(); }, width: 150, minWidth: 80 },
-	{ id: 'created', get label() { return m.volumes_col_created(); }, sortable: true, sortField: 'created', width: 160, minWidth: 120 },
+	{ id: 'created', get label() { return m.container_inspect_created(); }, sortable: true, sortField: 'created', width: 160, minWidth: 120 },
 	{ id: 'actions', label: '', fixed: 'end', width: 160, resizable: false }
 ];
 
@@ -111,7 +111,7 @@ export const auditColumns: ColumnConfig[] = [
 // Schedule grid columns
 export const scheduleColumns: ColumnConfig[] = [
 	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
-	{ id: 'schedule', get label() { return m.schedules_col_schedule(); }, width: 450, minWidth: 300, grow: true },
+	{ id: 'schedule', get label() { return m.settings_env_updates_schedule(); }, width: 450, minWidth: 300, grow: true },
 	{ id: 'environment', get label() { return m.dashboard_col_environment(); }, width: 140, minWidth: 100 },
 	{ id: 'cron', get label() { return m.schedules_col_cron(); }, width: 180, minWidth: 120 },
 	{ id: 'lastRun', get label() { return m.schedules_col_last_run(); }, width: 160, minWidth: 120 },
@@ -136,6 +136,45 @@ export const environmentColumns: ColumnConfig[] = [
 	{ id: 'stacks', get label() { return m.sidebar_stacks(); }, sortable: true, sortField: 'stacks', width: 85, minWidth: 65 },
 	{ id: 'events', get label() { return m.dashboard_events(); }, sortable: true, sortField: 'events', width: 65, minWidth: 50 },
 	{ id: 'labels', get label() { return m.common_labels(); }, width: 150, minWidth: 80 }
+];
+
+// Backups page grid columns (parent-child: configs → snapshots)
+export const backupColumns: ColumnConfig[] = [
+	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
+	{ id: 'name', label: 'Name', sortable: true, sortField: 'targetName', width: 160, minWidth: 100, grow: true },
+	{ id: 'type', label: 'Type', sortable: true, sortField: 'type', width: 50, minWidth: 40, resizable: false, align: 'center' as any, hint: 'Container or stack backup' },
+	{ id: 'environment', label: 'Environment', sortable: true, sortField: 'environmentName', width: 120, minWidth: 80 },
+	{ id: 'repository', label: 'Repository', sortable: true, sortField: 'destinationName', width: 120, minWidth: 80, hint: 'Backup destination (S3, REST, local, etc.)' },
+	{ id: 'snapshots', label: 'Snapshots', width: 75, minWidth: 55, align: 'center' as any },
+	{ id: 'lastBackup', label: 'Last backup', sortable: true, sortField: 'lastBackupAt', width: 150, minWidth: 100 },
+	{ id: 'retention', label: 'Retention', width: 120, minWidth: 80 },
+	{ id: 'schedule', label: 'Schedule', width: 110, minWidth: 80 },
+	{ id: 'status', label: 'Status', sortable: true, sortField: 'lastBackupStatus', width: 75, resizable: false, align: 'center' as any, hint: 'Last backup status' },
+	{ id: 'actions', label: '', fixed: 'end', width: 100, resizable: false }
+];
+
+// Repository-snapshots grid columns (the "Repository snapshots on X" dialog).
+// Groups the repo's snapshots by environment + target name; source is the repo's
+// own snapshot tags, NOT backup_configs (so it works on a fresh instance with no
+// configs). No repository column (the dialog IS one repo), no select column.
+export const repoSnapshotColumns: ColumnConfig[] = [
+	{ id: 'expand', label: '', fixed: 'start', width: 24, resizable: false },
+	{ id: 'name', label: 'Name', sortable: true, sortField: 'name', width: 200, minWidth: 120, grow: true },
+	{ id: 'type', label: 'Type', sortable: true, sortField: 'type', width: 50, minWidth: 40, resizable: false, align: 'center' as any, hint: 'Container or stack backup' },
+	{ id: 'environment', label: 'Environment', sortable: true, sortField: 'envLabel', width: 160, minWidth: 100 },
+	{ id: 'latest', label: 'Latest', sortable: true, sortField: 'latest', width: 150, minWidth: 100 },
+	{ id: 'snapshots', label: 'Snapshots', sortable: true, sortField: 'count', width: 90, minWidth: 60, align: 'center' as any }
+];
+
+// Backup destination grid columns
+export const backupDestinationColumns: ColumnConfig[] = [
+	{ id: 'type', label: 'Type', sortable: true, sortField: 'type', width: 130, minWidth: 100, resizable: false },
+	{ id: 'name', label: 'Name', sortable: true, sortField: 'name', width: 180, minWidth: 120, grow: true },
+	{ id: 'repository', label: 'Repository', sortable: true, sortField: 'repository', width: 280, minWidth: 150, grow: true },
+	{ id: 'usage', label: 'Usage', width: 100, minWidth: 70 },
+	{ id: 'stats', label: 'Stats', width: 140, minWidth: 100 },
+	{ id: 'status', label: 'Status', sortable: true, sortField: 'status', width: 110, minWidth: 80 },
+	{ id: 'actions', label: '', fixed: 'end', width: 300, resizable: false }
 ];
 
 // Vulnerabilities dashboard grid columns
@@ -165,6 +204,9 @@ export const gridColumnConfigs: Record<GridId, ColumnConfig[]> = {
 	schedules: scheduleColumns,
 	audit: auditColumns,
 	environments: environmentColumns,
+	backupDestinations: backupDestinationColumns,
+	backups: backupColumns,
+	repoSnapshots: repoSnapshotColumns,
 	vulnerabilities: vulnerabilityColumns
 };
 

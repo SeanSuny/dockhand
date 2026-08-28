@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { page } from '$app/stores'; // BETA GATE: backups feature flag
+	import { formatBytes } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
@@ -20,6 +23,7 @@
 		CheckCheck,
 		X,
 		AlertCircle,
+		AlertTriangle,
 		Loader2,
 		Search,
 		Server,
@@ -35,7 +39,14 @@
 		PlayCircle,
 		Trash2,
 		Bug,
-		ShieldX
+		ShieldX,
+		Archive,
+		ArchiveX,
+		HardDrive,
+		PackageCheck,
+		FolderCheck,
+		Eraser,
+		ShieldCheck
 	} from 'lucide-svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { DataGrid } from '$lib/components/data-grid';
@@ -51,12 +62,17 @@
 	import { canAccess } from '$lib/stores/auth';
 
 	const canEditSchedules = $derived($canAccess('schedules', 'edit'));
+
+	function cleanError(msg: string): string {
+		try { const p = JSON.parse(msg); if (p.message) return p.message; } catch {}
+		const m = msg.match(/\{"message":"([^"]+)"\}/);
+		return m ? msg.replace(m[0], m[1]) : msg;
+	}
+
 	const canRunSchedules = $derived($canAccess('schedules', 'run'));
 	import { vulnerabilityCriteriaIcons, vulnerabilityCriteriaLabels } from '$lib/utils/update-steps';
 	import type { VulnerabilityCriteria } from '$lib/server/db';
-	import cronstrue from 'cronstrue/i18n';
-	import { getLocale } from '$lib/paraglide/runtime';
-	import * as m from '$lib/paraglide/messages';
+	import cronstrue from 'cronstrue';
 
 	// Scanner result per scanner
 	interface ScannerResult {
@@ -148,7 +164,7 @@
 
 	interface ScheduleExecution {
 		id: number;
-		scheduleType: 'container_update' | 'git_stack_sync' | 'system_cleanup' | 'env_update_check' | 'image_prune';
+		scheduleType: 'container_update' | 'git_stack_sync' | 'system_cleanup' | 'env_update_check' | 'image_prune' | 'backup' | 'repo_prune' | 'repo_check' | 'repo_verify';
 		scheduleId: number;
 		environmentId: number | null;
 		entityName: string;
@@ -157,7 +173,7 @@
 		startedAt: string | null;
 		completedAt: string | null;
 		duration: number | null;
-		status: 'queued' | 'running' | 'success' | 'failed' | 'skipped';
+		status: 'queued' | 'running' | 'success' | 'warning' | 'failed' | 'skipped';
 		errorMessage: string | null;
 		details: ScheduleExecutionDetails;
 		logs: string | null;
@@ -167,7 +183,7 @@
 	interface Schedule {
 		key: string; // Unique key: type-id
 		id: number;
-		type: 'container_update' | 'git_stack_sync' | 'system_cleanup' | 'env_update_check' | 'image_prune';
+		type: 'container_update' | 'git_stack_sync' | 'system_cleanup' | 'env_update_check' | 'image_prune' | 'backup' | 'repo_prune' | 'repo_check' | 'repo_verify';
 		name: string;
 		entityName: string;
 		description?: string;
@@ -185,6 +201,10 @@
 		vulnerabilityCriteria?: string | null;
 		// Env update check specific fields
 		autoUpdate?: boolean;
+		// Repo verify specific fields
+		dataSubset?: string;
+		// Repo prune specific fields
+		maxUnused?: string;
 	}
 
 	// State
@@ -215,8 +235,6 @@
 			? environments.find(e => e.id === selectedExecution!.environmentId)?.timezone
 			: undefined
 	);
-
-	const cronLocale = $derived(getLocale() === 'zh-CN' ? 'zh_CN' : 'en');
 
 	function toggleLogTheme() {
 		logDarkMode = !logDarkMode;
@@ -418,7 +436,7 @@
 					console.error('[Schedules] Server error:', errorData.error);
 					if (errorData.fatal) {
 						// Fatal error - server couldn't get initial data after retries
-						toast.error(m.schedules_toast_load_failed({ error: errorData.error }));
+						toast.error('Failed to load schedules: ' + errorData.error);
 					}
 				} catch {
 					// Not a JSON error event, treat as connection error
@@ -535,7 +553,7 @@
 			newHasMoreMap.set(scheduleKey, executions.length === EXECUTIONS_BATCH_SIZE);
 			hasMoreExecutions = newHasMoreMap;
 		} catch (error: any) {
-			toast.error(m.schedules_toast_load_executions_failed({ error: error.message }));
+			toast.error('Failed to load executions: ' + error.message);
 		} finally {
 			// Remove loading state - create new Set to trigger reactivity
 			const loadingSet = new Set(loadingMoreExecutions);
@@ -585,7 +603,7 @@
 				const data = await res.json();
 				throw new Error(data.error || 'Failed to trigger schedule');
 			}
-			toast.success(m.schedules_toast_triggered({ name: schedule.name }));
+			toast.success(`Triggered: ${schedule.name}`);
 
 			// Refresh schedules from REST after a short delay to show running status
 			// This doesn't disrupt the SSE stream but ensures spinner appears quickly
@@ -647,7 +665,7 @@
 				const data = await res.json();
 				throw new Error(data.error || 'Failed to toggle schedule');
 			}
-			toast.success(schedule.enabled ? m.schedules_toast_paused() : m.schedules_toast_resumed());
+			toast.success(`Schedule ${schedule.enabled ? 'paused' : 'resumed'}`);
 			loadSchedules();
 		} catch (error: any) {
 			toast.error(error.message);
@@ -663,7 +681,7 @@
 				const data = await res.json();
 				throw new Error(data.error || 'Failed to delete schedule');
 			}
-			toast.success(m.schedules_toast_removed({ name: entityName }));
+			toast.success(`Schedule removed: ${entityName}`);
 			confirmDeleteId = null;
 			loadSchedules();
 		} catch (error: any) {
@@ -679,7 +697,7 @@
 			selectedExecution = await res.json();
 			showExecutionDialog = true;
 		} catch (error: any) {
-			toast.error(m.schedules_toast_load_execution_failed({ error: error.message }));
+			toast.error('Failed to load execution: ' + error.message);
 		} finally {
 			loadingExecutionDetail = false;
 		}
@@ -695,7 +713,7 @@
 				throw new Error(data.error || 'Failed to delete execution');
 			}
 
-			toast.success(m.schedules_toast_execution_deleted());
+			toast.success('Execution deleted');
 
 			// Remove from the expanded executions list
 			const scheduleKey = schedule.type + '-' + schedule.id;
@@ -719,7 +737,7 @@
 			const executions = expandedExecutions.get(scheduleKey) || [];
 
 			if (executions.length === 0) {
-				toast.error(m.schedules_toast_no_executions());
+				toast.error('No executions to delete');
 				return;
 			}
 
@@ -730,7 +748,7 @@
 
 			await Promise.all(deletePromises);
 
-			toast.success(m.schedules_toast_executions_deleted({ count: executions.length }));
+			toast.success(`Deleted ${executions.length} execution(s)`);
 
 			// Clear from the expanded executions list
 			const newExecutionsMap = new Map(expandedExecutions);
@@ -745,31 +763,7 @@
 			// Refresh schedules to update the last execution badge
 			loadSchedules();
 		} catch (error: any) {
-			toast.error(m.schedules_toast_delete_executions_failed({ error: error.message }));
-		}
-	}
-
-	function formatCronExpression(cron: string | null, is12Hour: boolean): string {
-		if (!cron) return '';
-		try {
-			return cronstrue.toString(cron, {
-				use24HourTimeFormat: !is12Hour,
-				throwExceptionOnParseError: true,
-				locale: cronLocale
-			});
-		} catch {
-			return cron;
-		}
-	}
-
-	function getScheduleTypeLabel(type: string): string {
-		switch (type) {
-			case 'container_update': return m.schedules_type_container_updates();
-			case 'git_stack_sync': return m.schedules_type_git_stack_syncs();
-			case 'env_update_check': return m.schedules_type_env_update_checks();
-			case 'image_prune': return m.schedules_type_image_prune();
-			case 'system_cleanup': return m.settings_general_system_jobs_title();
-			default: return type;
+			toast.error('Failed to delete executions: ' + error.message);
 		}
 	}
 
@@ -803,27 +797,29 @@
 		const now = new Date();
 		const diff = date.getTime() - now.getTime();
 
-		if (diff < 0) return m.schedules_next_run_overdue();
-		if (diff < 60000) return m.schedules_next_run_less_than_1_min();
-		if (diff < 3600000) return m.schedules_next_run_in_min({ count: Math.floor(diff / 60000) });
-		if (diff < 86400000) return m.schedules_next_run_in_hours({ count: Math.floor(diff / 3600000) });
+		if (diff < 0) return 'Overdue';
+		if (diff < 60000) return 'Less than 1 min';
+		if (diff < 3600000) return `In ${Math.floor(diff / 60000)} min`;
+		if (diff < 86400000) return `In ${Math.floor(diff / 3600000)} hours`;
 		return formatTimestamp(iso);
 	}
 
 	function getStatusBadge(status: string) {
 		switch (status) {
 			case 'success':
-				return { variant: 'default' as const, class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: Check, label: m.schedules_status_success() };
+				return { variant: 'default' as const, class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: Check };
+			case 'warning':
+				return { variant: 'default' as const, class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: AlertTriangle };
 			case 'failed':
-				return { variant: 'default' as const, class: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: X, label: m.common_failed() };
+				return { variant: 'default' as const, class: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: X };
 			case 'running':
-				return { variant: 'default' as const, class: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', icon: Loader2, label: m.status_running() };
+				return { variant: 'default' as const, class: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', icon: Loader2 };
 			case 'skipped':
-				return { variant: 'default' as const, class: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: CheckCheck, label: m.schedules_status_up_to_date() };
+				return { variant: 'default' as const, class: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: CheckCheck };
 			case 'queued':
-				return { variant: 'default' as const, class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: Clock, label: m.schedules_status_queued() };
+				return { variant: 'default' as const, class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: Clock };
 			default:
-				return { variant: 'default' as const, class: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400', icon: AlertCircle, label: m.container_inspect_unknown() };
+				return { variant: 'default' as const, class: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400', icon: AlertCircle };
 		}
 	}
 
@@ -839,7 +835,7 @@
 			// Some updated, some blocked
 			return {
 				status: 'partial',
-				label: m.schedules_status_partially_blocked(),
+				label: 'Partially blocked',
 				icon: Bug,
 				class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
 			};
@@ -847,7 +843,7 @@
 			// All blocked, none updated
 			return {
 				status: 'blocked',
-				label: m.schedules_status_blocked(),
+				label: 'Blocked',
 				icon: Bug,
 				class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
 			};
@@ -860,19 +856,19 @@
 			case 'cron':
 				return {
 					icon: Timer,
-					label: m.schedules_trigger_scheduled(),
+					label: 'Scheduled',
 					class: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
 				};
 			case 'webhook':
 				return {
 					icon: Webhook,
-					label: m.schedules_trigger_webhook(),
+					label: 'Webhook',
 					class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
 				};
 			case 'manual':
 				return {
 					icon: Hand,
-					label: m.schedules_trigger_manual(),
+					label: 'Manual',
 					class: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
 				};
 			default:
@@ -938,19 +934,19 @@
 </script>
 
 <svelte:head>
-	<title>{m.sidebar_schedules()} - Dockhand</title>
+	<title>{m.schedules_page_title()}</title>
 </svelte:head>
 
 <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
 	<!-- Header with filters -->
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
-		<PageHeader icon={Timer} title={m.sidebar_schedules()} count={filteredSchedules.length} />
+		<PageHeader icon={Timer} title="Schedules" count={filteredSchedules.length} />
 		<div class="flex flex-wrap items-center gap-2">
 			<div class="relative">
 				<Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
 				<Input
 					type="text"
-					placeholder={m.schedules_search_placeholder()}
+					placeholder="Search schedules..."
 					class="pl-9 w-48 h-8 text-sm"
 					bind:value={searchQuery}
 					onkeydown={(e) => e.key === 'Escape' && (searchQuery = '')}
@@ -962,21 +958,29 @@
 				<Select.Trigger size="sm" class="w-40 text-sm">
 					<span class="truncate">
 						{#if filterTypes.length === 0}
-							{m.schedules_filter_all_types()}
+							All types
 						{:else if filterTypes.length === 1}
 							{#if filterTypes[0] === 'container_update'}
-								{m.schedules_type_container_updates()}
+								Container updates
 							{:else if filterTypes[0] === 'git_stack_sync'}
-								{m.schedules_type_git_stack_syncs()}
+								Git stack syncs
 							{:else if filterTypes[0] === 'env_update_check'}
-								{m.schedules_type_env_update_checks()}
+								Env update checks
 							{:else if filterTypes[0] === 'image_prune'}
-								{m.schedules_type_image_prune()}
+								Image prune
+							{:else if filterTypes[0] === 'backup'}
+								Backups
+							{:else if filterTypes[0] === 'repo_prune'}
+								Repo prune
+							{:else if filterTypes[0] === 'repo_check'}
+								Repo check
+							{:else if filterTypes[0] === 'repo_verify'}
+								Data verify
 							{:else}
-								{m.settings_general_system_jobs_title()}
+								System jobs
 							{/if}
 						{:else}
-							{m.schedules_filter_count_types({ count: filterTypes.length })}
+							{filterTypes.length} types
 						{/if}
 					</span>
 				</Select.Trigger>
@@ -986,30 +990,41 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterTypes = []}
-						>
-							{m.containers_clear_selection()}
-						</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					<Select.Item value="container_update">
 						<CircleArrowUp class="w-4 h-4 mr-2 inline text-green-500 drop-shadow-[0_0_3px_rgba(34,197,94,0.4)]" />
-						{m.schedules_type_container_updates()}
+						Container updates
 					</Select.Item>
 					<Select.Item value="git_stack_sync">
-						<GitBranch class="w-4 h-4 mr-2 inline text-purple-500 drop-shadow-[0_0_3px_rgba(168,85,247,0.4)]" />
-						{m.schedules_type_git_stack_syncs()}
-					</Select.Item>
+						<GitBranch class="w-4 h-4 mr-2 inline text-purple-500 drop-shadow-[0_0_3px_rgba(168,85,247,0.4)]" />{m.schedules_type_git_stack_syncs()}</Select.Item>
 					<Select.Item value="env_update_check">
-						<CircleFadingArrowUp class="w-4 h-4 mr-2 inline text-green-500/50 drop-shadow-[0_0_3px_rgba(34,197,94,0.3)]" />
-						{m.schedules_type_env_update_checks()}
-					</Select.Item>
+						<CircleFadingArrowUp class="w-4 h-4 mr-2 inline text-green-500/50 drop-shadow-[0_0_3px_rgba(34,197,94,0.3)]" />{m.schedules_type_env_update_checks()}</Select.Item>
 					<Select.Item value="image_prune">
 						<Trash2 class="w-4 h-4 mr-2 inline text-amber-500 drop-shadow-[0_0_3px_rgba(245,158,11,0.4)]" />
-						{m.schedules_type_image_prune()}
+						Image prune
 					</Select.Item>
+					<!-- BETA GATE: backup schedule filters hidden unless FEAT_BACKUPS_ENABLED (see features.ts) -->
+					{#if $page.data.backupsEnabled}
+						<Select.Item value="backup">
+							<Archive class="w-4 h-4 mr-2 inline text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]" />{m.sidebar_backups()}</Select.Item>
+						<Select.Item value="repo_prune">
+							<ArchiveX class="w-4 h-4 mr-2 inline text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]" />
+							Repo prune
+						</Select.Item>
+						<Select.Item value="repo_check">
+							<PackageCheck class="w-4 h-4 mr-2 inline text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]" />
+							Repo check
+						</Select.Item>
+						<Select.Item value="repo_verify">
+							<FolderCheck class="w-4 h-4 mr-2 inline text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]" />
+							Data verify
+						</Select.Item>
+					{/if}
 					{#if !hideSystemJobs}
 						<Select.Item value="system_cleanup">
 							<Wrench class="w-4 h-4 mr-2 inline text-amber-500 drop-shadow-[0_0_3px_rgba(245,158,11,0.4)]" />
-							{m.settings_general_system_jobs_title()}
+							System jobs
 						</Select.Item>
 					{/if}
 				</Select.Content>
@@ -1021,11 +1036,11 @@
 					<Server class="w-3.5 h-3.5 mr-2 shrink-0" />
 					<span class="truncate">
 						{#if filterEnvironments.length === 0}
-							{m.schedules_filter_all_envs()}
+							All envs
 						{:else if filterEnvironments.length === 1}
-							{environments.find(e => String(e.id) === filterEnvironments[0])?.name || m.dashboard_col_environment()}
+							{environments.find(e => String(e.id) === filterEnvironments[0])?.name || 'Environment'}
 						{:else}
-							{m.schedules_filter_count_envs({ count: filterEnvironments.length })}
+							{filterEnvironments.length} envs
 						{/if}
 					</span>
 				</Select.Trigger>
@@ -1035,9 +1050,7 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterEnvironments = []}
-						>
-							{m.containers_clear_selection()}
-						</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					{#each environments as env}
 						<Select.Item value={String(env.id)}>
@@ -1053,21 +1066,23 @@
 				<Select.Trigger size="sm" class="w-36 text-sm">
 					<span class="truncate">
 						{#if filterStatuses.length === 0}
-							{m.stacks_filter_all_statuses()}
+							All statuses
 						{:else if filterStatuses.length === 1}
 							{#if filterStatuses[0] === 'success'}
-								{m.schedules_status_success()}
+								Success
+							{:else if filterStatuses[0] === 'warning'}
+								Warning
 							{:else if filterStatuses[0] === 'failed'}
-								{m.common_failed()}
+								Failed
 							{:else if filterStatuses[0] === 'skipped'}
-								{m.schedules_status_up_to_date()}
+								Up-to-date
 							{:else if filterStatuses[0] === 'running'}
-								{m.status_running()}
+								Running
 							{:else}
 								{filterStatuses[0]}
 							{/if}
 						{:else}
-							{m.schedules_filter_count_statuses({ count: filterStatuses.length })}
+							{filterStatuses.length} statuses
 						{/if}
 					</span>
 				</Select.Trigger>
@@ -1077,26 +1092,20 @@
 							type="button"
 							class="w-full px-2 py-1 text-xs text-left text-muted-foreground/60 hover:text-muted-foreground"
 							onclick={() => filterStatuses = []}
-						>
-							{m.containers_clear_selection()}
-						</button>
+						>{m.containers_clear_selection()}</button>
 					{/if}
 					<Select.Item value="success">
-						<Check class="w-4 h-4 mr-2 inline text-green-500" />
-						{m.schedules_status_success()}
+						<Check class="w-4 h-4 mr-2 inline text-green-500" />{m.schedules_status_success()}</Select.Item>
+					<Select.Item value="warning">
+						<AlertTriangle class="w-4 h-4 mr-2 inline text-amber-500" />
+						Warning
 					</Select.Item>
 					<Select.Item value="failed">
-						<X class="w-4 h-4 mr-2 inline text-red-500" />
-						{m.common_failed()}
-					</Select.Item>
+						<X class="w-4 h-4 mr-2 inline text-red-500" />{m.common_failed()}</Select.Item>
 					<Select.Item value="skipped">
-						<CheckCheck class="w-4 h-4 mr-2 inline text-green-500" />
-						{m.schedules_status_up_to_date()}
-					</Select.Item>
+						<CheckCheck class="w-4 h-4 mr-2 inline text-green-500" />{m.schedules_status_up_to_date()}</Select.Item>
 					<Select.Item value="running">
-						<Loader2 class="w-4 h-4 mr-2 inline text-sky-500 animate-spin" />
-						{m.status_running()}
-					</Select.Item>
+						<Loader2 class="w-4 h-4 mr-2 inline text-sky-500 animate-spin" />{m.status_running()}</Select.Item>
 				</Select.Content>
 			</Select.Root>
 
@@ -1110,10 +1119,10 @@
 				>
 					{#if hideSystemJobs}
 						<Eye class="w-3.5 h-3.5" />
-						{m.schedules_show_system({ count: systemJobCount })}
+						Show system ({systemJobCount})
 					{:else}
 						<EyeOff class="w-3.5 h-3.5" />
-						{m.schedules_hide_system()}
+						Hide system
 					{/if}
 				</Button>
 			{/if}
@@ -1125,7 +1134,7 @@
 				class="h-8 px-2"
 				onclick={clearFilters}
 				disabled={!hasActiveFilters}
-				title={m.activity_clear_filters_tooltip()}
+				title="Clear all filters"
 			>
 				<X class="w-3.5 h-3.5" />
 			</Button>
@@ -1187,6 +1196,14 @@
 						{/if}
 					{:else if schedule.type === 'image_prune'}
 						<Trash2 class="w-4 h-4 text-amber-500 glow-amber shrink-0" />
+					{:else if schedule.type === 'backup'}
+						<Archive class="w-4 h-4 text-blue-500 glow-blue shrink-0" />
+					{:else if schedule.type === 'repo_prune'}
+						<ArchiveX class="w-4 h-4 text-blue-500 glow-blue shrink-0" />
+					{:else if schedule.type === 'repo_check'}
+						<PackageCheck class="w-4 h-4 text-blue-500 glow-blue shrink-0" />
+					{:else if schedule.type === 'repo_verify'}
+						<FolderCheck class="w-4 h-4 text-blue-500 glow-blue shrink-0" />
 					{:else}
 						<Wrench class="w-4 h-4 text-amber-500 shrink-0" />
 					{/if}
@@ -1194,7 +1211,7 @@
 						<div class="font-medium flex items-center gap-2 truncate">
 							<span class="truncate">{schedule.name}</span>
 							{#if schedule.isSystem}
-									<Badge variant="outline" class="text-xs shrink-0">{m.schedules_badge_system()}</Badge>
+								<Badge variant="outline" class="text-xs shrink-0">{m.schedules_badge_system()}</Badge>
 							{/if}
 						</div>
 						<div class="text-xs text-muted-foreground flex items-center gap-1 truncate">
@@ -1206,12 +1223,12 @@
 									<span class="cursor-default shrink-0" title={icon.title}>
 										<IconComponent class={icon.class} />
 									</span>
-									{m.schedules_desc_check_scan_update()}
+									Check, scan & auto-update
 								{:else}
-									{m.schedules_desc_check_update()}
+									Check & auto-update
 								{/if}
 							{:else if schedule.type === 'git_stack_sync'}
-									{m.schedules_desc_git_sync()}
+								Git sync
 							{:else if schedule.type === 'env_update_check'}
 								{#if schedule.autoUpdate && schedule.envHasScanning && schedule.vulnerabilityCriteria}
 									{@const criteria = schedule.vulnerabilityCriteria as VulnerabilityCriteria}
@@ -1221,11 +1238,35 @@
 										<IconComponent class={icon.class} />
 									</span>
 								{/if}
-									<span class="truncate">{schedule.description || m.schedules_desc_env_update_check()}</span>
+								<span class="truncate">{schedule.description || 'Env update check'}</span>
 							{:else if schedule.type === 'image_prune'}
-									<span class="truncate">{schedule.description || m.images_prune_unused_title()}</span>
+								<span class="truncate">{schedule.description || 'Prune unused images'}</span>
+							{:else if schedule.type === 'backup'}
+								{@const parts = (schedule.description || '').split(' to ')}
+								{#if parts.length === 2}
+									<span class="truncate">{parts[0]} to</span>
+									<HardDrive class="w-3 h-3 shrink-0 text-muted-foreground" />
+									<span class="truncate">{parts[1]}</span>
+								{:else}
+									<span class="truncate">{schedule.description || 'Scheduled backup'}</span>
+								{/if}
+							{:else if schedule.type === 'repo_prune'}
+								<Eraser class="w-3 h-3 shrink-0 text-muted-foreground" />
+								<span class="truncate">Prune unused data ({schedule.maxUnused ?? '10'}%) from</span>
+								<HardDrive class="w-3 h-3 shrink-0 text-muted-foreground" />
+								<span class="truncate">{schedule.entityName}</span>
+							{:else if schedule.type === 'repo_check'}
+								<PackageCheck class="w-3 h-3 shrink-0 text-muted-foreground" />
+								<span class="truncate">Check integrity of</span>
+								<HardDrive class="w-3 h-3 shrink-0 text-muted-foreground" />
+								<span class="truncate">{schedule.entityName}</span>
+							{:else if schedule.type === 'repo_verify'}
+								<FolderCheck class="w-3 h-3 shrink-0 text-muted-foreground" />
+								<span class="truncate">Verify {schedule.dataSubset || '5%'} of data in</span>
+								<HardDrive class="w-3 h-3 shrink-0 text-muted-foreground" />
+								<span class="truncate">{schedule.entityName}</span>
 							{:else}
-									<span class="truncate">{schedule.description || m.schedules_desc_system_job()}</span>
+								<span class="truncate">{schedule.description || 'System job'}</span>
 							{/if}
 						</div>
 					</div>
@@ -1244,9 +1285,20 @@
 					<Clock class="w-3 h-3 text-muted-foreground shrink-0" />
 					<span class="text-xs truncate">
 						{#if schedule.cronExpression}
-									{formatCronExpression(schedule.cronExpression, $appSettings.timeFormat === '12h')}
-								{:else}
-									{getScheduleTypeLabel(schedule.scheduleType)}
+							{(() => {
+								try {
+									const is12Hour = $appSettings.timeFormat === '12h';
+									return cronstrue.toString(schedule.cronExpression, {
+										use24HourTimeFormat: !is12Hour,
+										throwExceptionOnParseError: true,
+										locale: 'en'
+									});
+								} catch {
+									return schedule.cronExpression;
+								}
+							})()}
+						{:else}
+							{schedule.scheduleType}
 						{/if}
 					</span>
 				</div>
@@ -1260,7 +1312,7 @@
 						</div>
 					{/if}
 				{:else}
-							<span class="text-muted-foreground text-xs">{m.schedules_never()}</span>
+					<span class="text-muted-foreground text-xs">{m.schedules_never()}</span>
 				{/if}
 			{:else if column.id === 'nextRun'}
 				<span class="text-xs">{formatNextRun(schedule.nextRun)}</span>
@@ -1292,9 +1344,9 @@
 								{#if envUpdateStatus}
 									{envUpdateStatus.label}
 								{:else if isBlockedByVuln}
-									{m.schedules_blocked_vuln()}
+									Update blocked due to vulnerabilities
 								{:else if schedule.lastExecution.status === 'skipped'}
-									{m.schedules_status_up_to_date()}
+									Up-to-date
 								{:else}
 									<span class="capitalize">{schedule.lastExecution.status}</span>
 								{/if}
@@ -1309,7 +1361,7 @@
 							</Badge>
 						</Tooltip.Trigger>
 						<Tooltip.Content>
-							<p class="whitespace-nowrap">{m.schedules_no_runs()}</p>
+							<p class="whitespace-nowrap">No runs</p>
 						</Tooltip.Content>
 					</Tooltip.Root>
 				{/if}
@@ -1319,7 +1371,7 @@
 						<button
 							type="button"
 							onclick={(e) => { e.stopPropagation(); loadExecutionDetail(schedule.lastExecution!.id); }}
-								title={m.schedules_action_view_last_logs()}
+							title="View last execution logs"
 							class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 						>
 							<FileText class="grid-action-icon grid-action-logs text-muted-foreground hover:text-blue-500" />
@@ -1329,7 +1381,7 @@
 						<button
 							type="button"
 							onclick={(e) => { e.stopPropagation(); toggleScheduleEnabled(schedule); }}
-								title={schedule.enabled ? m.schedules_action_pause() : m.schedules_action_resume()}
+							title={schedule.enabled ? 'Pause schedule' : 'Resume schedule'}
 							class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 						>
 							{#if schedule.enabled}
@@ -1343,7 +1395,7 @@
 						<button
 							type="button"
 							onclick={(e) => { e.stopPropagation(); triggerSchedule(schedule); }}
-								title={m.schedules_action_run_now()}
+							title="Run now"
 							class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 						>
 							<Play class="grid-action-icon grid-action-start text-muted-foreground hover:text-green-500" />
@@ -1351,13 +1403,13 @@
 					{/if}
 					{#if canEditSchedules && !schedule.isSystem}
 						{@const scheduleKey = getScheduleKey(schedule)}
-					<ConfirmPopover
-						open={confirmDeleteId === scheduleKey}
-						action={m.common_remove()}
-						itemType={m.schedules_item_type()}
-						itemName={schedule.entityName}
-						title={m.schedules_remove_title()}
-						onConfirm={() => deleteSchedule(schedule.type, schedule.id, schedule.entityName)}
+						<ConfirmPopover
+							open={confirmDeleteId === scheduleKey}
+							action="Remove"
+							itemType="schedule"
+							itemName={schedule.entityName}
+							title="Remove schedule"
+							onConfirm={() => deleteSchedule(schedule.type, schedule.id, schedule.entityName)}
 							onOpenChange={(open) => confirmDeleteId = open ? scheduleKey : null}
 						>
 							{#snippet children({ open })}
@@ -1376,16 +1428,16 @@
 			{@const canLoadMore = hasMoreExecutions.get(scheduleKey) ?? false}
 			<div class="p-4 pl-12 shadow-inner bg-muted isolate sticky left-0 max-w-[calc(100vw-18rem)]">
 				<div class="flex items-center justify-between mb-2">
-					<h4 class="text-xs font-medium">{m.schedules_execution_history()}</h4>
+					<h4 class="text-xs font-medium">Execution history</h4>
 					{#if executions.length > 0 && canEditSchedules}
 						<button
 							type="button"
 							onclick={() => deleteAllExecutions(schedule)}
-								title={m.schedules_remove_all_executions()}
+							title="Remove all executions"
 							class="text-xs text-muted-foreground hover:text-red-500 transition-colors flex items-center gap-1"
 						>
 							<Trash2 class="w-3 h-3" />
-									{m.schedules_remove_all()}
+							Remove all
 						</button>
 					{/if}
 				</div>
@@ -1437,19 +1489,23 @@
 													{/if}
 												</Tooltip.Trigger>
 												<Tooltip.Content side="left">
-											<p class="whitespace-nowrap">{exec.details?.reason === 'vulnerabilities_found' ? m.schedules_blocked_vuln() : (exec.status === 'skipped' ? m.schedules_status_up_to_date() : exec.status)}</p>
+													<p class="whitespace-nowrap">{exec.details?.reason === 'vulnerabilities_found' ? 'Update blocked due to vulnerabilities' : (exec.status === 'skipped' ? 'Up-to-date' : exec.status)}</p>
 												</Tooltip.Content>
 											</Tooltip.Root>
 										</td>
-										<td class="px-2 py-1 text-xs text-destructive">
-											{exec.errorMessage || ''}
+										<td class="px-2 py-1 text-xs max-w-[400px] truncate" title={exec.errorMessage || ''}>
+											{#if exec.errorMessage}
+												<span class="text-destructive">{cleanError(exec.errorMessage)}</span>
+											{:else if exec.status === 'success' && exec.details?.dataAdded !== undefined}
+												<span class="text-muted-foreground">{exec.details.filesNew ?? 0} new, {exec.details.filesChanged ?? 0} changed · {formatBytes(exec.details.dataAdded ?? 0)} added</span>
+											{/if}
 										</td>
 										<td class="px-2 py-1">
 											<div class="flex items-center gap-1">
 												<button
 													type="button"
 													onclick={() => loadExecutionDetail(exec.id)}
-									title={m.stacks_action_view_logs()}
+													title="View logs"
 													class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 												>
 													<FileText class="grid-action-icon grid-action-logs text-muted-foreground hover:text-blue-500" />
@@ -1458,7 +1514,7 @@
 													<button
 														type="button"
 														onclick={() => deleteExecution(schedule, exec.id)}
-									title={m.schedules_action_delete_execution()}
+														title="Delete execution"
 														class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
 													>
 														<Trash2 class="w-3 h-3 text-muted-foreground hover:text-red-500" />
@@ -1478,12 +1534,12 @@
 									disabled={isLoading}
 									onclick={() => loadScheduleExecutions(schedule, executions.length)}
 								>
-								{#if isLoading}
-									<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-									{m.common_loading()}
-								{:else}
-									{m.schedules_load_more()}
-								{/if}
+									{#if isLoading}
+										<Loader2 class="w-4 h-4 mr-2 animate-spin" />
+										Loading...
+									{:else}
+										Load more
+									{/if}
 								</Button>
 							</div>
 						{/if}
@@ -1529,7 +1585,7 @@
 				Execution details
 				{#if selectedExecution}
 					<span class="text-muted-foreground font-normal">
-							({#if selectedExecution.scheduleType === 'container_update'}{m.schedules_exec_type_container_update()}{:else if selectedExecution.scheduleType === 'env_update_check'}{m.schedules_exec_type_environment_update()}{:else if selectedExecution.scheduleType === 'git_stack_sync'}{m.schedules_exec_type_git_stack_sync()}{:else}{m.schedules_desc_system_job()}{/if})
+						({#if selectedExecution.scheduleType === 'container_update'}Container update{:else if selectedExecution.scheduleType === 'env_update_check'}Environment update{:else if selectedExecution.scheduleType === 'git_stack_sync'}Git stack sync{:else if selectedExecution.scheduleType === 'backup'}Backup{:else if selectedExecution.scheduleType === 'repo_prune'}Repo prune{:else if selectedExecution.scheduleType === 'repo_check'}Repo check{:else if selectedExecution.scheduleType === 'repo_verify'}Data verify{:else}System job{/if})
 					</span>
 				{/if}
 			</Dialog.Title>
@@ -1559,7 +1615,7 @@
 				<!-- Blocked containers list (scrollable) -->
 				{#if selectedExecution.details?.blockedContainers?.length > 0}
 					<div class="shrink-0">
-						<div class="text-xs text-muted-foreground mb-1.5">{m.schedules_blocked_containers()}</div>
+						<div class="text-xs text-muted-foreground mb-1.5">Blocked containers</div>
 						<div class="bg-amber-500/5 border border-amber-500/20 rounded-lg max-h-48 overflow-auto">
 							<div class="divide-y divide-amber-500/10">
 								{#each selectedExecution.details.blockedContainers as bc}
@@ -1602,7 +1658,7 @@
 								{@const SelBadgeIcon = badge.icon}
 								<Badge variant={badge.variant} class={badge.class}>
 									<SelBadgeIcon class="w-3 h-3 mr-1" />
-									<span class="capitalize">{selectedExecution.status === 'skipped' ? m.schedules_status_up_to_date() : selectedExecution.status}</span>
+									<span class="capitalize">{selectedExecution.status === 'skipped' ? 'Up-to-date' : selectedExecution.status}</span>
 								</Badge>
 							{/if}
 						{/if}
@@ -1629,10 +1685,10 @@
 				<!-- Block reason if update was blocked due to vulnerabilities -->
 				{#if selectedExecution.details?.reason === 'vulnerabilities_found'}
 					<div class="shrink-0">
-						<div class="text-xs text-muted-foreground mb-1">{m.schedules_block_reason()}</div>
+						<div class="text-xs text-muted-foreground mb-1">Block reason</div>
 						<div class="bg-amber-500/10 border border-amber-500/30 rounded p-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2">
 							<Bug class="w-4 h-4 shrink-0" />
-							<span>{selectedExecution.details.blockReason || m.schedules_blocked_vuln()}</span>
+							<span>{selectedExecution.details.blockReason || 'Update blocked due to vulnerabilities'}</span>
 						</div>
 					</div>
 				{/if}
@@ -1648,11 +1704,10 @@
 								<ScannerSeverityPills results={scannerResults ?? []} />
 							</div>
 							<div class="text-xs text-muted-foreground">
-							{#if selectedExecution.details.scanResult.scannedAt}
-								{m.schedules_scanned_with_at({ scanners: selectedExecution.details.scanResult.scanners?.join(', ') || m.schedules_scanner_default(), time: formatDateTime(selectedExecution.details.scanResult.scannedAt) })}
-							{:else}
-								{m.schedules_scanned_with({ scanners: selectedExecution.details.scanResult.scanners?.join(', ') || m.schedules_scanner_default() })}
-							{/if}
+								Scanned with {selectedExecution.details.scanResult.scanners?.join(', ') || 'scanner'}
+								{#if selectedExecution.details.scanResult.scannedAt}
+									at {formatDateTime(selectedExecution.details.scanResult.scannedAt)}
+								{/if}
 							</div>
 						</div>
 					</div>
@@ -1662,8 +1717,8 @@
 				{#if selectedExecution.errorMessage}
 					<div class="shrink-0">
 						<div class="text-xs text-muted-foreground mb-1">{m.common_error()}</div>
-						<div class="bg-destructive/10 border border-destructive/20 rounded p-3 text-xs text-destructive">
-							{selectedExecution.errorMessage}
+						<div class="bg-destructive/10 border border-destructive/20 rounded p-3 text-xs text-destructive break-words">
+							{cleanError(selectedExecution.errorMessage)}
 						</div>
 					</div>
 				{/if}
@@ -1681,7 +1736,7 @@
 			</div>
 		{/if}
 		<Dialog.Footer class="flex justify-end border-t pt-4">
-			<Button onclick={() => showExecutionDialog = false}>{m.containers_toast_ok()}</Button>
+			<Button onclick={() => showExecutionDialog = false}>OK</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

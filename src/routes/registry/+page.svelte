@@ -1,13 +1,15 @@
 <svelte:head>
-	<title>Registry - Dockhand</title>
+	<title>{m.registry_page_title()}</title>
 </svelte:head>
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
-	import { Search, Download, Star, RefreshCw, Settings2, List, Play, Copy, Clipboard, Check, Server, Icon, ChevronRight, ChevronDown, Loader2, Tag, Calendar, HardDrive, Trash2 } from 'lucide-svelte';
+	import { Search, Download, Star, RefreshCw, Settings2, List, Play, Copy, Clipboard, Check, Server, Icon, ChevronRight, ChevronDown, Loader2, Tag, Calendar, HardDrive, Trash2, HelpCircle } from 'lucide-svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ConfirmPopover from '$lib/components/ConfirmPopover.svelte';
 	import { toast } from 'svelte-sonner';
 	import { whale } from '@lucide/lab';
@@ -44,6 +46,14 @@
 		size?: number;
 		lastUpdated?: string;
 		digest?: string;
+		// Lazy per-tag enrichment (#876). V2 tags/list gives only names; size/date are
+		// fetched per visible tag from the manifest on expand.
+		//   'idle'    - not a self-hosted V2 tag (Docker Hub) or not yet queued
+		//   'loading' - manifest fetch in flight (show a mini spinner)
+		//   'done'    - size/date resolved (or legitimately absent)
+		//   'unavailable' - manifest gave nothing usable; show '?' + reason tooltip
+		enrichState?: 'idle' | 'loading' | 'done' | 'unavailable';
+		enrichReason?: string;
 	}
 
 	interface ExpandedImageState {
@@ -177,7 +187,17 @@
 			}
 			const response = await fetch(url);
 			if (response.ok) {
-				results = await response.json();
+				const data = await response.json();
+				// Search returns a bare array normally, or { results, notSupported, message }
+				// when the registry won't allow catalog listing (GitLab/Harbor, #873).
+				if (Array.isArray(data)) {
+					results = data;
+				} else {
+					results = data.results || [];
+					if (data.notSupported && results.length === 0) {
+						errorMessage = data.message || 'This registry does not support searching all images.';
+					}
+				}
 			} else {
 				const data = await response.json();
 				errorMessage = data.error || 'Search failed';
@@ -336,6 +356,11 @@
 						hasNext: data.hasNext
 					}
 				};
+				// Lazily enrich the newly-loaded tags with size/date (#876). Docker Hub
+				// tags already carry both, so only enrich self-hosted V2 registries.
+				if (selectedRegistryId) {
+					enrichTags(imageName, data.tags);
+				}
 			} else {
 				const data = await response.json();
 				expandedImages = {
@@ -359,6 +384,57 @@
 				}
 			};
 		}
+	}
+
+	// Fetch size/date for a batch of tags, a few at a time, updating each row as it
+	// resolves (#876). Fully best-effort: any failure leaves the row's enrichState
+	// 'unavailable' with a reason; it never throws or blocks the tag list.
+	async function enrichTags(imageName: string, tags: TagInfo[]) {
+		const CONCURRENCY = 4;
+		const queue = tags.filter((t) => !t.enrichState || t.enrichState === 'idle');
+
+		// Mark queued tags as loading so the spinner shows immediately.
+		for (const t of queue) setTagEnrich(imageName, t.name, { enrichState: 'loading' });
+
+		let idx = 0;
+		const worker = async () => {
+			while (idx < queue.length) {
+				const tag = queue[idx++];
+				try {
+					const params = new URLSearchParams({
+						image: imageName,
+						tag: tag.name,
+						registry: String(selectedRegistryId)
+					});
+					const res = await fetch(`/api/registry/tag-info?${params}`);
+					const info = res.ok ? await res.json() : {};
+					const hasData = info?.size != null || info?.lastUpdated != null;
+					setTagEnrich(imageName, tag.name, {
+						size: info?.size ?? undefined,
+						lastUpdated: info?.lastUpdated ?? undefined,
+						enrichState: hasData ? 'done' : 'unavailable',
+						enrichReason: hasData ? undefined : (info?.reason || 'Unavailable')
+					});
+				} catch {
+					setTagEnrich(imageName, tag.name, { enrichState: 'unavailable', enrichReason: 'Request failed' });
+				}
+			}
+		};
+
+		await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
+	}
+
+	// Merge enrichment fields into a single tag row (matched by name) immutably.
+	function setTagEnrich(imageName: string, tagName: string, patch: Partial<TagInfo>) {
+		const state = expandedImages[imageName];
+		if (!state) return;
+		expandedImages = {
+			...expandedImages,
+			[imageName]: {
+				...state,
+				tags: state.tags.map((t) => (t.name === tagName ? { ...t, ...patch } : t))
+			}
+		};
 	}
 
 	function handleTagsWheel(event: WheelEvent, imageName: string) {
@@ -482,6 +558,34 @@
 	});
 </script>
 
+<!--
+	Size/Modified cell for a registry tag (#876). Shows a mini spinner while the
+	per-tag manifest is being fetched, the formatted value once resolved, or a '?'
+	with a tooltip explaining why it's unavailable (multi-arch, no date, auth, etc.).
+-->
+{#snippet enrichCell(tag: TagInfo, formatted: string, hasValue: boolean)}
+	{#if tag.enrichState === 'loading'}
+		<Loader2 class="w-3 h-3 animate-spin text-muted-foreground/60" />
+	{:else if hasValue}
+		{formatted}
+	{:else if tag.enrichState === 'unavailable'}
+		<Tooltip.Provider delayDuration={150}>
+			<Tooltip.Root>
+				<Tooltip.Trigger class="cursor-help">
+					<HelpCircle class="w-3 h-3 text-muted-foreground/50" />
+				</Tooltip.Trigger>
+				<Tooltip.Portal>
+					<Tooltip.Content side="top" sideOffset={6}>
+						{tag.enrichReason || 'Unavailable'}
+					</Tooltip.Content>
+				</Tooltip.Portal>
+			</Tooltip.Root>
+		</Tooltip.Provider>
+	{:else}
+		-
+	{/if}
+{/snippet}
+
 <div class="h-full flex flex-col gap-3 overflow-hidden">
 	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
 		<PageHeader icon={Download} title="Registry" showConnection={false} />
@@ -566,7 +670,7 @@
 			</p>
 			{#if !browseMode && supportsBrowsing()}
 				<p class="text-muted-foreground mt-2">
-					Tip: Large registries don't support search. Try <button class="text-primary underline" onclick={() => browse()}>Browse</button> and use the filter to find images.
+					Tip: Large registries don't support search. Try <button class="text-primary underline" onclick={() => browse()}>{m.templates_tab_browse()}</button> and use the filter to find images.
 				</p>
 			{/if}
 		</div>
@@ -597,11 +701,11 @@
 			<table class="w-full text-sm">
 				<thead class="bg-muted sticky top-0 z-10">
 					<tr class="border-b">
-						<th class="text-left py-1.5 px-2 font-medium">Name</th>
+						<th class="text-left py-1.5 px-2 font-medium">{m.common_name()}</th>
 						{#if !browseMode}
-							<th class="text-left py-1.5 px-2 font-medium">Description</th>
+							<th class="text-left py-1.5 px-2 font-medium">{m.settings_cfgset_modal_description()}</th>
 							<th class="text-center py-1.5 px-2 font-medium w-16">Stars</th>
-							<th class="text-center py-1.5 px-2 font-medium w-20">Type</th>
+							<th class="text-center py-1.5 px-2 font-medium w-20">{m.volumes_col_type()}</th>
 						{/if}
 					</tr>
 				</thead>
@@ -665,10 +769,10 @@
 											<table class="text-xs">
 												<thead class="text-muted-foreground sticky top-0 bg-background z-10">
 													<tr>
-														<th class="text-left py-1 px-2 pr-4 font-medium">Tag</th>
-														<th class="text-left py-1 px-2 pr-4 font-medium">Size</th>
-														<th class="text-left py-1 px-2 pr-4 font-medium">Modified</th>
-														<th class="text-left py-1 px-2 font-medium">Actions</th>
+														<th class="text-left py-1 px-2 pr-4 font-medium">{m.images_col_tag()}</th>
+														<th class="text-left py-1 px-2 pr-4 font-medium">{m.container_files_size()}</th>
+														<th class="text-left py-1 px-2 pr-4 font-medium">{m.container_files_modified()}</th>
+														<th class="text-left py-1 px-2 font-medium">{m.common_actions()}</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -681,10 +785,10 @@
 																</div>
 															</td>
 															<td class="py-1 px-2 pr-4 text-muted-foreground whitespace-nowrap">
-																{formatRegistryBytes(tag.size)}
+																{@render enrichCell(tag, formatRegistryBytes(tag.size), tag.size != null)}
 															</td>
 															<td class="py-1 px-2 pr-4 text-muted-foreground whitespace-nowrap">
-																{formatDate(tag.lastUpdated)}
+																{@render enrichCell(tag, formatDate(tag.lastUpdated), tag.lastUpdated != null)}
 															</td>
 															<td class="py-1 px-2">
 																<div class="flex items-center gap-1">
@@ -740,9 +844,7 @@
 											<!-- Loading more indicator -->
 											{#if expandState.loadingMore}
 												<div class="flex items-center justify-center py-2 text-xs text-muted-foreground">
-													<Loader2 class="w-3 h-3 animate-spin mr-2" />
-													Loading more...
-												</div>
+													<Loader2 class="w-3 h-3 animate-spin mr-2" />{m.activity_loading_more()}</div>
 											{/if}
 										</div>
 										<!-- Tags count -->

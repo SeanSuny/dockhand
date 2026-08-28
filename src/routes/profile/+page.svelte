@@ -24,7 +24,8 @@
 		Trash2,
 		TriangleAlert,
 		Palette,
-		Plus
+		Plus,
+		Compass
 	} from 'lucide-svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { formatDateTime } from '$lib/stores/settings';
@@ -38,7 +39,9 @@
 	import ConfirmPopover from '$lib/components/ConfirmPopover.svelte';
 	import * as Table from '$lib/components/ui/table';
 	import ThemeSelector from '$lib/components/ThemeSelector.svelte';
+	import NavigationSelector from '$lib/components/NavigationSelector.svelte';
 	import AnimateIconsToggle from '$lib/components/AnimateIconsToggle.svelte';
+	import IndentGuidesToggle from '$lib/components/IndentGuidesToggle.svelte';
 	import ColoredActionsToggle from '$lib/components/ColoredActionsToggle.svelte';
 	import { themeStore } from '$lib/stores/theme';
 	import * as m from '$lib/paraglide/messages';
@@ -362,13 +365,13 @@
 </script>
 
 <svelte:head>
-	<title>Profile - Dockhand</title>
+	<title>{m.profile_title()}</title>
 </svelte:head>
 
 <div class="container mx-auto p-6">
 	<div class="flex items-center gap-3 mb-6">
 		<PageHeader icon={User} title="Profile" showConnection={false}>
-			<p class="text-muted-foreground text-sm">Manage your account settings</p>
+			<p class="text-muted-foreground text-sm">{m.profile_manage_account()}</p>
 		</PageHeader>
 	</div>
 
@@ -459,19 +462,19 @@
 						<div class="flex-1 space-y-4">
 							<div class="grid grid-cols-2 gap-4">
 								<div>
-									<Label class="text-muted-foreground text-xs">Username</Label>
+									<Label class="text-muted-foreground text-xs">{m.login_username()}</Label>
 									<p class="font-medium">{profile.username}</p>
 								</div>
 								<div>
-									<Label class="text-muted-foreground text-xs">Role</Label>
+									<Label class="text-muted-foreground text-xs">{m.settings_auth_roles_item_type()}</Label>
 									<div class="flex items-center gap-2">
 										{#if profile.isAdmin}
 											<Badge variant="default" class="gap-1 rounded-sm">
 												<Crown class="w-3 h-3" />
-												Admin
+												{m.profile_admin()}
 											</Badge>
 										{:else}
-											<Badge variant="secondary" class="rounded-sm">User</Badge>
+											<Badge variant="secondary" class="rounded-sm">{m.common_user()}</Badge>
 										{/if}
 									</div>
 								</div>
@@ -479,14 +482,14 @@
 
 							<div class="grid grid-cols-2 gap-4">
 								<div>
-									<Label class="text-muted-foreground text-xs">Created</Label>
+									<Label class="text-muted-foreground text-xs">{m.status_created()}</Label>
 									<p class="text-sm flex items-center gap-1">
 										<Calendar class="w-3.5 h-3.5" />
 										{formatProfileDate(profile.createdAt)}
 									</p>
 								</div>
 								<div>
-									<Label class="text-muted-foreground text-xs">Last login</Label>
+									<Label class="text-muted-foreground text-xs">{m.profile_last_login()}</Label>
 									<p class="text-sm flex items-center gap-1">
 										<Clock class="w-3.5 h-3.5" />
 										{formatProfileDate(profile.lastLogin)}
@@ -516,14 +519,14 @@
 
 					<div class="space-y-4 flex-1">
 						<div class="space-y-2">
-							<Label>Display name</Label>
+							<Label>{m.settings_auth_user_modal_display_name()}</Label>
 							<Input
 								bind:value={formDisplayName}
 								placeholder="Enter display name"
 							/>
 						</div>
 						<div class="space-y-2">
-							<Label>Email</Label>
+							<Label>{m.settings_auth_users_email()}</Label>
 							<Input
 								type="email"
 								bind:value={formEmail}
@@ -554,9 +557,7 @@
 			<Card.Root class="flex flex-col">
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
-						<Shield class="w-5 h-5" />
-						Security
-					</Card.Title>
+						<Shield class="w-5 h-5" />{m.settings_env_modal_tab_security()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<!-- Password - only show for local auth users -->
@@ -565,8 +566,8 @@
 							<div class="flex items-center gap-3">
 								<Key class="w-5 h-5 text-muted-foreground" />
 								<div>
-									<p class="font-medium">Password</p>
-									<p class="text-sm text-muted-foreground">Change your password</p>
+									<p class="font-medium">{m.login_password()}</p>
+									<p class="text-sm text-muted-foreground">{m.profile_change_password()}</p>
 								</div>
 							</div>
 							<Button variant="outline" onclick={() => showPasswordModal = true}>
@@ -578,8 +579,8 @@
 							<div class="flex items-center gap-3">
 								<Key class="w-5 h-5 text-muted-foreground" />
 								<div>
-									<p class="font-medium">Password</p>
-									<p class="text-sm text-muted-foreground">Managed by your SSO provider</p>
+									<p class="font-medium">{m.login_password()}</p>
+									<p class="text-sm text-muted-foreground">{m.profile_managed_by_sso()}</p>
 								</div>
 							</div>
 							<Badge class="gap-1 rounded-sm bg-yellow-500/20 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/30">
@@ -596,14 +597,12 @@
 								<Smartphone class="w-5 h-5 text-muted-foreground" />
 								<div>
 									<div class="flex items-center gap-2">
-										<p class="font-medium">Two-factor authentication</p>
+										<p class="font-medium">{m.settings_auth_user_modal_mfa_title()}</p>
 										{#if profile.mfaEnabled}
 											<Badge variant="default" class="bg-green-500 gap-1 rounded-sm">
-												<ShieldCheck class="w-3 h-3" />
-												Enabled
-											</Badge>
+												<ShieldCheck class="w-3 h-3" />{m.toast_setting_enabled()}</Badge>
 										{:else}
-											<Badge variant="secondary" class="rounded-sm">Disabled</Badge>
+											<Badge variant="secondary" class="rounded-sm">{m.toast_setting_disabled()}</Badge>
 										{/if}
 									</div>
 									<p class="text-sm text-muted-foreground">
@@ -617,7 +616,7 @@
 							</div>
 							{#if profile.mfaEnabled}
 								<Button variant="outline" onclick={() => showDisableMfaModal = true}>
-									Disable MFA
+									{m.profile_disable_mfa()}
 								</Button>
 							{:else}
 								<Button onclick={setupMfa} disabled={mfaLoading}>
@@ -635,8 +634,8 @@
 							<div class="flex items-center gap-3">
 								<Smartphone class="w-5 h-5 text-muted-foreground" />
 								<div>
-									<p class="font-medium">Two-factor authentication</p>
-									<p class="text-sm text-muted-foreground">Managed by your SSO provider</p>
+									<p class="font-medium">{m.settings_auth_user_modal_mfa_title()}</p>
+									<p class="text-sm text-muted-foreground">{m.profile_managed_by_sso()}</p>
 								</div>
 							</div>
 							<Badge class="gap-1 rounded-sm bg-yellow-500/20 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/30">
@@ -668,21 +667,21 @@
 							Generate token
 						</Button>
 					</Card.Title>
-					<Card.Description>Create tokens for CI/CD pipelines and scripts</Card.Description>
+					<Card.Description>{m.profile_create_tokens()}</Card.Description>
 				</Card.Header>
 				<Card.Content>
 					{#if tokensLoading}
-						<p class="text-sm text-muted-foreground">Loading tokens...</p>
+						<p class="text-sm text-muted-foreground">{m.profile_loading_tokens()}</p>
 					{:else if apiTokens.length === 0}
-						<p class="text-sm text-muted-foreground">No API tokens created yet.</p>
+						<p class="text-sm text-muted-foreground">{m.profile_no_tokens()}</p>
 					{:else}
 						<Table.Root>
 							<Table.Header>
 								<Table.Row>
-									<Table.Head>Name</Table.Head>
-									<Table.Head>Prefix</Table.Head>
-									<Table.Head>Last used</Table.Head>
-									<Table.Head>Expires</Table.Head>
+									<Table.Head>{m.common_name()}</Table.Head>
+									<Table.Head>{m.profile_prefix()}</Table.Head>
+									<Table.Head>{m.profile_last_used()}</Table.Head>
+									<Table.Head>{m.settings_license_expires()}</Table.Head>
 									<Table.Head class="w-[80px]"></Table.Head>
 								</Table.Row>
 							</Table.Header>
@@ -698,11 +697,11 @@
 										</Table.Cell>
 										<Table.Cell class="text-sm">
 											{#if isTokenExpired(token.expiresAt)}
-												<Badge variant="destructive">Expired</Badge>
+												<Badge variant="destructive">{m.profile_expired()}</Badge>
 											{:else if token.expiresAt}
 												{formatDateTime(token.expiresAt)}
 											{:else}
-												<span class="text-muted-foreground">Never</span>
+												<span class="text-muted-foreground">{m.schedules_never()}</span>
 											{/if}
 										</Table.Cell>
 										<Table.Cell>
@@ -734,10 +733,8 @@
 			<Card.Root>
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2">
-						<Palette class="w-5 h-5" />
-						Appearance
-					</Card.Title>
-					<Card.Description>Customize the look of the application</Card.Description>
+						<Palette class="w-5 h-5" />{m.appearance_title()}</Card.Title>
+					<Card.Description>{m.profile_customize_look()}</Card.Description>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="space-y-1">
@@ -764,6 +761,19 @@
 					<ThemeSelector userId={profile.id} />
 					<ColoredActionsToggle userId={profile.id} />
 					<AnimateIconsToggle userId={profile.id} />
+				<IndentGuidesToggle userId={profile.id} />
+				</Card.Content>
+			</Card.Root>
+
+			<!-- Navigation card (per-user overrides) -->
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
+						<Compass class="w-5 h-5" />{m.command_palette_group_navigation()}</Card.Title>
+					<Card.Description>{m.profile_landing_page_desc()}</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<NavigationSelector scope="user" />
 				</Card.Content>
 			</Card.Root>
 

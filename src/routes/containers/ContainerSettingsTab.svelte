@@ -941,7 +941,7 @@
 							class="h-9 shrink-0 px-2"
 							disabled={applyingField !== null}
 							onclick={applyRestartPolicy}
-							title={m.container_settings_apply()}
+							title={m.container_files_apply()}
 						>
 							{#if applyingField === 'restart'}
 								<Loader2 class="w-3.5 h-3.5 animate-spin" />
@@ -1249,11 +1249,9 @@
 	<!-- Port Mappings -->
 	<div class="space-y-2">
 		<div class="flex justify-between items-center pb-2 border-b">
-			<h3 class="text-sm font-semibold text-foreground">{m.container_settings_port_mappings()}</h3>
+			<h3 class="text-sm font-semibold text-foreground">{m.container_inspect_port_mappings()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addPortMapping} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">
@@ -1333,9 +1331,7 @@
 		<div class="flex justify-between items-center pb-2 border-b">
 			<h3 class="text-sm font-semibold text-foreground">{m.container_settings_volume_mappings()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addVolumeMapping} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">
@@ -1374,9 +1370,7 @@
 		<div class="flex justify-between items-center pb-2 border-b">
 			<h3 class="text-sm font-semibold text-foreground">{m.container_settings_environment_variables()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addEnvVar} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">
@@ -1410,9 +1404,7 @@
 		<div class="flex justify-between items-center pb-2 border-b">
 			<h3 class="text-sm font-semibold text-foreground">{m.common_labels()}</h3>
 			<Button type="button" size="sm" variant="ghost" onclick={addLabel} class="h-7 text-xs">
-				<Plus class="w-3.5 h-3.5" />
-				Add
-			</Button>
+				<Plus class="w-3.5 h-3.5" />{m.common_add()}</Button>
 		</div>
 
 		<div class="space-y-2">
@@ -1455,7 +1447,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<Cpu class="w-4 h-4 text-muted-foreground" />
-				<span class="text-sm font-medium">{m.container_settings_resources()}</span>
+				<span class="text-sm font-medium">{m.container_inspect_tab_resources()}</span>
 				{#if memoryLimit || nanoCpus || cpuShares}
 					<Badge variant="secondary" class="text-2xs">{m.container_settings_configured()}</Badge>
 				{/if}
@@ -1477,7 +1469,7 @@
 
 				{#snippet inlineApplyBtn(field: InPlaceFieldKey, onclick: () => void)}
 					{#if canApplyInPlace}
-						<Button type="button" variant="outline" size="sm" class="h-9 shrink-0 px-2" disabled={applyingField !== null} {onclick} title={m.container_settings_apply()}>
+						<Button type="button" variant="outline" size="sm" class="h-9 shrink-0 px-2" disabled={applyingField !== null} {onclick} title={m.container_files_apply()}>
 							{#if applyingField === field}
 								<Loader2 class="w-3.5 h-3.5 animate-spin" />
 							{:else}
@@ -1550,7 +1542,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<Shield class="w-4 h-4 text-muted-foreground" />
-				<span class="text-sm font-medium">{m.container_settings_security()}</span>
+				<span class="text-sm font-medium">{m.settings_env_modal_tab_security()}</span>
 				{#if privilegedMode || containerUser || capAdd.length > 0 || capDrop.length > 0 || securityOptions.length > 0}
 					<Badge variant="secondary" class="text-2xs">{m.container_settings_configured()}</Badge>
 				{/if}
@@ -1632,7 +1624,7 @@
 				</div>
 
 				<div class="space-y-2 pt-2 border-t">
-					<Label class="text-xs font-medium">{m.container_settings_security_options()}</Label>
+					<Label class="text-xs font-medium">{m.container_inspect_security_options()}</Label>
 					<div class="flex gap-2">
 						<Input
 							bind:value={securityOptionInput}
@@ -1703,7 +1695,7 @@
 							<Input id="healthcheckTimeout" type="number" bind:value={healthcheckTimeout} min="1" class="h-9" />
 						</div>
 						<div class="space-y-1.5">
-							<Label for="healthcheckRetries" class="text-xs font-medium">{m.container_settings_retries()}</Label>
+							<Label for="healthcheckRetries" class="text-xs font-medium">{m.container_inspect_health_retries()}</Label>
 							<Input id="healthcheckRetries" type="number" bind:value={healthcheckRetries} min="1" class="h-9" />
 						</div>
 						<div class="space-y-1.5">
@@ -1833,7 +1825,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<HardDrive class="w-4 h-4 text-muted-foreground" />
-				<span class="text-sm font-medium">{m.container_settings_devices()}</span>
+				<span class="text-sm font-medium">{m.container_inspect_devices()}</span>
 				{#if deviceMappings.length > 0}
 					<Badge variant="secondary" class="text-2xs">{deviceMappings.length}</Badge>
 				{/if}
@@ -1880,7 +1872,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<Gpu class="w-4 h-4 text-muted-foreground" />
-				<span class="text-sm font-medium">{m.container_settings_gpu()}</span>
+				<span class="text-sm font-medium">{m.container_inspect_gpu()}</span>
 				{#if gpuEnabled}
 					<Badge variant="secondary" class="text-2xs">{m.container_settings_configured()}</Badge>
 				{/if}
@@ -1899,7 +1891,7 @@
 				</div>
 
 				<div class="space-y-1.5">
-					<Label class="text-xs font-medium">{m.container_settings_runtime()}</Label>
+					<Label class="text-xs font-medium">{m.container_inspect_runtime()}</Label>
 					<div class="flex gap-2">
 						<Select.Root type="single" value={runtime === '' ? '' : runtime === 'nvidia' ? 'nvidia' : 'custom'} onValueChange={(v) => {
 							if (v === '') runtime = '';
@@ -1933,7 +1925,7 @@
 							value={gpuMode}
 							options={[
 								{ value: 'all', label: m.common_all() },
-								{ value: 'count', label: m.container_settings_gpu_mode_count() },
+								{ value: 'count', label: m.container_inspect_count() },
 								{ value: 'specific', label: m.container_settings_gpu_mode_specific() }
 							]}
 							onchange={(v) => { gpuMode = v as 'all' | 'count' | 'specific'; }}
@@ -1949,7 +1941,7 @@
 
 					{#if gpuMode === 'specific'}
 						<div class="space-y-2">
-							<Label class="text-xs font-medium">{m.container_settings_device_ids()}</Label>
+							<Label class="text-xs font-medium">{m.container_inspect_device_ids()}</Label>
 							<div class="flex gap-2">
 								<Input
 									bind:value={gpuDeviceIdInput}
@@ -1977,12 +1969,12 @@
 					{/if}
 
 					<div class="space-y-1.5">
-						<Label class="text-xs font-medium">{m.container_settings_driver()}</Label>
+						<Label class="text-xs font-medium">{m.container_inspect_driver()}</Label>
 						<Input bind:value={gpuDriver} placeholder={m.container_settings_driver_placeholder()} class="h-9" />
 					</div>
 
 					<div class="space-y-2">
-						<Label class="text-xs font-medium">{m.container_settings_capabilities()}</Label>
+						<Label class="text-xs font-medium">{m.container_inspect_capabilities()}</Label>
 						<Select.Root type="single" value="" onValueChange={(v) => { addGpuCapability(v); }}>
 							<Select.Trigger class="h-9">
 								<span class="text-muted-foreground">{m.container_settings_add_capability()}</span>
@@ -2020,7 +2012,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<Settings2 class="w-4 h-4 text-muted-foreground" />
-				<span class="text-sm font-medium">{m.container_settings_ulimits()}</span>
+				<span class="text-sm font-medium">{m.container_inspect_ulimits()}</span>
 				{#if ulimits.length > 0}
 					<Badge variant="secondary" class="text-2xs">{ulimits.length}</Badge>
 				{/if}

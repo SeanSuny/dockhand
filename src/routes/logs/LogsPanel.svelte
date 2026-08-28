@@ -334,9 +334,9 @@
 			eventSource.addEventListener('error', (event: Event) => {
 				try {
 					const data = JSON.parse((event as MessageEvent).data);
-					connectionError = data.error || m.logs_connection_error();
+					connectionError = data.error || m.container_terminal_connection_error();
 				} catch {
-					connectionError = m.logs_connection_error();
+					connectionError = m.container_terminal_connection_error();
 				}
 				handleStreamError();
 			});
@@ -742,7 +742,7 @@
 				{#if isConnected}
 					<div class="flex items-center gap-1.5 transition-opacity duration-300" title={m.logs_connected_live_streaming()}>
 						<Wifi class="w-3.5 h-3.5 text-green-500" />
-						<span class="text-xs text-green-500 font-medium">{m.logs_live()}</span>
+						<span class="text-xs text-green-500 font-medium">{m.container_inspect_live()}</span>
 					</div>
 				{:else if loading}
 					<div class="flex items-center gap-1.5 transition-opacity duration-300" title={m.logs_connecting()}>
@@ -765,13 +765,13 @@
 						title={m.logs_click_to_reconnect()}
 					>
 						<WifiOff class="w-3.5 h-3.5 {darkMode ? 'text-zinc-500' : 'text-gray-400'}" />
-						<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.logs_offline()}</span>
+						<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.dashboard_offline()}</span>
 					</button>
 				{/if}
 			{:else}
 				<div class="flex items-center gap-1.5 transition-opacity duration-300" title={m.logs_streaming_paused()}>
 					<Pause class="w-3.5 h-3.5 {darkMode ? 'text-zinc-500' : 'text-gray-400'}" />
-					<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.logs_paused()}</span>
+					<span class="text-xs {darkMode ? 'text-zinc-500' : 'text-gray-400'}">{m.status_paused()}</span>
 				</div>
 			{/if}
 			<span class="text-xs {darkMode ? 'text-zinc-400' : 'text-gray-500'}">|</span>
@@ -921,7 +921,7 @@
 			<button
 				onclick={copyLogs}
 				class="p-1 rounded transition-colors {darkMode ? 'hover:bg-zinc-800' : 'hover:bg-gray-300'}"
-				title={m.logs_copy_logs()}
+				title={m.stacks_git_deploy_copy_logs()}
 			>
 				<Copy class="w-3 h-3 {darkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-gray-500 hover:text-gray-700'}" />
 			</button>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import { Cpu, MemoryStick, Box, Globe, ChevronDown, Check, HardDrive, Clock, Wifi, WifiOff, Route, UndoDot, Icon, AlertCircle, Loader2, Search, Server, X } from 'lucide-svelte';
 	import { whale } from '@lucide/lab';
 	import { Button } from '$lib/components/ui/button';
@@ -8,8 +9,8 @@
 	import EnvironmentIcon from '$lib/components/EnvironmentIcon.svelte';
 	import { toast } from 'svelte-sonner';
 	import { themeStore, type FontSize } from '$lib/stores/theme';
-	import { getTimeFormat } from '$lib/stores/settings';
 	import { formatBytes } from '$lib/utils/format';
+	import { getTimeFormat, getDefaultTimezone } from '$lib/stores/settings';
 
 	// Font size scaling for header
 	let fontSize = $state<FontSize>('normal');
@@ -332,8 +333,13 @@
 		hostInfo ? ((hostInfo.totalMemory - hostInfo.freeMemory) / hostInfo.totalMemory) * 100 : 0
 	);
 
+	// Prefer the environment's own timezone; fall back to the GLOBAL default-timezone
+	// setting (not a hard-coded UTC). An env only STORES a timezone when it differs from
+	// the global default (EnvironmentModal: "save if not default"), so a plain env has no
+	// stored timezone and must inherit the user's chosen default here, not show UTC (#1340).
 	let currentTimezone = $derived(
-		$environments.find((e: Environment) => Number(e.id) === Number(currentEnvId))?.timezone ?? 'UTC'
+		$environments.find((e: Environment) => Number(e.id) === Number(currentEnvId))?.timezone
+		|| getDefaultTimezone()
 	);
 
 	function formatLastUpdated(date: Date, timezone: string): string {
@@ -453,9 +459,7 @@
 							{/if}
 						</button>
 					{:else}
-						<div class="px-3 py-2 text-sm text-muted-foreground">
-							No matching environments
-						</div>
+						<div class="px-3 py-2 text-sm text-muted-foreground">{m.dashboard_no_match_title()}</div>
 					{/each}
 				</div>
 			</div>
@@ -495,7 +499,7 @@
 				<span>Hawser (edge){hostInfo.environment.hawserVersion ? ` ${hostInfo.environment.hawserVersion}` : ''}</span>
 			{:else}
 				<Icon iconNode={whale} class="{iconSizeClass()}" />
-				<span>Socket</span>
+				<span>{m.dashboard_conn_socket()}</span>
 			{/if}
 		</div>
 
@@ -539,7 +543,7 @@
 			<span class="text-muted-foreground" title={currentTimezone}>{formatLastUpdated(lastUpdated, currentTimezone)}</span>
 			{#if isConnected}
 				<Wifi class="{iconSizeLargeClass()}" />
-				<span class="font-medium">Live</span>
+				<span class="font-medium">{m.container_inspect_live()}</span>
 			{:else}
 				<WifiOff class="{iconSizeLargeClass()}" />
 			{/if}

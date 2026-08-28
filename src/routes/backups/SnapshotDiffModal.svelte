@@ -1,0 +1,220 @@
+<script lang="ts">
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as m from '$lib/paraglide/messages';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Plus, Minus, FileEdit, FileCheck, Loader2, ArrowRight, FolderOpen, Container, Info } from 'lucide-svelte';
+	import { readJobResponse } from '$lib/utils/sse-fetch';
+	import { formatDateTime } from '$lib/stores/settings';
+
+	interface Props {
+		open: boolean;
+		destinationId: number;
+		snapshotA: { id: string; shortId: string; time: string };
+		snapshotB: { id: string; shortId: string; time: string };
+	}
+
+	let { open = $bindable(), destinationId, snapshotA, snapshotB }: Props = $props();
+
+	interface DiffResult {
+		added: string[];
+		removed: string[];
+		modified: string[];
+		metadataChanged: string[];
+	}
+
+	let activeTab = $state<'files' | 'metadata'>('files');
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+	let diff = $state<DiffResult | null>(null);
+	let metaA = $state<any>(null);
+	let metaB = $state<any>(null);
+	let metaLoading = $state(false);
+
+	$effect(() => {
+		if (open && snapshotA?.id && snapshotB?.id) {
+			activeTab = 'files';
+			fetchDiff();
+		}
+	});
+
+	async function fetchDiff() {
+		loading = true;
+		error = null;
+		diff = null;
+		metaA = null;
+		metaB = null;
+		try {
+			// Job-polling so the two `restic diff` reads behind a proxy aren't aborted at ~15s.
+			const res = await fetch(`/api/backup/snapshots/diff?destinationId=${destinationId}&snapshotA=${snapshotA.id}&snapshotB=${snapshotB.id}`, { headers: { Accept: 'text/event-stream' } });
+			const data = await readJobResponse(res);
+			if (data?.error) { error = data.error; return; }
+			diff = data;
+		} catch (err) {
+			error = err instanceof Error ? err.message : String(err);
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function loadMetadata() {
+		if (metaA && metaB) return;
+		metaLoading = true;
+		try {
+			// Job-polling for both metadata dumps (slow `restic dump` behind a proxy).
+			const [dataA, dataB] = await Promise.all([
+				fetch(`/api/backup/snapshots/${snapshotA.id}/metadata?destinationId=${destinationId}`, { headers: { Accept: 'text/event-stream' } }).then(readJobResponse),
+				fetch(`/api/backup/snapshots/${snapshotB.id}/metadata?destinationId=${destinationId}`, { headers: { Accept: 'text/event-stream' } }).then(readJobResponse)
+			]);
+			metaA = dataA?.error ? null : dataA;
+			metaB = dataB?.error ? null : dataB;
+		} catch {}
+		metaLoading = false;
+	}
+
+	function switchToMetadata() {
+		activeTab = 'metadata';
+		loadMetadata();
+	}
+
+	const totalChanges = $derived(diff ? diff.added.length + diff.removed.length + diff.modified.length + diff.metadataChanged.length : 0);
+
+	// Compute metadata differences
+	interface MetaDiff { field: string; valueA: string; valueB: string }
+	const metaDiffs = $derived.by(() => {
+		if (!metaA?.containers?.[0] || !metaB?.containers?.[0]) return [];
+		const a = metaA.containers[0];
+		const b = metaB.containers[0];
+		const diffs: MetaDiff[] = [];
+
+		function compare(field: string, va: any, vb: any) {
+			const sa = typeof va === 'object' ? JSON.stringify(va, null, 2) : String(va ?? '—');
+			const sb = typeof vb === 'object' ? JSON.stringify(vb, null, 2) : String(vb ?? '—');
+			if (sa !== sb) diffs.push({ field, valueA: sa, valueB: sb });
+		}
+
+		compare('Image', a.image, b.image);
+		compare('Cmd', a.config?.Cmd, b.config?.Cmd);
+		compare('Entrypoint', a.config?.Entrypoint, b.config?.Entrypoint);
+		compare('Env', a.config?.Env, b.config?.Env);
+		compare('Labels', a.config?.Labels, b.config?.Labels);
+		compare('Hostname', a.config?.Hostname, b.config?.Hostname);
+		compare('User', a.config?.User, b.config?.User);
+		compare('WorkingDir', a.config?.WorkingDir, b.config?.WorkingDir);
+		compare('RestartPolicy', a.hostConfig?.RestartPolicy, b.hostConfig?.RestartPolicy);
+		compare('NetworkMode', a.hostConfig?.NetworkMode, b.hostConfig?.NetworkMode);
+		compare('PortBindings', a.hostConfig?.PortBindings, b.hostConfig?.PortBindings);
+		compare('Privileged', a.hostConfig?.Privileged, b.hostConfig?.Privileged);
+		compare('Memory', a.hostConfig?.Memory, b.hostConfig?.Memory);
+		compare('CpuShares', a.hostConfig?.CpuShares, b.hostConfig?.CpuShares);
+		compare('Mounts', a.mounts?.length, b.mounts?.length);
+		compare('Networks', Object.keys(a.networkSettings?.Networks || {}), Object.keys(b.networkSettings?.Networks || {}));
+
+		return diffs;
+	});
+</script>
+
+<Dialog.Root bind:open>
+	<Dialog.Content class="max-w-5xl max-h-[85vh] flex flex-col">
+		<Dialog.Header>
+			<Dialog.Title>{m.backups_diff_title()}</Dialog.Title>
+			<Dialog.Description>
+				<span class="font-mono text-xs">{snapshotA.shortId}</span>
+				<span class="text-muted-foreground text-xs mx-1">({formatDateTime(snapshotA.time)})</span>
+				<ArrowRight class="w-3 h-3 inline mx-1" />
+				<span class="font-mono text-xs">{snapshotB.shortId}</span>
+				<span class="text-muted-foreground text-xs mx-1">({formatDateTime(snapshotB.time)})</span>
+			</Dialog.Description>
+		</Dialog.Header>
+
+		<!-- Tabs -->
+		<div class="flex gap-1 border-b mb-3">
+			<button class="px-3 py-1.5 text-sm {activeTab === 'files' ? 'border-b-2 border-primary font-medium' : 'text-muted-foreground'}" onclick={() => activeTab = 'files'}>
+				<FolderOpen class="w-3.5 h-3.5 inline mr-1" />{m.container_inspect_tab_files()}</button>
+			<button class="px-3 py-1.5 text-sm {activeTab === 'metadata' ? 'border-b-2 border-primary font-medium' : 'text-muted-foreground'}" onclick={switchToMetadata}>
+				<Container class="w-3.5 h-3.5 inline mr-1" />Metadata
+			</button>
+		</div>
+
+		<div class="flex-1 min-h-[400px] overflow-y-auto pr-3">
+		{#if activeTab === 'files'}
+			{#if loading}
+				<div class="flex items-center justify-center py-12">
+					<Loader2 class="w-5 h-5 animate-spin text-muted-foreground" />
+					<span class="ml-2 text-sm text-muted-foreground">{m.backups_diff_comparing()}</span>
+				</div>
+			{:else if error}
+				<div class="text-sm text-destructive py-4">{error}</div>
+			{:else if diff}
+				<div class="flex gap-2 mb-3 flex-wrap">
+					{#if diff.added.length > 0}
+						<Badge variant="outline" class="text-green-600"><Plus class="w-3 h-3 mr-1" />{m.backups_diff_count_added({ n: diff.added.length })}</Badge>
+					{/if}
+					{#if diff.removed.length > 0}
+						<Badge variant="outline" class="text-red-500"><Minus class="w-3 h-3 mr-1" />{m.backups_diff_count_removed({ n: diff.removed.length })}</Badge>
+					{/if}
+					{#if diff.modified.length > 0}
+						<Badge variant="outline" class="text-amber-500"><FileEdit class="w-3 h-3 mr-1" />{m.backups_diff_count_modified({ n: diff.modified.length })}</Badge>
+					{/if}
+					{#if diff.metadataChanged.length > 0}
+						<Badge variant="outline" class="text-blue-500"><FileCheck class="w-3 h-3 mr-1" />{m.backups_diff_count_metadata({ n: diff.metadataChanged.length })}</Badge>
+					{/if}
+					{#if totalChanges === 0}
+						<span class="text-sm text-muted-foreground">{m.backups_diff_no_differences()}</span>
+					{/if}
+				</div>
+
+				<div class="border rounded-md bg-muted/30 p-2 font-mono text-xs space-y-0.5">
+					{#each diff.added as path}
+						<div class="text-green-600">{m.backups_diff_added_line({ path })}</div>
+					{/each}
+					{#each diff.removed as path}
+						<div class="text-red-500">{m.backups_diff_removed_line({ path })}</div>
+					{/each}
+					{#each diff.modified as path}
+						<div class="text-amber-500">{m.backups_diff_modified_line({ path })}</div>
+					{/each}
+					{#each diff.metadataChanged as path}
+						<div class="text-blue-500">{m.backups_diff_unknown_line({ path })}</div>
+					{/each}
+				</div>
+			{/if}
+		{:else if activeTab === 'metadata'}
+			{#if metaLoading}
+				<div class="flex items-center justify-center py-12">
+					<Loader2 class="w-5 h-5 animate-spin text-muted-foreground" />
+					<span class="ml-2 text-sm text-muted-foreground">{m.backups_diff_loading_metadata()}</span>
+				</div>
+			{:else if !metaA || !metaB}
+				<p class="text-sm text-muted-foreground py-4">{m.backups_diff_metadata_unavailable()}</p>
+			{:else if metaDiffs.length === 0}
+				<p class="py-4 text-sm text-muted-foreground">{m.backups_diff_identical()}</p>
+				<p class="flex items-start gap-1.5 text-xs text-muted-foreground"><Info class="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /><span>{m.backups_diff_metadata_hint()}</span></p>
+			{:else}
+				<table class="w-full text-xs">
+					<thead class="sticky top-0 bg-background">
+						<tr class="border-b text-muted-foreground">
+							<th class="text-left py-1.5 px-2 w-32">{m.backups_diff_field()}</th>
+							<th class="text-left py-1.5 px-2">{snapshotA.shortId}</th>
+							<th class="text-left py-1.5 px-2">{snapshotB.shortId}</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each metaDiffs as d}
+							<tr class="border-b last:border-0 hover:bg-muted/30">
+								<td class="py-1.5 px-2 font-medium text-muted-foreground align-top">{d.field}</td>
+								<td class="py-1.5 px-2 align-top">
+									<pre class="whitespace-pre-wrap text-red-500/80 bg-red-500/5 rounded px-1 max-h-32 overflow-auto">{d.valueA}</pre>
+								</td>
+								<td class="py-1.5 px-2 align-top">
+									<pre class="whitespace-pre-wrap text-green-600/80 bg-green-500/5 rounded px-1 max-h-32 overflow-auto">{d.valueB}</pre>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			{/if}
+		{/if}
+		</div>
+	</Dialog.Content>
+</Dialog.Root>

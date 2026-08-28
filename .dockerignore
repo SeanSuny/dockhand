@@ -1,8 +1,88 @@
-node_modules
-.git
-build
-.svelte-kit
-data
+# Dependencies
+node_modules/
+
+# Build output
+build/
+.svelte-kit/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.drone.yml
+.gitea/
+deployment/
+buildkitd.toml
+.build-trigger
+.gitleaks.toml
+.gitleaksignore
+.snyk
+.mcp.json
+.gitmodules
+
+# Sync-to-GitHub + test/dev tooling (not needed to build the image)
+sync-gh.sh
+sync-plan.py
+sync-whitelist.sh
+test-env-vars.sh
+playwright.config.ts
+
+# Ops/infra + vendored demo submodule (not app runtime)
+infra/
+support/
+
+# Tests (unit) + integration tests + one-off debug scripts - none belong in the image
+tests/
+integration/
+debug/
+
+# Hawser agent (separate project)
+hawser/
+
+# Updater (separate project)
+updater/
+
+# Test image
+test-image/
+
+# Landing page
+webpage/
+
+# Source design assets (README/marketing) - runtime favicons live in static/
+screenshots/
+logo/
+favicon_io/
+*.pxd
+
+# Misc
+.DS_Store
 *.log
 .env
 .env.*
+!.env.example
+
+# Sensitive files
+scripts/keys/
+data/
+*.pem
+*.key
+*.crt
+
+# Documentation
+*.md
+!README.md
+
+# Development files
+docker-compose*.yml
+!docker-compose.yml
+bun.lock
+tsconfig.json
+.prettierrc
+.eslintrc*

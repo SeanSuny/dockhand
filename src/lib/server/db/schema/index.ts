@@ -282,6 +282,19 @@ export const gitCredentials = sqliteTable('git_credentials', {
 	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Pluggable secret providers (1Password, Infisical, HashiCorp Vault, ...).
+// `type` selects the backend; `config` is an encrypted JSON blob whose shape is
+// provider-specific (see src/lib/server/secretproviders/shared.ts). Mirrors the
+// notification_settings type+config pattern.
+export const secretProviders = sqliteTable('secret_providers', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	type: text('type').notNull(),
+	name: text('name').notNull().unique(),
+	config: text('config').notNull(),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
 export const gitRepositories = sqliteTable('git_repositories', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	name: text('name').notNull().unique(),
@@ -308,6 +321,7 @@ export const gitStacks = sqliteTable('git_stacks', {
 	stackName: text('stack_name').notNull(),
 	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
 	repositoryId: integer('repository_id').notNull().references(() => gitRepositories.id, { onDelete: 'cascade' }),
+	branch: text('branch'), // Per-stack branch override; null = use repository default
 	composePath: text('compose_path').default('docker-compose.yml'), // Reverted to original value (#1110)
 	envFilePath: text('env_file_path'), // Path to .env file in repository (e.g., ".env", "config/.env.prod")
 	autoUpdate: integer('auto_update', { mode: 'boolean' }).default(false),
@@ -340,10 +354,33 @@ export const stackSources = sqliteTable('stack_sources', {
 	gitStackId: integer('git_stack_id').references(() => gitStacks.id, { onDelete: 'set null' }),
 	composePath: text('compose_path'), // Custom path to compose file (for stacks with non-default location)
 	envPath: text('env_path'), // Custom path to .env file (for stacks with non-default location)
+	secretProviderId: integer('secret_provider_id').references(() => secretProviders.id, { onDelete: 'set null' }),
+	// Names (no values) of secret keys injected from the bound provider on the last
+	// deploy, so container inspect can mask them without a live provider call.
+	injectedSecretKeys: text('injected_secret_keys'),
+	// Per-stack icon: a lucide name ('server'), 'selfhst:<ref>', or 'custom:<file>'.
+	// Null -> UI falls back to a generic icon.
+	icon: text('icon'),
 	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
 }, (table) => ({
 	stackSourceEnvUnique: unique().on(table.stackName, table.environmentId)
+}));
+
+// Per-container icon override. Containers are ephemeral Docker objects (no DB row of
+// their own), so the override is keyed by (containerName, environmentId) - the name is
+// stable across recreation (auto-update, compose up), unlike the container id. Absent
+// row -> the UI's automatic image/name icon matching applies.
+export const containerIconOverrides = sqliteTable('container_icon_overrides', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	containerName: text('container_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	// A lucide name ('server'), 'selfhst:<ref>', or 'custom:<file>'. Same shape as stack icons.
+	icon: text('icon').notNull(),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	containerIconEnvUnique: unique().on(table.containerName, table.environmentId)
 }));
 
 export const stackEnvironmentVariables = sqliteTable('stack_environment_variables', {
@@ -444,7 +481,7 @@ export const scheduleExecutions = sqliteTable('schedule_executions', {
 	completedAt: text('completed_at'),
 	duration: integer('duration'), // milliseconds
 	// Result
-	status: text('status').notNull(), // 'queued' | 'running' | 'success' | 'failed' | 'skipped'
+	status: text('status').notNull(), // 'queued' | 'running' | 'success' | 'warning' | 'failed' | 'skipped'
 	errorMessage: text('error_message'),
 	// Details
 	details: text('details'), // JSON with execution details
@@ -464,11 +501,63 @@ export const pendingContainerUpdates = sqliteTable('pending_container_updates', 
 	containerId: text('container_id').notNull(),
 	containerName: text('container_name').notNull(),
 	currentImage: text('current_image').notNull(),
+	// True when a digest image update is pending (the classic amber icon). Defaults
+	// true so pre-existing rows keep behaving exactly as before.
+	hasImageUpdate: integer('has_image_update', { mode: 'boolean' }).notNull().default(true),
+	// A newer VERSION tag (semver) for a pinned image, as JSON {tag,bump,skipped}.
+	// Null when there's no semver suggestion. Advisory - never auto-applied.
+	newerVersion: text('newer_version'),
 	checkedAt: text('checked_at').default(sql`CURRENT_TIMESTAMP`),
 	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 }, (table) => ({
 	envContainerUnique: unique().on(table.environmentId, table.containerId)
 }));
+
+// =============================================================================
+// BACKUP DESTINATIONS TABLE
+// =============================================================================
+
+export const backupDestinations = sqliteTable('backup_destinations', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	repository: text('repository').notNull(),        // restic repo URL/path
+	password: text('password').notNull(),            // AES-256-GCM encrypted
+	envVars: text('env_vars'),                       // JSON: { key: value } — values encrypted
+	flags: text('flags'),                            // extra restic CLI flags
+	hostPath: text('host_path'),                     // bind-mount source for local repos
+	cacert: text('cacert'),                          // AES-256-GCM encrypted PEM: self-signed CA for a TLS backend (RESTIC_CACERT)
+	tlsClientCert: text('tls_client_cert'),          // AES-256-GCM encrypted PEM: client cert+key for mTLS (RESTIC_TLS_CLIENT_CERT)
+	policies: text('policies'),                      // JSON: { pruneSchedule, checkSchedule, autoUnlock, maxUnused }
+	lastTestAt: text('last_test_at'),
+	lastTestStatus: text('last_test_status'),        // 'success' | 'failed'
+	lastTestError: text('last_test_error'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// =============================================================================
+// BACKUP CONFIGS TABLE
+// =============================================================================
+
+export const backupConfigs = sqliteTable('backup_configs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	type: text('type').notNull().default('container'),  // 'container' | 'stack'
+	targetName: text('target_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	destinationId: integer('destination_id').notNull().references(() => backupDestinations.id, { onDelete: 'cascade' }),
+	enabled: integer('enabled', { mode: 'boolean' }).default(true),
+	allVolumes: integer('all_volumes', { mode: 'boolean' }).default(true),
+	selectedVolumes: text('selected_volumes'),       // JSON array of volume names
+	stopBeforeBackup: integer('stop_before_backup', { mode: 'boolean' }).default(false),
+	schedule: text('schedule'),                      // cron expression
+	retention: text('retention'),                    // JSON: { keepLast?, keepDaily?, keepWeekly?, keepMonthly?, keepYearly? }
+	options: text('options'),                        // JSON: { compression?, limitUpload?, limitDownload?, excludePatterns?, webhookSuccess?, webhookFailure? }
+	tags: text('tags'),                              // JSON array of strings
+	lastBackupAt: text('last_backup_at'),
+	lastBackupStatus: text('last_backup_status'),    // 'success' | 'failed'
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
 
 // =============================================================================
 // API TOKENS TABLE
@@ -567,6 +656,9 @@ export type NewEnvironmentNotification = typeof environmentNotifications.$inferI
 export type GitCredential = typeof gitCredentials.$inferSelect;
 export type NewGitCredential = typeof gitCredentials.$inferInsert;
 
+export type SecretProviderRow = typeof secretProviders.$inferSelect;
+export type NewSecretProviderRow = typeof secretProviders.$inferInsert;
+
 export type GitRepository = typeof gitRepositories.$inferSelect;
 export type NewGitRepository = typeof gitRepositories.$inferInsert;
 
@@ -608,3 +700,9 @@ export type NewPendingContainerUpdate = typeof pendingContainerUpdates.$inferIns
 
 export type ApiToken = typeof apiTokens.$inferSelect;
 export type NewApiToken = typeof apiTokens.$inferInsert;
+
+export type BackupDestination = typeof backupDestinations.$inferSelect;
+export type NewBackupDestination = typeof backupDestinations.$inferInsert;
+
+export type BackupConfig = typeof backupConfigs.$inferSelect;
+export type NewBackupConfig = typeof backupConfigs.$inferInsert;

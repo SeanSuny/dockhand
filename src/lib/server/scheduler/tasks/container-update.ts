@@ -32,8 +32,10 @@ import {
 	tagImage,
 	connectContainerToNetwork,
 	disconnectContainerFromNetwork,
-	recreateContainerFromInspect
+	recreateContainerFromInspect,
+	inspectImage
 } from '../../docker';
+import type { ImageEnvLabels } from '../../container-env-merge';
 import { getScannerSettings, scanImage, type ScanResult, type VulnerabilitySeverity } from '../../scanner';
 import { sendEventNotification } from '../../notifications';
 import { parseImageNameAndTag, combineScanSummaries, isSystemContainer, isPodmanInfraContainer } from './update-utils';
@@ -384,6 +386,16 @@ export async function runContainerUpdate(
 		// Get the actual image ID from inspect data
 		const currentImageId = inspectData.Image;
 
+		// Capture the OLD image's Env/Labels/Cmd/Entrypoint BEFORE the pull — the old digest may
+		// be untagged/GC'd afterward. Forwarded to the env/label/command rebase (#1226, #1256, #1371).
+		let oldImageConfig: ImageEnvLabels | null = null;
+		try {
+			const oldImg = await inspectImage(currentImageId, envId) as any;
+			oldImageConfig = { Env: oldImg?.Config?.Env, Labels: oldImg?.Config?.Labels, Cmd: oldImg?.Config?.Cmd ?? null, Entrypoint: oldImg?.Config?.Entrypoint ?? null };
+		} catch {
+			// Best-effort; rebase falls back if unavailable.
+		}
+
 		log(`Container is using image: ${imageNameFromConfig}`);
 		log(`Current image ID: ${currentImageId?.substring(0, 19)}`);
 
@@ -569,7 +581,11 @@ export async function runContainerUpdate(
 		// =============================================================================
 
 		log(`Recreating container with full config passthrough...`);
-		const result = await recreateContainer(containerName, envId, log, imageNameFromConfig);
+		const result = await recreateContainer(containerName, envId, {
+			log,
+			imageNameOverride: imageNameFromConfig,
+			oldImageConfig
+		});
 
 		if (result.success) {
 			await updateAutoUpdateLastUpdated(containerName, envId);
@@ -623,12 +639,25 @@ export async function runContainerUpdate(
  * Passes inspect data directly to Docker API create, only changing the image.
  * No manual field mapping — zero settings loss.
  */
+export interface RecreateContainerOptions {
+	/** Progress logger. */
+	log?: (msg: string) => void;
+	/** New image to recreate with (defaults to the container's current image). */
+	imageNameOverride?: string;
+	/**
+	 * OLD image Config (Env/Labels) captured BEFORE the new image was pulled —
+	 * forwarded to the env/label rebase (#1226, #1256), since the old image may
+	 * no longer be inspectable after the pull repoints the tag.
+	 */
+	oldImageConfig?: ImageEnvLabels | null;
+}
+
 export async function recreateContainer(
 	containerName: string,
 	envId?: number,
-	log?: (msg: string) => void,
-	imageNameOverride?: string
+	options: RecreateContainerOptions = {}
 ): Promise<{ success: boolean; error?: string }> {
+	const { log, imageNameOverride, oldImageConfig } = options;
 	try {
 		const containers = await listContainers(true, envId);
 		const container = containers.find(c => c.name === containerName);
@@ -640,14 +669,98 @@ export async function recreateContainer(
 
 		const inspectData = await inspectContainer(container.id, envId) as any;
 		const imageName = imageNameOverride || inspectData.Config?.Image;
+		// Capture the parent's id BEFORE recreate. A recreate gives the parent a NEW id,
+		// and any child using `network_mode: service:parent` / `container:parent` stores
+		// that old id in its own HostConfig.NetworkMode (`container:<oldId>`). After the
+		// parent update those children still point at the dead id and fail to (re)start
+		// with "joining network namespace of container: No such container" (#570).
+		const oldParentId: string = inspectData.Id;
 
 		log?.(`Recreating container: ${containerName} (image: ${imageName})`);
 
-		await recreateContainerFromInspect(inspectData, imageName, envId, log);
+		await recreateContainerFromInspect(inspectData, imageName, envId, log, oldImageConfig);
+
+		// Parent recreate SUCCEEDED (a failure would have thrown and rolled the parent
+		// back to its original id, leaving children valid). Repoint any dependent
+		// children at the new parent. Best-effort and fully isolated: a child failure
+		// NEVER changes the parent's already-successful update. No-op when there are no
+		// such children — the common case pays nothing beyond one already-in-hand id.
+		try {
+			const reconnected = await reconnectDependentChildren(oldParentId, containerName, envId, log);
+			if (reconnected > 0) {
+				log?.(`Reconnected ${reconnected} dependent container${reconnected === 1 ? '' : 's'} to the new parent`);
+			}
+		} catch (e: any) {
+			log?.(`WARNING: dependent-child reconnect step errored (parent update stands): ${e?.message}`);
+		}
+
+		// recreateContainer is only ever called to UPDATE a container's image (scheduled
+		// auto-update AND the manual batch-update UI), so a successful recreate is a
+		// container_updated event. This is what the UI's "container updated" toggle
+		// promises; auto_update_success is raised separately by the scheduler path. (#1424)
+		try {
+			await sendEventNotification('container_updated', {
+				title: 'Container updated',
+				message: `Container "${containerName}" was updated to a new image (${imageName})`,
+				type: 'success'
+			}, envId);
+		} catch (e: any) {
+			log?.(`WARNING: container_updated notification failed (update stands): ${e?.message}`);
+		}
+
 		return { success: true };
 	} catch (error: any) {
 		log?.(`Failed to recreate container: ${error.message}`);
 		return { success: false, error: error.message };
 	}
+}
+
+/**
+ * After a parent container is recreated (new id), find containers whose network is
+ * shared into the parent by id (`network_mode: service:X`/`container:X`, which Docker
+ * lowers to `HostConfig.NetworkMode = "container:<parentId>"`) and repoint them at the
+ * new parent. A plain restart is NOT enough — the stale id is baked into the child's
+ * stored NetworkMode, so the child must be RECREATED with the reference rewritten. We
+ * rewrite to `container:<parentName>` (not the new id) so the child also survives future
+ * parent recreations. Best-effort per child; the caller isolates this from the parent
+ * update result. Returns the number of children repointed. (#570)
+ */
+async function reconnectDependentChildren(
+	oldParentId: string,
+	newParentName: string,
+	envId: number | undefined,
+	log?: (msg: string) => void,
+	visited: Set<string> = new Set()
+): Promise<number> {
+	if (visited.has(oldParentId)) return 0; // cycle guard for A<-B<-C chains
+	visited.add(oldParentId);
+
+	const all = await listContainers(true, envId); // include stopped
+	let count = 0;
+	for (const c of all) {
+		if (c.id === oldParentId) continue;
+		let ci: any;
+		try { ci = await inspectContainer(c.id, envId); } catch { continue; }
+		const mode: string = ci.HostConfig?.NetworkMode || '';
+		if (!mode.startsWith('container:')) continue;
+		const ref = mode.slice('container:'.length);
+		// Match the parent by full id, or defensively by short (12-char) id.
+		if (ref !== oldParentId && ref !== oldParentId.slice(0, 12) && !oldParentId.startsWith(ref)) continue;
+
+		log?.(`Reconnecting dependent container "${c.name}" -> container:${newParentName}`);
+		const oldChildId: string = ci.Id;
+		ci.HostConfig.NetworkMode = `container:${newParentName}`;
+		try {
+			const { Id: newChildId } = await recreateContainerFromInspect(ci, ci.Config.Image, envId, log);
+			count++;
+			// Chain: if this child was itself a parent to others, repoint them too.
+			if (newChildId && newChildId !== oldChildId) {
+				count += await reconnectDependentChildren(oldChildId, c.name, envId, log, visited);
+			}
+		} catch (e: any) {
+			log?.(`WARNING: failed to reconnect dependent "${c.name}": ${e?.message}`);
+		}
+	}
+	return count;
 }
 

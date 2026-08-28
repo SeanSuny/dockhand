@@ -12,6 +12,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Search, ChevronDown, Terminal as TerminalIcon, Unplug, RefreshCw, Trash2, Copy, Shell, User, Loader2, AlertCircle } from 'lucide-svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import ContainerIcon from '$lib/components/ContainerIcon.svelte';
 	import type { ContainerInfo } from '$lib/types';
 	import { currentEnvironment, environments, appendEnvParam } from '$lib/stores/environment';
 	import Terminal from './Terminal.svelte';
@@ -257,14 +258,14 @@
 
 {#if $environments.length === 0 || !$currentEnvironment}
 	<div class="flex flex-col flex-1 min-h-0 h-full">
-		<PageHeader icon={TerminalIcon} title={m.containers_shell_label()} class="h-9 mb-3" />
+		<PageHeader icon={TerminalIcon} title={m.container_terminal_shell_label()} class="h-9 mb-3" />
 		<NoEnvironment />
 	</div>
 {:else}
 <div class="flex flex-col flex-1 min-h-0 h-full gap-3">
 	<!-- Header with container selector -->
 	<div class="flex items-center gap-4 flex-wrap">
-		<PageHeader icon={TerminalIcon} title={m.containers_shell_label()} />
+		<PageHeader icon={TerminalIcon} title={m.container_terminal_shell_label()} />
 		<div class="relative flex-1 max-w-md min-w-[200px]">
 			<!-- Search input - always visible, shows selected container or placeholder -->
 			<div class="relative">
@@ -295,6 +296,7 @@
 								onclick={() => selectContainer(container)}
 								class="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 {selectedContainer?.id === container.id ? 'bg-muted' : ''}"
 							>
+								<ContainerIcon image={container.image} name={container.name} class="w-3.5 h-3.5" fallbackClass="text-green-500" showFallbackWhenOff />
 								<span class="font-medium truncate">{container.name}</span>
 								<span class="text-muted-foreground text-xs truncate">({container.image})</span>
 								{#if selectedContainer?.id === container.id}
@@ -379,7 +381,7 @@
 			<Select.Root type="single" bind:value={selectedUser} onValueChange={onUserSelectChange}>
 				<Select.Trigger class="h-9 w-48">
 					<User class="w-4 h-4 mr-2 text-muted-foreground" />
-					<span>{USER_OPTIONS.find(o => o.value === selectedUser)?.label || selectedUser || m.containers_user_select()}</span>
+					<span>{USER_OPTIONS.find(o => o.value === selectedUser)?.label || selectedUser || m.containers_shell_select()}</span>
 				</Select.Trigger>
 				<Select.Content>
 					{#each USER_OPTIONS as option}
@@ -453,7 +455,7 @@
 			<div class="flex items-center justify-between px-3 py-1.5 border-b border-zinc-800 bg-zinc-900/50 shrink-0">
 				<div class="flex items-center gap-2">
 					{#if connected}
-						<span class="inline-flex items-center gap-1 text-xs text-green-500"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>{m.container_terminal_connected()}</span>
+						<span class="inline-flex items-center gap-1 text-xs text-green-500"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>{m.settings_env_status_connected()}</span>
 					{:else}
 						<span class="text-xs text-zinc-500">{m.logs_disconnected()}</span>
 					{/if}

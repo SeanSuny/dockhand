@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
 	import { tick } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { ArrowBigRight, Settings2, Shield, Loader2, Download, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, X, Play } from 'lucide-svelte';
@@ -15,37 +15,7 @@
 	import type { VulnerabilityCriteria } from '$lib/components/VulnerabilityCriteriaSelector.svelte';
 
 	// Parse shell command respecting quotes
-	function parseShellCommand(cmd: string): string[] {
-		const args: string[] = [];
-		let current = '';
-		let inQuotes = false;
-		let quoteChar = '';
-
-		for (let i = 0; i < cmd.length; i++) {
-			const char = cmd[i];
-
-			if ((char === '"' || char === "'") && !inQuotes) {
-				inQuotes = true;
-				quoteChar = char;
-			} else if (char === quoteChar && inQuotes) {
-				inQuotes = false;
-				quoteChar = '';
-			} else if (char === ' ' && !inQuotes) {
-				if (current) {
-					args.push(current);
-					current = '';
-				}
-			} else {
-				current += char;
-			}
-		}
-
-		if (current) {
-			args.push(current);
-		}
-
-		return args;
-	}
+	import { parseShellCommand } from '$lib/utils/shell';
 
 	interface ConfigSet {
 		id: number;
@@ -331,12 +301,12 @@
 
 		let hasErrors = false;
 		if (!name.trim()) {
-			errors.name = m.container_create_name_required();
+			errors.name = 'Container name is required';
 			hasErrors = true;
 		}
 
 		if (!image.trim()) {
-			errors.image = m.container_create_image_required();
+			errors.image = 'Image name is required';
 			hasErrors = true;
 		}
 
@@ -478,7 +448,7 @@
 			const result = await response.json();
 
 			if (!response.ok) {
-				let errorMsg = result.error || m.container_create_failed();
+				let errorMsg = result.error || 'Failed to create container';
 				if (result.details) {
 					errorMsg += ': ' + result.details;
 				}
@@ -504,9 +474,9 @@
 			}
 
 			if (result.imagePulled) {
-				toast.success(m.container_create_success_pulled({ image: image.trim() }));
+				toast.success(`Container created (image ${image.trim()} was pulled automatically)`);
 			} else {
-				toast.success(m.container_create_success());
+				toast.success('Container created successfully');
 			}
 
 			open = false;
@@ -514,7 +484,7 @@
 			onSuccess?.();
 			onClose?.();
 		} catch (err) {
-				toast.error(m.container_create_failed_with_error({ error: String(err) }));
+			toast.error('Failed to create container: ' + String(err));
 		} finally {
 			loading = false;
 		}
@@ -604,12 +574,12 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={(isOpen) => isOpen && focusFirstInput()}>
-	<Dialog.Content class="max-w-4xl w-full h-[85vh] p-0 flex flex-col overflow-hidden !zoom-in-0 !zoom-out-0" showCloseButton={false}>
+	<Dialog.Content class="max-w-4xl w-[calc(100%-2rem)] h-[85vh] p-0 flex flex-col overflow-hidden !zoom-in-0 !zoom-out-0" showCloseButton={false}>
 		<Dialog.Header class="px-5 py-4 border-b bg-muted/30 shrink-0 sticky top-0 z-10">
 			<Dialog.Title class="text-base font-semibold">
-				{m.container_create_title()}
+				Create new container
 				{#if $currentEnvironment}
-					<span class="font-medium">{m.container_create_on()} <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
+					<span class="font-semibold">{m.common_state_on()} <span class="text-amber-600 dark:text-amber-400">{$currentEnvironment.name}</span></span>
 				{/if}
 			</Dialog.Title>
 			<button
@@ -632,7 +602,7 @@
 				onclick={() => activeTab = 'pull'}
 			>
 				<Download class="w-4 h-4" />
-				{m.container_create_tab_pull()}
+				Pull
 				{#if pullStatus === 'complete'}
 					<CheckCircle2 class="w-3.5 h-3.5 text-green-500" />
 				{:else if pullStatus === 'pulling'}
@@ -650,7 +620,7 @@
 					disabled={pullStatus === 'idle' || pullStatus === 'pulling'}
 				>
 					<Shield class="w-4 h-4" />
-					{m.container_create_tab_scan()}
+					Scan
 					{#if scanStatus === 'complete' && scanResults.length > 0}
 						{#if hasCriticalOrHigh}
 							<ShieldX class="w-3.5 h-3.5 text-red-500" />
@@ -670,9 +640,7 @@
 				class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-2 {activeTab === 'container' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
 				onclick={() => activeTab = 'container'}
 			>
-				<Settings2 class="w-4 h-4" />
-				{m.container_create_tab_container()}
-			</button>
+				<Settings2 class="w-4 h-4" />{m.container_create_tab_container()}</button>
 		</div>
 		{/if}
 
@@ -710,7 +678,7 @@
 					<div class="text-center">
 						<Shield class="w-12 h-12 text-muted-foreground/50 mx-auto mb-2" />
 						<p class="text-sm text-muted-foreground">{m.container_create_scan_disabled()}</p>
-						<p class="text-xs text-muted-foreground mt-1">{m.container_create_scan_enable_hint()}</p>
+						<p class="text-xs text-muted-foreground mt-1">{m.containers_create_scan_images_hint()}</p>
 					</div>
 				</div>
 			{/if}
@@ -790,16 +758,14 @@
 				{/if}
 			</div>
 			<div class="flex gap-2">
-				<Button type="button" variant="outline" onclick={handleClose} disabled={loading || isPulling || isScanning}>
-					{m.common_cancel()}
-				</Button>
+				<Button type="button" variant="outline" onclick={handleClose} disabled={loading || isPulling || isScanning}>{m.common_cancel()}</Button>
 				<Button type="button" disabled={loading || isPulling || isScanning || activeTab !== 'container'} onclick={handleSubmit}>
 					{#if loading}
 						<Loader2 class="w-4 h-4 animate-spin" />
-						{m.container_create_creating()}
+						Creating...
 					{:else}
 						<Play class="w-4 h-4" />
-						{m.container_create_button()}
+						Create container
 					{/if}
 				</Button>
 			</div>

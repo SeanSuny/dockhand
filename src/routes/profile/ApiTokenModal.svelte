@@ -7,6 +7,7 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { KeyRound, Copy, Check, TriangleAlert } from 'lucide-svelte';
 	import { copyToClipboard } from '$lib/utils/clipboard';
+import * as m from '$lib/paraglide/messages';
 
 	let {
 		open = $bindable(false),
@@ -60,11 +61,11 @@
 
 	async function createToken() {
 		if (!name.trim()) {
-			error = 'Token name is required';
+			error = m.profile_api_token_error_name_required();
 			return;
 		}
 		if (isLocalUser && !password) {
-			error = 'Password is required';
+			error = m.profile_api_token_error_password_required();
 			return;
 		}
 
@@ -91,10 +92,10 @@
 				createdToken = data.token;
 			} else {
 				const data = await response.json();
-				error = data.error || 'Failed to create token';
+				error = data.error || m.profile_api_token_error_create_failed();
 			}
 		} catch {
-			error = 'Failed to create token';
+			error = m.profile_api_token_error_create_failed();
 		} finally {
 			creating = false;
 		}
@@ -129,7 +130,7 @@
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<KeyRound class="w-5 h-5" />
-				{createdToken ? 'Token created' : 'Generate API token'}
+				{createdToken ? m.profile_api_token_modal_title_created() : m.profile_api_token_modal_title_create()}
 			</Dialog.Title>
 		</Dialog.Header>
 
@@ -139,7 +140,7 @@
 				<Alert.Root variant="destructive">
 					<TriangleAlert class="h-4 w-4" />
 					<Alert.Description>
-						Copy this token now. It will not be shown again.
+						{m.profile_api_token_copy_warning()}
 					</Alert.Description>
 				</Alert.Root>
 
@@ -159,36 +160,36 @@
 				</div>
 
 				<div class="flex justify-end">
-					<Button onclick={handleClose}>Done</Button>
+					<Button onclick={handleClose}>{m.images_push_done()}</Button>
 				</div>
 			</div>
 		{:else}
 			<!-- Token creation form -->
 			<div class="space-y-4">
 				<div class="space-y-2">
-					<Label for="token-name">Name</Label>
+					<Label for="token-name">{m.common_name()}</Label>
 					<Input
 						id="token-name"
 						bind:value={name}
-						placeholder="e.g., CI/CD pipeline"
+						placeholder={m.profile_api_token_name_placeholder()}
 						maxlength={255}
 					/>
 				</div>
 
 				{#if isLocalUser}
 					<div class="space-y-2">
-						<Label for="token-password">Password</Label>
+						<Label for="token-password">{m.login_password()}</Label>
 						<Input
 							id="token-password"
 							type="password"
 							bind:value={password}
-							placeholder="Confirm your password"
+							placeholder={m.profile_api_token_password_placeholder()}
 						/>
 					</div>
 				{/if}
 
 				<div class="space-y-2">
-					<Label>Expiration</Label>
+					<Label>{m.profile_api_token_expiration_label()}</Label>
 					<Select.Root type="single" bind:value={expirationOption}>
 						<Select.Trigger class="w-full">
 							{#if expirationOption === 'none'}No expiration
@@ -199,11 +200,11 @@
 							{/if}
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="none">No expiration</Select.Item>
-							<Select.Item value="30d">30 days</Select.Item>
-							<Select.Item value="90d">90 days</Select.Item>
-							<Select.Item value="1y">1 year</Select.Item>
-							<Select.Item value="custom">Custom date</Select.Item>
+							<Select.Item value="none">{m.profile_api_token_expiration_none()}</Select.Item>
+							<Select.Item value="30d">{m.profile_api_token_expiration_30d()}</Select.Item>
+							<Select.Item value="90d">{m.profile_api_token_expiration_90d()}</Select.Item>
+							<Select.Item value="1y">{m.profile_api_token_expiration_1y()}</Select.Item>
+							<Select.Item value="custom">{m.profile_api_token_expiration_custom()}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 
@@ -224,9 +225,9 @@
 				{/if}
 
 				<div class="flex justify-end gap-2">
-					<Button variant="outline" onclick={handleClose}>Cancel</Button>
+					<Button variant="outline" onclick={handleClose}>{m.common_cancel()}</Button>
 					<Button onclick={createToken} disabled={creating || !name.trim() || (isLocalUser && !password)}>
-						{creating ? 'Creating...' : 'Generate token'}
+						{creating ? m.container_create_creating() : m.profile_api_token_generate()}
 					</Button>
 				</div>
 			</div>

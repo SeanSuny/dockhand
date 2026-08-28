@@ -160,7 +160,7 @@
 									onclick={() => openCfgModal(cfg)}
 								>
 									<Pencil class="w-3 h-3" />
-									{m.stacks_action_edit()}
+									{m.containers_action_edit()}
 								</Button>
 							{/if}
 							{#if $canAccess('configsets', 'delete')}

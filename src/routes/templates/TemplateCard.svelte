@@ -108,7 +108,7 @@
 						target="_blank"
 						rel="noopener"
 						class="flex items-center gap-0.5 hover:text-primary hover:underline"
-						title="Open the detailed guide on portainer-templates.as93.net"
+						title={m.templates_card_guide_title()}
 						onclick={(e: MouseEvent) => {
 							e.stopPropagation();
 							e.preventDefault();
@@ -116,7 +116,7 @@
 						}}
 					>
 						<BookOpen class="w-3 h-3" />
-						Details
+						{m.templates_card_details()}
 					</a>
 				{/if}
 				{#if template.stars}

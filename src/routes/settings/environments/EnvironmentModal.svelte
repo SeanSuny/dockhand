@@ -2132,7 +2132,7 @@
 										<textarea
 											id="edit-env-tls_key"
 											bind:value={formTlsKey}
-											placeholder={hasStoredTlsKey ? 'Configured - leave blank to keep, or paste a new key to replace it' : '-----BEGIN PRIVATE KEY-----'}
+											placeholder={hasStoredTlsKey ? m.settings_env_modal_stored_key_ph() : '-----BEGIN PRIVATE KEY-----'}
 											class="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 										></textarea>
 									</div>
@@ -2236,7 +2236,7 @@
 											<Key class="w-3 h-3" />{m.settings_env_modal_generate()}</Button>
 									{/if}
 								</div>
-								<Input id="edit-env-hawser-token" type="password" bind:value={formHawserToken} placeholder={hasStoredHawserToken ? 'Configured - leave blank to keep, or enter a new token to replace it' : 'Token for agent authentication'} oninput={() => generatedStandardToken = null} />
+								<Input id="edit-env-hawser-token" type="password" bind:value={formHawserToken} placeholder={hasStoredHawserToken ? m.settings_env_modal_stored_token_ph() : m.settings_env_modal_token_ph()} oninput={() => generatedStandardToken = null} />
 								{#if generatedStandardToken}
 									<div class="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-md space-y-2">
 										<p class="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1">

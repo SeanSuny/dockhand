@@ -1019,7 +1019,7 @@
 				showErrorDialog(`Failed to restart ${name}`, data.error || 'Failed to restart stack');
 				return;
 			}
-			toast.success(mode === 'recreate' ? `Recreated ${name}` : `Restarted ${name}`);
+			toast.success(mode === 'recreate' ? m.stacks_toast_recreated({ name }) : m.toast_restarted({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to restart stack:', error);
@@ -1830,7 +1830,7 @@
 								</button>
 							</Tooltip.Trigger>
 							<Tooltip.Content class="max-w-md">
-								<p class="text-xs mb-1">Copy webhook URL</p>
+								<p class="text-xs mb-1">{m.stacks_webhook_copy_url()}</p>
 								<code class="text-2xs text-muted-foreground break-all">{webhookUrl}</code>
 							</Tooltip.Content>
 						</Tooltip.Root>
@@ -2121,18 +2121,18 @@
 											sideOffset={8}
 										>
 											<div class="flex flex-col gap-2 w-60">
-												<span class="text-xs text-muted-foreground">Restart stack <strong>{stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name}</strong></span>
+												<span class="text-xs text-muted-foreground">{m.stacks_restart_stack_title({name: stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name})}</span>
 												<button class="flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left hover:bg-muted" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>
-													<span class="text-xs font-medium">Restart</span>
-													<span class="text-[11px] text-muted-foreground">Fast in-place restart. Ignores depends_on ordering.</span>
+													<span class="text-xs font-medium">{m.common_restart()}</span>
+													<span class="text-[11px] text-muted-foreground">{m.stacks_restart_desc_fast()}</span>
 												</button>
 												<button class="flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left hover:bg-muted" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'ordered'); }}>
-													<span class="text-xs font-medium">Restart in order</span>
-													<span class="text-[11px] text-muted-foreground">Stop then start in depends_on order. Same container IDs.</span>
+													<span class="text-xs font-medium">{m.stacks_restart_in_order()}</span>
+													<span class="text-[11px] text-muted-foreground">{m.stacks_restart_desc_ordered()}</span>
 												</button>
 												<button class="flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left hover:bg-muted" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>
-													<span class="text-xs font-medium">Recreate (stop &amp; up)</span>
-													<span class="text-[11px] text-muted-foreground">Recreate containers in order. New IDs, re-pulls newer images.</span>
+													<span class="text-xs font-medium">{m.stacks_action_recreate()}</span>
+													<span class="text-[11px] text-muted-foreground">{m.stacks_recreate_desc_ordered()}</span>
 												</button>
 											</div>
 										</Popover.Content>

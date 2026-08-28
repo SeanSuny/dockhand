@@ -2947,5 +2947,22 @@
 	"navigation_use_global_default": "Use global default",
 	"navigation_global_default_hint": "Global default ({defaultPage})",
 	"navigation_compose_stacks": "Compose stacks",
-	"navigation_save_error": "Failed to save navigation preference"
+	"navigation_save_error": "Failed to save navigation preference",
+	"settings_auth_timed": "Timed",
+	"settings_auth_never_expire": "Never expire",
+	"settings_auth_sessions_stay_signed": "Sessions stay signed in until logout",
+	"settings_auth_sessions_expire_after": "Sessions expire after the timeout below",
+	"stacks_restart_in_order": "Restart in order",
+	"stacks_restart_desc_fast": "Fast in-place restart. Ignores depends_on ordering.",
+	"stacks_restart_desc_ordered": "Stop then start in depends_on order. Same container IDs.",
+	"stacks_recreate_desc_ordered": "Recreate containers in order. New IDs, re-pulls newer images.",
+	"stacks_webhook_copy_url": "Copy webhook URL",
+	"stacks_icon_loading_icons": "Loading icons...",
+	"templates_card_details": "Details",
+	"templates_card_guide_title": "Open the detailed guide on portainer-templates.as93.net",
+	"git_stack_modal_change_icon": "Change stack icon",
+	"git_stack_modal_choose_icon": "Choose a stack icon",
+	"settings_env_modal_stored_key_ph": "Configured - leave blank to keep, or paste a new key to replace it",
+	"settings_env_modal_stored_token_ph": "Configured - leave blank to keep, or enter a new token to replace it"
 }
+

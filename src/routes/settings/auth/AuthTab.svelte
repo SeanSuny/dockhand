@@ -265,12 +265,12 @@
 						<div class="flex items-center gap-2 mb-2">
 							<ToggleGroup
 								value={neverExpire ? 'never' : 'timed'}
-								options={[{ value: 'timed', label: 'Timed' }, { value: 'never', label: 'Never expire' }]}
+								options={[{ value: 'timed', label: m.settings_auth_timed() }, { value: 'never', label: m.settings_auth_never_expire() }]}
 								onchange={(v) => neverExpire = v === 'never'}
 								disabled={!$canAccess('settings', 'edit')}
 							/>
 							<span class="text-xs text-muted-foreground">
-								{neverExpire ? 'Sessions stay signed in until logout' : 'Sessions expire after the timeout below'}
+								{neverExpire ? m.settings_auth_sessions_stay_signed() : m.settings_auth_sessions_expire_after()}
 							</span>
 						</div>
 						<div class="flex items-center gap-2">

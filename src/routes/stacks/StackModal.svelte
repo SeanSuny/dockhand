@@ -1772,7 +1772,7 @@
 						{#if !readonly}
 							<button
 								type="button"
-								title="Change stack icon"
+								title={m.git_stack_modal_change_icon()}
 								onclick={() => (showIconPicker = true)}
 								class="p-1.5 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:ring-2 hover:ring-primary transition-shadow"
 							>
@@ -2252,7 +2252,7 @@
 	</Dialog.Content>
 </Dialog.Root>
 
-<IconPickerModal bind:open={showIconPicker} value={formIcon} onselect={onIconSelect} title="Choose a stack icon" />
+<IconPickerModal bind:open={showIconPicker} value={formIcon} onselect={onIconSelect} title={m.git_stack_modal_choose_icon()} />
 
 <!-- Unsaved changes confirmation dialog -->
 <Dialog.Root bind:open={showConfirmClose}>

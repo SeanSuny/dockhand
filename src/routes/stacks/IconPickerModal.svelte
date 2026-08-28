@@ -190,7 +190,7 @@
 				<div class="flex-1 min-h-0 overflow-y-auto pr-1">
 					{#if manifestLoading}
 						<div class="flex items-center justify-center gap-2 py-12 text-muted-foreground text-sm">
-							<Loader2 class="w-4 h-4 animate-spin" /> Loading icon list...
+							<Loader2 class="w-4 h-4 animate-spin" />{m.stacks_icon_loading_list()}
 						</div>
 					{:else if manifestError}
 						<div class="flex flex-col items-center gap-2 py-10 text-muted-foreground text-sm">
@@ -200,7 +200,7 @@
 					{:else}
 						{#if showIconSpinner}
 							<div class="flex items-center justify-center gap-2 py-12 text-muted-foreground text-sm">
-								<Loader2 class="w-4 h-4 animate-spin" /> Loading icons...
+								<Loader2 class="w-4 h-4 animate-spin" />{m.stacks_icon_loading_icons()}
 							</div>
 						{/if}
 						<div class="grid grid-cols-12 gap-1 content-start" class:hidden={showIconSpinner}>

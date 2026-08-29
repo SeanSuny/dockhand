@@ -2947,5 +2947,22 @@
 	"navigation_use_global_default": "使用全局默认值",
 	"navigation_global_default_hint": "全局默认值（{defaultPage}）",
 	"navigation_compose_stacks": "Compose 堆栈",
-	"navigation_save_error": "保存导航偏好失败"
+	"navigation_save_error": "保存导航偏好失败",
+	"settings_auth_timed": "定时",
+	"settings_auth_never_expire": "永不过期",
+	"settings_auth_sessions_stay_signed": "会话保持登录状态，直到手动退出",
+	"settings_auth_sessions_expire_after": "会话将在下方设置的超时时间后过期",
+	"stacks_restart_in_order": "按顺序重启",
+	"stacks_restart_desc_fast": "快速原地重启，忽略 depends_on 顺序。",
+	"stacks_restart_desc_ordered": "停止后按 depends_on 顺序启动，容器 ID 保持不变。",
+	"stacks_recreate_desc_ordered": "按顺序重建容器，ID 会变更并拉取更新的镜像。",
+	"stacks_webhook_copy_url": "复制 Webhook URL",
+	"stacks_icon_loading_icons": "正在加载图标…",
+	"templates_card_details": "详情",
+	"templates_card_guide_title": "在 portainer-templates.as93.net 上打开详细指南",
+	"git_stack_modal_change_icon": "更改堆栈图标",
+	"git_stack_modal_choose_icon": "选择堆栈图标",
+	"settings_env_modal_stored_key_ph": "已配置——留空保持不变，或粘贴新密钥以替换",
+	"settings_env_modal_stored_token_ph": "已配置——留空保持不变，或输入新令牌以替换"
 }
+

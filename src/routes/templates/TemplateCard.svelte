@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Package, Star, Download, Loader2, ExternalLink } from 'lucide-svelte';
+	import { Package, Star, Download, Loader2, ExternalLink, BookOpen } from 'lucide-svelte';
 	import type { TemplateItem } from '../api/templates/+server';
 	import { renderDescription } from '$lib/utils/template-description';
 	import * as m from '$lib/paraglide/messages';
@@ -100,6 +100,23 @@
 					>
 						<ExternalLink class="w-3 h-3" />
 						{m.templates_card_project()}
+					</a>
+				{/if}
+				{#if template.detailsUrl}
+					<a
+						href={template.detailsUrl}
+						target="_blank"
+						rel="noopener"
+						class="flex items-center gap-0.5 hover:text-primary hover:underline"
+						title={m.templates_card_guide_title()}
+						onclick={(e: MouseEvent) => {
+							e.stopPropagation();
+							e.preventDefault();
+							window.open(template.detailsUrl, '_blank', 'noopener');
+						}}
+					>
+						<BookOpen class="w-3 h-3" />
+						{m.templates_card_details()}
 					</a>
 				{/if}
 				{#if template.stars}

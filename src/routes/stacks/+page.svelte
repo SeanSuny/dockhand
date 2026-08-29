@@ -15,7 +15,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import * as Popover from '$lib/components/ui/popover';
 	import MultiSelectFilter from '$lib/components/MultiSelectFilter.svelte';
-	import { Play, Square, Trash2, Plus, ArrowBigDown, Search, Pencil, ExternalLink, GitBranch, RefreshCw, Loader2, FileCode, FileText, FileOutput, Box, RotateCcw, ScrollText, Terminal, Eye, Network, HardDrive, Heart, HeartPulse, HeartOff, ChevronsUpDown, ChevronsDownUp, Rocket, AlertTriangle, X, Layers, Pause, CircleDashed, Skull, FolderOpen, Variable, Clock, RotateCw, Import, Ship, Cable, LayoutPanelLeft, Rows3, GripVertical, Globe, CircleArrowUp, NotepadText, Tag } from 'lucide-svelte';
+	import { Play, Square, Trash2, Plus, ArrowBigDown, Search, Pencil, ExternalLink, GitBranch, RefreshCw, Loader2, FileCode, FileText, FileOutput, Box, RotateCcw, ScrollText, Terminal, Eye, Network, HardDrive, Heart, HeartPulse, HeartOff, ChevronsUpDown, ChevronsDownUp, Rocket, AlertTriangle, X, Layers, Pause, CircleDashed, Skull, FolderOpen, Variable, Clock, RotateCw, Import, Ship, Cable, LayoutPanelLeft, Rows3, GripVertical, Globe, CircleArrowUp, NotepadText, Tag, Copy, Check } from 'lucide-svelte';
 	import { formatPorts } from '$lib/utils/port-format';
 	import { parseCustomUrl } from '$lib/utils/custom-url';
 	import { extractTraefikUrls } from '$lib/utils/traefik-urls';
@@ -54,9 +54,10 @@
 	import { ErrorDialog } from '$lib/components/ui/error-dialog';
 	import { formatHostPortUrl } from '$lib/utils/url';
 	import { formatBytes, formatBytesCompact } from '$lib/utils/format';
+	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { effectiveStackBranch } from '$lib/git-stack-branch';
 
-	type SortField = 'name' | 'containers' | 'status' | 'cpu' | 'memory';
+	type SortField = 'name' | 'containers' | 'status' | 'cpu' | 'memory' | 'diskRead' | 'diskWrite' | 'netRx' | 'netTx';
 	type SortDirection = 'asc' | 'desc';
 
 	let stacks = $state<ComposeStackInfo[]>([]);
@@ -67,8 +68,23 @@
 	let stackSources = $state<Record<string, { sourceType: string; composePath?: string | null; repository?: any; gitStack?: any; icon?: string | null }>>({});
 	let stackEnvVarCounts = $state<Record<string, number>>({});
 	let gitStacks = $state<any[]>([]);
+	let copiedWebhookStackId = $state<number | null>(null);
+
+	function copyWebhookUrl(stackId: number) {
+		const url = `${window.location.origin}/api/git/stacks/${stackId}/webhook`;
+		copyToClipboard(url).then((ok) => {
+			if (!ok) return;
+			copiedWebhookStackId = stackId;
+			setTimeout(() => {
+				if (copiedWebhookStackId === stackId) copiedWebhookStackId = null;
+			}, 2000);
+		});
+	}
 	let gitRepositories = $state<any[]>([]);
 	let gitCredentials = $state<any[]>([]);
+	// User-set per-container icon overrides for the current env (name -> icon), so a
+	// stack's expanded container list shows the same custom icons as the containers page (#1471).
+	let iconOverrides = $state<Record<string, string>>({});
 	let containerStats = $state<Map<string, ContainerStats>>(new Map());
 	let containerStatsHistory = $state<Map<string, { cpu: number[]; mem: number[]; netRx: number[]; netTx: number[]; diskR: number[]; diskW: number[] }>>(new Map());
 	let statsUpdateCount = $state(0); // Force reactivity counter
@@ -594,6 +610,18 @@
 					const memB = getStackStats(b)?.memoryUsage ?? -1;
 					cmp = memA - memB;
 					break;
+				case 'diskRead':
+					cmp = (getStackStats(a)?.blockRead ?? -1) - (getStackStats(b)?.blockRead ?? -1);
+					break;
+				case 'diskWrite':
+					cmp = (getStackStats(a)?.blockWrite ?? -1) - (getStackStats(b)?.blockWrite ?? -1);
+					break;
+				case 'netRx':
+					cmp = (getStackStats(a)?.networkRx ?? -1) - (getStackStats(b)?.networkRx ?? -1);
+					break;
+				case 'netTx':
+					cmp = (getStackStats(a)?.networkTx ?? -1) - (getStackStats(b)?.networkTx ?? -1);
+					break;
 			}
 			// Secondary sort by name for stability when primary values are equal
 			if (cmp === 0 && sortField !== 'name') {
@@ -820,11 +848,13 @@
 			loading = true;
 		}
 		try {
-			const [stacksRes, sourcesRes, gitStacksRes] = await Promise.all([
+			const [stacksRes, sourcesRes, gitStacksRes, iconsRes] = await Promise.all([
 				fetch(appendEnvParam('/api/stacks', envId)),
 				fetch(appendEnvParam('/api/stacks/sources', envId)),
-				fetch(appendEnvParam('/api/git/stacks', envId))
+				fetch(appendEnvParam('/api/git/stacks', envId)),
+				fetch(appendEnvParam('/api/container-icons', envId))
 			]);
+			iconOverrides = iconsRes.ok ? await iconsRes.json() : {};
 
 			// Handle stale environment ID (e.g., after database reset)
 			if (stacksRes.status === 404 && envId) {
@@ -876,9 +906,15 @@
 
 			stacks = dockerStacks;
 
-			// Fetch env var counts for internal and git stacks (in background, don't block UI)
-			const allStackNames = stacks.map(s => s.name);
-			fetchEnvVarCounts(allStackNames, sourcesData);
+			// Env-var counts come from /api/stacks/sources (envVarCount per stack) - no
+			// per-stack /env fetch needed for the list badge.
+			const counts: Record<string, number> = {};
+			for (const [name, src] of Object.entries(sourcesData as Record<string, { envVarCount?: number }>)) {
+				if (src && typeof src.envVarCount === 'number' && src.envVarCount > 0) {
+					counts[name] = src.envVarCount;
+				}
+			}
+			stackEnvVarCounts = counts;
 		} catch (error) {
 			console.error('Failed to fetch stacks:', error);
 			toast.error('Failed to load stacks');
@@ -886,39 +922,6 @@
 			loading = false;
 			lastLoadedEnvId = envId;
 		}
-	}
-
-	async function fetchEnvVarCounts(stackNames: string[], sources: Record<string, any>) {
-		// Only fetch for stacks that can have env vars (internal or git)
-		const stacksToFetch = stackNames.filter(name => {
-			const source = sources[name];
-			return source && (source.sourceType === 'internal' || source.sourceType === 'git');
-		});
-
-		if (stacksToFetch.length === 0) {
-			stackEnvVarCounts = {};
-			return;
-		}
-
-		const counts: Record<string, number> = {};
-
-		// Fetch in parallel with error handling
-		await Promise.all(stacksToFetch.map(async (stackName) => {
-			try {
-				const response = await fetch(appendEnvParam(`/api/stacks/${encodeURIComponent(stackName)}/env`, envId));
-				if (response.ok) {
-					const data = await response.json();
-					const varCount = data.variables?.length || 0;
-					if (varCount > 0) {
-						counts[stackName] = varCount;
-					}
-				}
-			} catch (e) {
-				// Ignore errors for individual stack env var fetches
-			}
-		}));
-
-		stackEnvVarCounts = counts;
 	}
 
 	function getStackSource(stackName: string) {
@@ -1002,13 +1005,13 @@
 		}
 	}
 
-	async function restartStack(name: string, mode: 'restart' | 'recreate' = 'restart') {
+	async function restartStack(name: string, mode: 'restart' | 'ordered' | 'recreate' = 'restart') {
 		operationError = null;
 		stackActionLoading = name;
 		try {
 			let url = appendEnvParam(`/api/stacks/${encodeURIComponent(name)}/restart`, envId);
-			if (mode === 'recreate') {
-				url += (url.includes('?') ? '&' : '?') + 'mode=recreate';
+			if (mode === 'recreate' || mode === 'ordered') {
+				url += (url.includes('?') ? '&' : '?') + `mode=${mode}`;
 			}
 			const response = await fetch(url, { method: 'POST' });
 			const data = await readJobResponse(response);
@@ -1016,7 +1019,7 @@
 				showErrorDialog(`Failed to restart ${name}`, data.error || 'Failed to restart stack');
 				return;
 			}
-			toast.success(mode === 'recreate' ? `Recreated ${name}` : `Restarted ${name}`);
+			toast.success(mode === 'recreate' ? m.stacks_toast_recreated({ name }) : m.toast_restarted({ name }));
 			await fetchStacks();
 		} catch (error) {
 			console.error('Failed to restart stack:', error);
@@ -1807,6 +1810,31 @@
 							<Tooltip.Content>{m.stacks_source_untracked_tooltip()}</Tooltip.Content>
 						</Tooltip.Root>
 					{/if}
+				{:else if column.id === 'webhook'}
+					{#if source.sourceType === 'git' && source.gitStack?.webhookEnabled}
+						{@const stackId = source.gitStack.id}
+						{@const webhookUrl = `${window.location.origin}/api/git/stacks/${stackId}/webhook`}
+						<Tooltip.Root>
+							<Tooltip.Trigger class="w-full text-left">
+								<button
+									type="button"
+									class="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+									onclick={(e) => { e.stopPropagation(); copyWebhookUrl(stackId); }}
+								>
+									<span>#{stackId}</span>
+									{#if copiedWebhookStackId === stackId}
+										<Check class="w-3 h-3 text-emerald-500" />
+									{:else}
+										<Copy class="w-3 h-3" />
+									{/if}
+								</button>
+							</Tooltip.Trigger>
+							<Tooltip.Content class="max-w-md">
+								<p class="text-xs mb-1">{m.stacks_webhook_copy_url()}</p>
+								<code class="text-2xs text-muted-foreground break-all">{webhookUrl}</code>
+							</Tooltip.Content>
+						</Tooltip.Root>
+					{/if}
 				{:else if column.id === 'location'}
 					{#if source.composePath}
 						{@const dirPath = source.composePath.replace(/\/[^/]+$/, '')}
@@ -2092,12 +2120,20 @@
 											align="end"
 											sideOffset={8}
 										>
-											<div class="flex flex-col gap-1.5">
-												<span class="text-xs text-muted-foreground">{m.stacks_restart_stack()} <strong>{stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name}</strong></span>
-												<div class="flex items-center gap-1.5">
-													<Button size="sm" variant="secondary" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>{m.common_restart()}</Button>
-													<Button size="sm" variant="default" class="h-6 px-2 text-xs" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>{m.stacks_action_recreate()}</Button>
-												</div>
+											<div class="flex flex-col gap-2 w-60">
+												<span class="text-xs text-muted-foreground">{m.stacks_restart_stack_title({name: stack.name.length > 20 ? stack.name.slice(0, 20) + '...' : stack.name})}</span>
+												<button class="flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left hover:bg-muted" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'restart'); }}>
+													<span class="text-xs font-medium">{m.common_restart()}</span>
+													<span class="text-[11px] text-muted-foreground">{m.stacks_restart_desc_fast()}</span>
+												</button>
+												<button class="flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left hover:bg-muted" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'ordered'); }}>
+													<span class="text-xs font-medium">{m.stacks_restart_in_order()}</span>
+													<span class="text-[11px] text-muted-foreground">{m.stacks_restart_desc_ordered()}</span>
+												</button>
+												<button class="flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left hover:bg-muted" onclick={() => { restartPopoverOpen[stack.name] = false; restartStack(stack.name, 'recreate'); }}>
+													<span class="text-xs font-medium">{m.stacks_action_recreate()}</span>
+													<span class="text-[11px] text-muted-foreground">{m.stacks_recreate_desc_ordered()}</span>
+												</button>
 											</div>
 										</Popover.Content>
 									</Popover.Root>
@@ -2156,8 +2192,19 @@
 								{@const isLoading = containerActionLoading === container.id}
 								<div class="p-3 rounded-lg bg-background border text-xs">
 									<div class="flex items-center gap-2 mb-2">
-										{#if $appSettings.useSelfhstIcons}
-											<ContainerIcon image={container.image} name={container.service || container.name} class="w-4 h-4" />
+										{#if $appSettings.useSelfhstIcons || iconOverrides[container.name]}
+											<!-- override + its custom-icon key use the real container.name; name=
+											     stays the service for better auto-match when there is no override. -->
+											<ContainerIcon
+												image={container.image}
+												name={container.service || container.name}
+												override={iconOverrides[container.name]}
+												overrideKey={container.name}
+												{envId}
+												class="w-4 h-4"
+												fallbackClass={container.state === 'running' ? 'text-emerald-500' : 'text-muted-foreground'}
+												showFallbackWhenOff
+											/>
 										{:else}
 											<Box class="w-4 h-4 shrink-0 {container.state === 'running' ? 'text-emerald-500' : 'text-muted-foreground'}" />
 										{/if}
@@ -2671,6 +2718,7 @@
 	bind:open={showGitModal}
 	gitStack={editingGitStack}
 	environmentId={envId}
+	icon={editingGitStack ? (stackSources[editingGitStack.stackName]?.icon ?? null) : null}
 	repositories={gitRepositories}
 	credentials={gitCredentials}
 	onClose={() => {

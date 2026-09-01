@@ -107,9 +107,9 @@ jobs:
 
       - name: Set up Swap Space
         if: steps.sync_check.outputs.should_build == 'true'
-        uses: pierotofy/set-swap-space-action@v1.5.0
+        uses: actionhippie/swap-space@v1
         with:
-          swap-size-gb: 8
+          size: 8G
     
       - name: Build and push Docker image
         if: steps.sync_check.outputs.should_build == 'true'

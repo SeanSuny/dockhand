@@ -69,6 +69,22 @@ jobs:
           # 标记需要构建镜像
           echo "should_build=true" >> $GITHUB_OUTPUT
 
+# ==================== 动态注入内存配置到 Dockerfile ====================
+      - name: Inject NODE_OPTIONS to Dockerfile
+        if: steps.sync_check.outputs.should_build == 'true'
+        run: |
+          if [ -f Dockerfile ]; then
+            echo "🔧 正在向 Dockerfile 注入 NODE_OPTIONS 内存配置..."
+            
+            # 在 app-builder 阶段 (FROM ... AS app-builder) 之后精准插入 ARG 和 ENV
+            sed -i '/AS app-builder/a ARG NODE_OPTIONS="--max-old-space-size=6144"\nENV NODE_OPTIONS=${NODE_OPTIONS}' Dockerfile
+            
+            echo "=== 修改后的 app-builder 区域预览 ==="
+            grep -A 5 "AS app-builder" Dockerfile
+          else
+            echo "⚠️ 未找到 Dockerfile"
+          fi
+
       # ==================== Docker Hub 构建与推送步骤 ====================
       - name: Set up QEMU
         if: steps.sync_check.outputs.should_build == 'true'

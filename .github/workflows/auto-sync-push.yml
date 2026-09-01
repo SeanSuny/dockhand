@@ -50,23 +50,19 @@ jobs:
           git checkout HEAD -- .github/ 2>/dev/null || true
           git clean -fd .github/ 2>/dev/null || true
 
-          # 检查暂存区
+          # ------------------ 已跳过无变更退出逻辑 ------------------
           if git diff --cached --quiet; then
-            echo "🛑 上游无新源码变更，直接退出工作流"
-            echo "should_build=false" >> $GITHUB_OUTPUT
-            exit 0
+            echo "⚠️ 上游无新源码变更，但已开启强制构建，继续执行..."
+          else
+            git commit -m "Auto sync from upstream: $(git log --format=%h -n 1 upstream/$UPSTREAM_BRANCH)" || true
           fi
           
-          # 完成合并并提交
-          git commit -m "Auto sync from upstream: $(git log --format=%h -n 1 upstream/$UPSTREAM_BRANCH)"
-          
-          # 推送变更到目标分支
-          git push origin temp-sync-branch:"$TARGET_BRANCH"
+          git push origin temp-sync-branch:"$TARGET_BRANCH" || true
           git checkout "$TARGET_BRANCH"
-          git merge temp-sync-branch
-          git branch -D temp-sync-branch
+          git merge temp-sync-branch || true
+          git branch -D temp-sync-branch 2>/dev/null || true
           
-          # 标记需要构建镜像
+          # 强制标记需要构建镜像
           echo "should_build=true" >> $GITHUB_OUTPUT
 
 # ==================== 动态注入内存配置到 Dockerfile ====================

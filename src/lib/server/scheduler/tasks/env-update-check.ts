@@ -1,0 +1,658 @@
+import { trackedImageReference } from '$lib/utils/tracked-image';
+/**
+ * Environment Update Check Task
+ *
+ * Checks all containers in an environment for available image updates.
+ * Can optionally auto-update containers when updates are found.
+ */
+
+import type { ScheduleTrigger, VulnerabilityCriteria } from '../../db';
+import {
+	getEnvUpdateCheckSettings,
+	getGlobalSemverConfig,
+	getEnvironment,
+	createScheduleExecution,
+	updateScheduleExecution,
+	appendScheduleExecutionLog,
+	saveVulnerabilityScan,
+	clearPendingContainerUpdates,
+	addPendingContainerUpdate,
+	removePendingContainerUpdate,
+	getPendingContainerUpdates
+} from '../../db';
+import { checkNewerVersion, type ImageCreatedAtProbe } from '../../semver/check';
+import { parseTag } from '../../semver/tag-parser';
+import { parseImageReference } from '../../registry/image-ref';
+import type { NewerVersion } from '../../semver/find-newer';
+import {
+	listContainers,
+	inspectContainer,
+	checkImageUpdateAvailable,
+	pullImage,
+	getTempImageTag,
+	isDigestBasedImage,
+	getImageIdByTag,
+	removeTempImage,
+	tagImage,
+	inspectImage,
+	getTagArtifactKind,
+	getRegistryTagCreatedAt,
+} from '../../docker';
+import type { ImageEnvLabels } from '../../container-env-merge';
+import { sendEventNotification } from '../../notifications';
+import { getScannerSettings, scanImage, type VulnerabilitySeverity } from '../../scanner';
+import { parseImageNameAndTag, combineScanSummaries, isSystemContainer, isPodmanInfraContainer } from './update-utils';
+import { resolveBlockDecision } from './block-decision';
+import { isUpdateDisabledByLabel, isHiddenByLabel, getVersionPatternOverride, getVersionPatternRejection, digestUpdateVisible } from '../../container-labels';
+import { tagFilterFromLabels } from '$lib/server/semver/tag-filter-labels';
+import { recreateContainer } from './container-update';
+
+interface UpdateInfo {
+	containerId: string;
+	containerName: string;
+	imageName: string;
+	currentImageId: string;
+	currentDigest?: string;
+	newDigest?: string;
+	// OLD image Env/Labels captured before any pull — for the rebase (#1226, #1256).
+	oldImageConfig?: ImageEnvLabels | null;
+}
+
+// Track running update checks to prevent concurrent execution
+const runningUpdateChecks = new Set<number>();
+
+/**
+ * Execute environment update check job.
+ * @param environmentId - The environment ID to check
+ * @param triggeredBy - What triggered this execution
+ */
+export async function runEnvUpdateCheckJob(
+	environmentId: number,
+	triggeredBy: ScheduleTrigger = 'cron'
+): Promise<void> {
+	// Prevent concurrent execution for the same environment
+	if (runningUpdateChecks.has(environmentId)) {
+		console.log(`[EnvUpdateCheck] Environment ${environmentId} update check already running, skipping`);
+		return;
+	}
+
+	runningUpdateChecks.add(environmentId);
+	const startTime = Date.now();
+
+	try {
+	// Get environment info
+	const env = await getEnvironment(environmentId);
+	if (!env) {
+		console.error(`[EnvUpdateCheck] Environment ${environmentId} not found`);
+		return;
+	}
+
+	// Get settings
+	const config = await getEnvUpdateCheckSettings(environmentId);
+	if (!config) {
+		console.error(`[EnvUpdateCheck] No settings found for environment ${environmentId}`);
+		return;
+	}
+
+	// Create execution record
+	const execution = await createScheduleExecution({
+		scheduleType: 'env_update_check',
+		scheduleId: environmentId,
+		environmentId,
+		entityName: `Update: ${env.name}`,
+		triggeredBy,
+		status: 'running'
+	});
+
+	await updateScheduleExecution(execution.id, {
+		startedAt: new Date().toISOString()
+	});
+
+	const log = async (message: string) => {
+		console.log(`[EnvUpdateCheck] ${message}`);
+		await appendScheduleExecutionLog(execution.id, `[${new Date().toISOString()}] ${message}`);
+	};
+
+	try {
+		await log(`Starting update check for environment: ${env.name}`);
+		await log(`Auto-update mode: ${config.autoUpdate ? 'ON' : 'OFF'}`);
+
+		// Semver "newer version tag" detection is a global setting - it rides this
+		// same pass when enabled, and the manual check reads the same config.
+		const semverConfig = await getGlobalSemverConfig();
+		const semverEnabled = semverConfig.enabled;
+		const semverOptions = {
+			maxBump: semverConfig.maxBump,
+			matchFlavor: semverConfig.matchFlavor,
+			includePrerelease: semverConfig.includePrerelease
+		} as const;
+		// Remember the target we last surfaced per container, so we only notify when
+		// a NEW newer version appears - not on every scheduled run. Read before clear.
+		const previousSemverTargets = new Map<string, string>();
+		if (semverEnabled) {
+			try {
+				for (const row of await getPendingContainerUpdates(environmentId)) {
+					if (row.newerVersion) {
+						try {
+							const nv = JSON.parse(row.newerVersion) as NewerVersion;
+							previousSemverTargets.set(row.containerId, nv.tag);
+						} catch { /* ignore malformed */ }
+					}
+				}
+			} catch { /* non-fatal */ }
+		}
+		// Collected here so a single notification can summarise all newly-found versions.
+		const newSemverFindings: { containerName: string; imageName: string; newerVersion: NewerVersion }[] = [];
+	// A held update is worth a row too: it must show as waiting without being
+	// offered for a bulk update.
+	const cooldownByContainer = new Map<string, number>();
+		const semverByContainer = new Map<string, NewerVersion>();
+
+		// Clear pending updates at the start - we'll re-add as we discover updates
+		await clearPendingContainerUpdates(environmentId);
+
+		// Get all containers in this environment, excluding ones hidden via
+		// dockhand.hidden=true (consistent with manual check-updates, #1083).
+		const allContainers = await listContainers(true, environmentId);
+		// Skip hidden + Podman pod-infra (#1083, #1221)
+		const containers = allContainers.filter(
+			(c) => !isHiddenByLabel(c.labels) && !isPodmanInfraContainer(c.name)
+		);
+		const hiddenCount = allContainers.length - containers.length;
+		await log(`Found ${containers.length} containers${hiddenCount ? ` (${hiddenCount} hidden/infra)` : ''}`);
+
+		const updatesAvailable: UpdateInfo[] = [];
+		let checkedCount = 0;
+		let errorCount = 0;
+
+		// Check each container for updates
+		for (const container of containers) {
+			try {
+				const inspectData = await inspectContainer(container.id, environmentId) as any;
+				const imageName = trackedImageReference(inspectData.Config?.Image, inspectData.Config?.Labels);
+				const currentImageId = inspectData.Image;
+
+				if (!imageName) {
+					await log(`  [${container.name}] Skipping - no image name found`);
+					continue;
+				}
+
+				if (isSystemContainer(imageName)) {
+					await log(`  [${container.name}] Skipping - system container`);
+					continue;
+				}
+
+				// Check dockhand.update label (label wins over DB settings)
+				if (isUpdateDisabledByLabel(inspectData.Config?.Labels)) {
+					await log(`  [${container.name}] Skipping - dockhand.update=false label`);
+					continue;
+				}
+
+				checkedCount++;
+				await log(`  Checking: ${container.name} (${imageName})`);
+
+				const result = await checkImageUpdateAvailable(imageName, currentImageId, environmentId);
+
+				if (result.isLocalImage) {
+					await log(`    Local image - skipping update check`);
+					continue;
+				}
+
+				if (result.error) {
+					await log(`    Error: ${result.error}`);
+					errorCount++;
+					continue;
+				}
+
+				// The label switches off the same-tag digest check only; the newer-version
+				// detection below still runs, which is the point of having it separate.
+				if (!digestUpdateVisible(result.hasUpdate, inspectData.Config?.Labels)) {
+					if (result.hasUpdate) {
+						await log(`    Image update suppressed by dockhand.watch.digest=false`);
+					}
+					result.hasUpdate = false;
+				}
+
+				if (result.hasUpdate) {
+					// Capture the OLD image's Env/Labels now, before any pull, for the
+					// env/label rebase (#1226, #1256).
+					let oldImageConfig: ImageEnvLabels | null = null;
+					try {
+						const oldImg = await inspectImage(currentImageId, environmentId) as any;
+						oldImageConfig = { Env: oldImg?.Config?.Env, Labels: oldImg?.Config?.Labels };
+					} catch {
+						// Best-effort; rebase falls back if unavailable.
+					}
+					updatesAvailable.push({
+						containerId: container.id,
+						containerName: container.name,
+						imageName,
+						currentImageId,
+						currentDigest: result.currentDigest,
+						newDigest: result.registryDigest,
+						oldImageConfig
+					});
+					await log(`    UPDATE AVAILABLE`);
+					await log(`      Current: ${result.currentDigest?.substring(0, 24) || 'unknown'}...`);
+					await log(`      New:     ${result.registryDigest?.substring(0, 24) || 'unknown'}...`);
+				} else if (result.releaseAgeRemainingHours) {
+					cooldownByContainer.set(container.id, result.releaseAgeRemainingHours);
+					await log(`    Update deferred: ${result.releaseAgeRemainingHours} hour(s) remain in image update cooldown`);
+				} else {
+					await log(`    Up to date`);
+				}
+
+				// Newer-version-tag (semver) detection - independent of the digest check.
+				// Skips floating tags without a registry call. Never throws.
+				if (semverEnabled) {
+					// A `dockhand.version.pattern` label lets a container teach the check
+					// how to read its own non-standard tags (CalVer+hash, etc.).
+					const versionPattern = getVersionPatternOverride(inspectData.Config?.Labels);
+					// Say so when the label was refused: the fall back to the default
+					// parser is silent otherwise, and from outside the label just looks
+					// like it does nothing.
+					const patternRejection = getVersionPatternRejection(inspectData.Config?.Labels);
+					if (patternRejection) {
+						await log(
+							`  [${container.name}] dockhand.version.pattern ignored - ${patternRejection}`
+						);
+					}
+					// A version tag names what a maintainer called a build, not when it was
+					// made, so a repo still carrying high-sorting old tags offers them as
+					// upgrades. The running image's build date is read locally; the
+					// candidate's comes from the registry, for the chosen candidate only.
+					let staleCheck: { probeCreatedAt: ImageCreatedAtProbe; currentCreatedAt: string | null } | undefined;
+					// Skipped for a floating tag: checkNewerVersion short-circuits on one,
+					// so the inspect would buy nothing.
+					if (semverConfig.rejectOlderImages && parseTag(parseImageReference(imageName).tag, versionPattern)) {
+						const currentCreatedAt = await inspectImage(currentImageId, environmentId)
+							.then((img: any) => (typeof img?.Created === 'string' ? img.Created : null))
+							.catch(() => null);
+						if (currentCreatedAt) {
+							staleCheck = {
+								probeCreatedAt: (registry, repo, digest) =>
+									getRegistryTagCreatedAt(registry, repo, digest, environmentId),
+								currentCreatedAt
+							};
+						}
+					}
+					const newer = await checkNewerVersion(
+						imageName,
+						{ ...semverOptions, versionPattern, tagFilter: tagFilterFromLabels(inspectData.Config?.Labels) },
+						getTagArtifactKind,
+						result.localDigests ?? [],
+						staleCheck
+					).catch(() => null);
+					if (newer) {
+						semverByContainer.set(container.id, newer);
+						await log(`    NEWER VERSION: ${newer.tag} (${newer.bump})`);
+						if (previousSemverTargets.get(container.id) !== newer.tag) {
+							newSemverFindings.push({ containerName: container.name, imageName, newerVersion: newer });
+						}
+					}
+				}
+			} catch (err: any) {
+				await log(`  [${container.name}] Error: ${err.message}`);
+				errorCount++;
+			}
+		}
+
+		// Persist pending rows once per container, merging the digest update and the
+		// semver suggestion so a pure-semver container still gets a (badge) row.
+		const pendingContainerIds = new Set<string>([
+			...updatesAvailable.map((u) => u.containerId),
+			...semverByContainer.keys(),
+			...cooldownByContainer.keys()
+		]);
+		for (const cid of pendingContainerIds) {
+			const digest = updatesAvailable.find((u) => u.containerId === cid);
+			const semver = semverByContainer.get(cid) ?? null;
+			const container = containers.find((c) => c.id === cid);
+			await addPendingContainerUpdate(
+				environmentId,
+				cid,
+				digest?.containerName ?? container?.name ?? cid,
+				digest?.imageName ?? container?.image ?? '',
+				{
+					hasImageUpdate: !!digest,
+					newerVersion: semver,
+					releaseAgeRemainingHours: cooldownByContainer.get(cid) ?? null
+				}
+			);
+		}
+
+		// Notify about NEW newer-version tags (advisory, never auto-applied). Fires
+		// independently of digest updates, and only for versions not surfaced last
+		// run - so a daily cron won't re-notify the same suggestion.
+		if (newSemverFindings.length > 0) {
+			const lines = newSemverFindings
+				.map((f) => `- ${f.containerName} (${f.imageName}): newer version ${f.newerVersion.tag} (${f.newerVersion.bump})`)
+				.join('\n');
+			await log('');
+			await log(`Newer version tags: ${newSemverFindings.length} new`);
+			await sendEventNotification('newer_version_available', {
+				title: `Newer version tag${newSemverFindings.length !== 1 ? 's' : ''} available on ${env.name}`,
+				message: `${newSemverFindings.length} container${newSemverFindings.length !== 1 ? 's have' : ' has'} a newer version tag published (advisory - not auto-applied):\n${lines}`,
+				type: 'info'
+			}, environmentId);
+		}
+
+		// Summary
+		await log('');
+		await log('=== SUMMARY ===');
+		await log(`Total containers: ${containers.length}`);
+		await log(`Checked: ${checkedCount}`);
+		await log(`Updates available: ${updatesAvailable.length}`);
+		await log(`Errors: ${errorCount}`);
+
+		if (updatesAvailable.length === 0) {
+			await log('No digest updates');
+			// Any semver (newer-version) rows were already persisted + notified above;
+			// there's just no digest work to do, so skip the auto-update path.
+			await updateScheduleExecution(execution.id, {
+				status: 'success',
+				completedAt: new Date().toISOString(),
+				duration: Date.now() - startTime,
+				details: {
+					updatesFound: 0,
+					containersChecked: checkedCount,
+					errors: errorCount
+				}
+			});
+			return;
+		}
+
+		// Build notification message with details
+		const updateList = updatesAvailable
+			.map(u => {
+				const currentShort = u.currentDigest?.substring(0, 12) || 'unknown';
+				const newShort = u.newDigest?.substring(0, 12) || 'unknown';
+				return `- ${u.containerName} (${u.imageName}): ${currentShort} → ${newShort}`;
+			})
+			.join('\n');
+
+		if (config.autoUpdate) {
+			// Auto-update mode: actually update the containers with safe-pull flow
+			await log('');
+			await log('=== AUTO-UPDATE MODE ===');
+
+			// Get scanner settings and vulnerability criteria
+			const scannerSettings = await getScannerSettings(environmentId);
+			const vulnerabilityCriteria = (config.vulnerabilityCriteria || 'never') as VulnerabilityCriteria;
+			// Scan if scanning is enabled (scanner !== 'none')
+			// The vulnerabilityCriteria only controls whether to BLOCK updates, not whether to SCAN
+			const shouldScan = scannerSettings.scanner !== 'none';
+
+			await log(`Vulnerability criteria: ${vulnerabilityCriteria}`);
+			if (shouldScan) {
+				await log(`Scanner: ${scannerSettings.scanner} (scan enabled)`);
+			}
+			await log(`Updating ${updatesAvailable.length} containers...`);
+
+			let successCount = 0;
+			let failCount = 0;
+			let blockedCount = 0;
+			const updatedContainers: string[] = [];
+			const failedContainers: string[] = [];
+			const blockedContainers: { name: string; reason: string; scannerResults?: { scanner: string; critical: number; high: number; medium: number; low: number }[] }[] = [];
+
+			for (const update of updatesAvailable) {
+				try {
+					await log(`\nUpdating: ${update.containerName}`);
+
+					let verifiedImageId: string | undefined;
+					let verifiedImageReference: string | undefined;
+
+					// SAFE-PULL FLOW
+					if (shouldScan && !isDigestBasedImage(update.imageName)) {
+						const tempTag = getTempImageTag(update.imageName);
+						await log(`  Safe-pull with temp tag: ${tempTag}`);
+
+						// Step 1: Pull new image
+						await log(`  Pulling ${update.imageName}...`);
+						const pulled = await pullImage(update.imageName, () => {}, environmentId, true);
+						verifiedImageId = pulled?.imageId;
+						verifiedImageReference = pulled?.reference;
+						if (pulled) update.newDigest = pulled.digest;
+
+						// Step 2: Get new image ID
+						const newImageId = verifiedImageId ?? await getImageIdByTag(update.imageName, environmentId);
+						if (!newImageId) {
+							throw new Error('Failed to get new image ID after pull');
+						}
+						await log(`  New image: ${newImageId.substring(0, 19)}`);
+
+						// Step 3: SAFETY - Restore original tag to old image
+						const [oldRepo, oldTag] = parseImageNameAndTag(update.imageName);
+						await tagImage(update.currentImageId, oldRepo, oldTag, environmentId);
+						await log(`  Restored original tag to safe image`);
+
+						// Step 4: Tag new image with temp suffix
+						const [tempRepo, tempTagName] = parseImageNameAndTag(tempTag);
+						await tagImage(newImageId, tempRepo, tempTagName, environmentId);
+
+						// Step 5: Scan the immutable image ID
+						await log(`  Scanning for vulnerabilities...`);
+						let scanBlocked = false;
+						let blockReason = '';
+						let currentScannerResults: { scanner: string; critical: number; high: number; medium: number; low: number }[] = [];
+
+						// Collect scan logs to log after scan completes
+						const scanLogs: string[] = [];
+
+						try {
+							const scanResults = await scanImage(newImageId, environmentId, (progress) => {
+								if (progress.message) {
+									scanLogs.push(`  [${progress.scanner || 'scan'}] ${progress.message}`);
+								}
+							});
+
+							// Log collected scan messages
+							for (const scanLog of scanLogs) {
+								await log(scanLog);
+							}
+
+							if (scanResults.length > 0) {
+								const scanSummary = combineScanSummaries(scanResults);
+								await log(`  Scan: ${scanSummary.critical} critical, ${scanSummary.high} high, ${scanSummary.medium} medium, ${scanSummary.low} low`);
+
+								// Capture per-scanner results for blocking info
+								currentScannerResults = scanResults.map(r => ({
+									scanner: r.scanner,
+									critical: r.summary.critical,
+									high: r.summary.high,
+									medium: r.summary.medium,
+									low: r.summary.low
+								}));
+
+								// Save scan results
+								for (const result of scanResults) {
+									try {
+										await saveVulnerabilityScan({
+											environmentId,
+											imageId: newImageId,
+											imageName: result.imageName,
+											scanner: result.scanner,
+											scannedAt: result.scannedAt,
+											scanDuration: result.scanDuration,
+											criticalCount: result.summary.critical,
+											highCount: result.summary.high,
+											mediumCount: result.summary.medium,
+											lowCount: result.summary.low,
+											negligibleCount: result.summary.negligible,
+											unknownCount: result.summary.unknown,
+											vulnerabilities: result.vulnerabilities,
+											error: result.error ?? null
+										});
+									} catch { /* ignore save errors */ }
+								}
+
+								// Decide whether to block. For 'more_than_current' this
+								// re-scans the current image so the comparison uses
+								// up-to-date numbers (#1022) and works on a cold cache.
+								const { blocked, reason } = await resolveBlockDecision(
+									scanSummary,
+									update.currentImageId,
+									environmentId,
+									vulnerabilityCriteria,
+									(m) => { void log(`  ${m}`); }
+								);
+								if (blocked) {
+									scanBlocked = true;
+									blockReason = reason;
+								}
+							}
+						} catch (scanErr: any) {
+							await log(`  Scan failed: ${scanErr.message}`);
+							scanBlocked = true;
+							blockReason = `Scan failed: ${scanErr.message}`;
+						}
+
+						if (scanBlocked) {
+							// BLOCKED - Remove temp image
+							await log(`  UPDATE BLOCKED: ${blockReason}`);
+							await removeTempImage(newImageId, environmentId);
+							await log(`  Removed blocked image - container stays safe`);
+							blockedCount++;
+							blockedContainers.push({
+								name: update.containerName,
+								reason: blockReason,
+								scannerResults: currentScannerResults.length > 0 ? currentScannerResults : undefined
+							});
+							continue;
+						}
+
+						// APPROVED - Re-tag to original
+						await log(`  Scan passed, re-tagging...`);
+						await tagImage(newImageId, oldRepo, oldTag, environmentId);
+						try {
+							await removeTempImage(tempTag, environmentId);
+						} catch { /* ignore cleanup errors */ }
+					} else {
+						// Simple pull (no scanning or digest-based image)
+						await log(`  Pulling ${update.imageName}...`);
+						const pulled = await pullImage(update.imageName, () => {}, environmentId, true);
+						verifiedImageId = pulled?.imageId;
+						verifiedImageReference = pulled?.reference;
+						if (pulled) update.newDigest = pulled.digest;
+					}
+
+					// Recreate container with full config passthrough
+					await log(`  Recreating container...`);
+					const result = await recreateContainer(update.containerName, environmentId, {
+						log: (msg) => { log(`  ${msg}`); },
+						oldImageConfig: update.oldImageConfig,
+						imageNameOverride: update.imageName,
+						verifiedImageId,
+						verifiedImageReference
+					});
+					if (!result.success) throw new Error(result.error || 'Container recreation failed');
+
+					await log(`  Updated successfully`);
+					successCount++;
+					updatedContainers.push(update.containerName);
+					// Remove from pending table - successfully updated
+					await removePendingContainerUpdate(environmentId, update.containerId);
+				} catch (err: any) {
+					await log(`  FAILED: ${err.message}`);
+					failCount++;
+					failedContainers.push(update.containerName);
+				}
+			}
+
+			await log('');
+			await log(`=== UPDATE COMPLETE ===`);
+			await log(`Updated: ${successCount}`);
+			await log(`Blocked: ${blockedCount}`);
+			await log(`Failed: ${failCount}`);
+
+			// Send notifications
+			if (blockedCount > 0) {
+				await sendEventNotification('auto_update_blocked', {
+					title: `${blockedCount} update(s) blocked in ${env.name}`,
+					message: blockedContainers.map(c => `- ${c.name}: ${c.reason}`).join('\n'),
+					type: 'warning'
+				}, environmentId);
+			}
+
+			const notificationMessage = successCount > 0
+				? `Updated ${successCount} container(s) in ${env.name}:\n${updatedContainers.map(c => `- ${c}`).join('\n')}${blockedCount > 0 ? `\n\nBlocked (${blockedCount}):\n${blockedContainers.map(c => `- ${c.name}`).join('\n')}` : ''}${failCount > 0 ? `\n\nFailed (${failCount}):\n${failedContainers.map(c => `- ${c}`).join('\n')}` : ''}`
+				: blockedCount > 0 ? `All updates blocked in ${env.name}` : `Update failed for all containers in ${env.name}`;
+
+			await sendEventNotification('batch_update_success', {
+				title: successCount > 0 ? `Containers updated in ${env.name}` : blockedCount > 0 ? `Updates blocked in ${env.name}` : `Container updates failed in ${env.name}`,
+				message: notificationMessage,
+				type: successCount > 0 && failCount === 0 && blockedCount === 0 ? 'success' : successCount > 0 ? 'warning' : 'error'
+			}, environmentId);
+
+			// Blocked/failed containers stay in pending table (successfully updated ones were removed)
+
+			await updateScheduleExecution(execution.id, {
+				status: failCount > 0 && successCount === 0 && blockedCount === 0 ? 'failed' : 'success',
+				completedAt: new Date().toISOString(),
+				duration: Date.now() - startTime,
+				details: {
+					mode: 'auto_update',
+					updatesFound: updatesAvailable.length,
+					containersChecked: checkedCount,
+					errors: errorCount,
+					autoUpdate: true,
+					vulnerabilityCriteria,
+					summary: { checked: checkedCount, updated: successCount, blocked: blockedCount, failed: failCount },
+					containers: [
+						...updatedContainers.map(name => ({ name, status: 'updated' as const })),
+						...blockedContainers.map(c => ({ name: c.name, status: 'blocked' as const, blockReason: c.reason, scannerResults: c.scannerResults })),
+						...failedContainers.map(name => ({ name, status: 'failed' as const }))
+					],
+					updated: successCount,
+					blocked: blockedCount,
+					failed: failCount,
+					blockedContainers
+				}
+			});
+		} else {
+			// Check-only mode: just send notification
+			await log('');
+			await log('Check-only mode - sending notification about available updates');
+			// Pending updates already added as we discovered them
+
+			await sendEventNotification('updates_detected', {
+				title: `Container updates available in ${env.name}`,
+				message: `${updatesAvailable.length} update(s) available:\n${updateList}`,
+				type: 'info'
+			}, environmentId);
+
+			await updateScheduleExecution(execution.id, {
+				status: 'success',
+				completedAt: new Date().toISOString(),
+				duration: Date.now() - startTime,
+				details: {
+					mode: 'notify_only',
+					updatesFound: updatesAvailable.length,
+					containersChecked: checkedCount,
+					errors: errorCount,
+					autoUpdate: false,
+					summary: { checked: checkedCount, updated: 0, blocked: 0, failed: 0 },
+					containers: updatesAvailable.map(u => ({
+						name: u.containerName,
+						status: 'checked' as const,
+						imageName: u.imageName,
+						currentDigest: u.currentDigest,
+						newDigest: u.newDigest
+					}))
+				}
+			});
+		}
+	} catch (error: any) {
+		await log(`Error: ${error.message}`);
+		await updateScheduleExecution(execution.id, {
+			status: 'failed',
+			completedAt: new Date().toISOString(),
+			duration: Date.now() - startTime,
+			errorMessage: error.message
+		});
+	}
+	} finally {
+		runningUpdateChecks.delete(environmentId);
+	}
+}

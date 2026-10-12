@@ -1,0 +1,788 @@
+/**
+ * Drizzle ORM Schema for Dockhand
+ *
+ * This schema supports both SQLite and PostgreSQL through Drizzle's
+ * database-agnostic schema definitions.
+ */
+
+import {
+	sqliteTable,
+	text,
+	integer,
+	real,
+	primaryKey,
+	unique,
+	index,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
+
+// =============================================================================
+// CORE TABLES
+// =============================================================================
+
+export const environments = sqliteTable('environments', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	host: text('host'),
+	port: integer('port').default(2375),
+	protocol: text('protocol').default('http'),
+	tlsCa: text('tls_ca'),
+	tlsCert: text('tls_cert'),
+	tlsKey: text('tls_key'),
+	tlsSkipVerify: integer('tls_skip_verify', { mode: 'boolean' }).default(false),
+	icon: text('icon').default('globe'),
+	collectActivity: integer('collect_activity', { mode: 'boolean' }).default(true),
+	collectMetrics: integer('collect_metrics', { mode: 'boolean' }).default(true),
+	highlightChanges: integer('highlight_changes', { mode: 'boolean' }).default(true),
+	labels: text('labels'), // JSON array of label strings for categorization
+	// Connection settings
+	connectionType: text('connection_type').default('socket'), // 'socket' | 'direct' | 'hawser-standard' | 'hawser-edge'
+	socketPath: text('socket_path').default('/var/run/docker.sock'), // Unix socket path for 'socket' connection type
+	hawserToken: text('hawser_token'), // Plain-text token for hawser-standard auth
+	hawserLastSeen: text('hawser_last_seen'),
+	hawserAgentId: text('hawser_agent_id'),
+	hawserAgentName: text('hawser_agent_name'),
+	hawserVersion: text('hawser_version'),
+	hawserCapabilities: text('hawser_capabilities'), // JSON array: ["compose", "exec", "metrics"]
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const hawserTokens = sqliteTable('hawser_tokens', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	token: text('token').notNull().unique(), // Hashed token
+	tokenPrefix: text('token_prefix').notNull(), // First 8 chars for identification
+	name: text('name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	isActive: integer('is_active', { mode: 'boolean' }).default(true),
+	lastUsed: text('last_used'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	expiresAt: text('expires_at')
+});
+
+export const registries = sqliteTable('registries', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	url: text('url').notNull(),
+	username: text('username'),
+	password: text('password'),
+	isDefault: integer('is_default', { mode: 'boolean' }).default(false),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const settings = sqliteTable('settings', {
+	key: text('key').primaryKey(),
+	value: text('value').notNull(),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// =============================================================================
+// EVENT TRACKING TABLES
+// =============================================================================
+
+export const stackEvents = sqliteTable('stack_events', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	stackName: text('stack_name').notNull(),
+	eventType: text('event_type').notNull(),
+	timestamp: text('timestamp').default(sql`CURRENT_TIMESTAMP`),
+	metadata: text('metadata')
+});
+
+export const hostMetrics = sqliteTable('host_metrics', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	cpuPercent: real('cpu_percent').notNull(),
+	memoryPercent: real('memory_percent').notNull(),
+	memoryUsed: integer('memory_used'),
+	memoryTotal: integer('memory_total'),
+	timestamp: text('timestamp').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	envTimestampIdx: index('host_metrics_env_timestamp_idx').on(table.environmentId, table.timestamp)
+}));
+
+// =============================================================================
+// CONFIGURATION TABLES
+// =============================================================================
+
+export const configSets = sqliteTable('config_sets', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	description: text('description'),
+	envVars: text('env_vars'),
+	labels: text('labels'),
+	ports: text('ports'),
+	volumes: text('volumes'),
+	networkMode: text('network_mode').default('bridge'),
+	restartPolicy: text('restart_policy').default('no'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const autoUpdateSettings = sqliteTable('auto_update_settings', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	environmentId: integer('environment_id').references(() => environments.id),
+	containerName: text('container_name').notNull(),
+	enabled: integer('enabled', { mode: 'boolean' }).default(false),
+	scheduleType: text('schedule_type').default('daily'),
+	cronExpression: text('cron_expression'),
+	vulnerabilityCriteria: text('vulnerability_criteria').default('never'), // 'never' | 'any' | 'critical_high' | 'critical' | 'more_than_current'
+	lastChecked: text('last_checked'),
+	lastUpdated: text('last_updated'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	envContainerUnique: unique().on(table.environmentId, table.containerName)
+}));
+
+export const notificationSettings = sqliteTable('notification_settings', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	type: text('type').notNull(),
+	name: text('name').notNull(),
+	enabled: integer('enabled', { mode: 'boolean' }).default(true),
+	config: text('config').notNull(),
+	eventTypes: text('event_types'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const environmentNotifications = sqliteTable('environment_notifications', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	environmentId: integer('environment_id').notNull().references(() => environments.id, { onDelete: 'cascade' }),
+	notificationId: integer('notification_id').notNull().references(() => notificationSettings.id, { onDelete: 'cascade' }),
+	enabled: integer('enabled', { mode: 'boolean' }).default(true),
+	eventTypes: text('event_types'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	envNotifUnique: unique().on(table.environmentId, table.notificationId)
+}));
+
+// =============================================================================
+// AUTHENTICATION TABLES
+// =============================================================================
+
+export const authSettings = sqliteTable('auth_settings', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	authEnabled: integer('auth_enabled', { mode: 'boolean' }).default(false),
+	defaultProvider: text('default_provider').default('local'),
+	sessionTimeout: integer('session_timeout').default(86400),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const users = sqliteTable('users', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	username: text('username').notNull().unique(),
+	email: text('email'),
+	passwordHash: text('password_hash').notNull(),
+	displayName: text('display_name'),
+	avatar: text('avatar'),
+	authProvider: text('auth_provider').default('local'), // e.g., 'local', 'oidc:Keycloak', 'ldap:AD'
+	mfaEnabled: integer('mfa_enabled', { mode: 'boolean' }).default(false),
+	mfaSecret: text('mfa_secret'), // JSON: { secret: string, backupCodes: string[] }
+	isActive: integer('is_active', { mode: 'boolean' }).default(true),
+	lastLogin: text('last_login'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const sessions = sqliteTable('sessions', {
+	id: text('id').primaryKey(),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	provider: text('provider').notNull(),
+	expiresAt: text('expires_at').notNull(),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	userIdIdx: index('sessions_user_id_idx').on(table.userId),
+	expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt)
+}));
+
+export const ldapConfig = sqliteTable('ldap_config', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull(),
+	enabled: integer('enabled', { mode: 'boolean' }).default(false),
+	serverUrl: text('server_url').notNull(),
+	bindDn: text('bind_dn'),
+	bindPassword: text('bind_password'),
+	baseDn: text('base_dn').notNull(),
+	userFilter: text('user_filter').default('(uid={{username}})'),
+	usernameAttribute: text('username_attribute').default('uid'),
+	emailAttribute: text('email_attribute').default('mail'),
+	displayNameAttribute: text('display_name_attribute').default('cn'),
+	groupBaseDn: text('group_base_dn'),
+	groupFilter: text('group_filter'),
+	adminGroup: text('admin_group'),
+	roleMappings: text('role_mappings'), // JSON: [{ groupDn: string, roleId: number }]
+	tlsEnabled: integer('tls_enabled', { mode: 'boolean' }).default(false),
+	tlsCa: text('tls_ca'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const oidcConfig = sqliteTable('oidc_config', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull(),
+	enabled: integer('enabled', { mode: 'boolean' }).default(false),
+	issuerUrl: text('issuer_url').notNull(),
+	clientId: text('client_id').notNull(),
+	clientSecret: text('client_secret').notNull(),
+	redirectUri: text('redirect_uri').notNull(),
+	scopes: text('scopes').default('openid profile email'),
+	usernameClaim: text('username_claim').default('preferred_username'),
+	emailClaim: text('email_claim').default('email'),
+	displayNameClaim: text('display_name_claim').default('name'),
+	adminClaim: text('admin_claim'),
+	adminValue: text('admin_value'),
+	roleMappingsClaim: text('role_mappings_claim').default('groups'),
+	roleMappings: text('role_mappings'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// =============================================================================
+// ROLE-BASED ACCESS CONTROL TABLES
+// =============================================================================
+
+export const roles = sqliteTable('roles', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	description: text('description'),
+	isSystem: integer('is_system', { mode: 'boolean' }).default(false),
+	permissions: text('permissions').notNull(),
+	environmentIds: text('environment_ids'), // JSON array of env IDs, null = all environments
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const userRoles = sqliteTable('user_roles', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	roleId: integer('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	userRoleEnvUnique: unique().on(table.userId, table.roleId, table.environmentId)
+}));
+
+// =============================================================================
+// GIT INTEGRATION TABLES
+// =============================================================================
+
+export const gitCredentials = sqliteTable('git_credentials', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	authType: text('auth_type').notNull().default('none'),
+	username: text('username'),
+	password: text('password'),
+	sshPrivateKey: text('ssh_private_key'),
+	sshPassphrase: text('ssh_passphrase'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// Pluggable secret providers (1Password, Infisical, HashiCorp Vault, ...).
+// `type` selects the backend; `config` is an encrypted JSON blob whose shape is
+// provider-specific (see src/lib/server/secretproviders/shared.ts). Mirrors the
+// notification_settings type+config pattern.
+export const secretProviders = sqliteTable('secret_providers', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	type: text('type').notNull(),
+	name: text('name').notNull().unique(),
+	config: text('config').notNull(),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const gitRepositories = sqliteTable('git_repositories', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	url: text('url').notNull(),
+	branch: text('branch').default('main'),
+	credentialId: integer('credential_id').references(() => gitCredentials.id, { onDelete: 'set null' }),
+	composePath: text('compose_path').default('docker-compose.yml'), // Reverted to original value (#1110)
+	environmentId: integer('environment_id'),
+	autoUpdate: integer('auto_update', { mode: 'boolean' }).default(false),
+	autoUpdateSchedule: text('auto_update_schedule').default('daily'),
+	autoUpdateCron: text('auto_update_cron').default('0 3 * * *'),
+	webhookEnabled: integer('webhook_enabled', { mode: 'boolean' }).default(false),
+	webhookSecret: text('webhook_secret'),
+	lastSync: text('last_sync'),
+	lastCommit: text('last_commit'),
+	syncStatus: text('sync_status').default('pending'),
+	syncError: text('sync_error'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+export const gitStacks = sqliteTable('git_stacks', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	stackName: text('stack_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	repositoryId: integer('repository_id').notNull().references(() => gitRepositories.id, { onDelete: 'cascade' }),
+	branch: text('branch'), // Per-stack branch override; null = use repository default
+	composePath: text('compose_path').default('docker-compose.yml'), // Reverted to original value (#1110)
+	envFilePath: text('env_file_path'), // Path to .env file in repository (e.g., ".env", "config/.env.prod")
+	autoUpdate: integer('auto_update', { mode: 'boolean' }).default(false),
+	autoUpdateSchedule: text('auto_update_schedule').default('daily'),
+	autoUpdateCron: text('auto_update_cron').default('0 3 * * *'),
+	webhookEnabled: integer('webhook_enabled', { mode: 'boolean' }).default(false),
+	webhookSecret: text('webhook_secret'),
+	contextDir: text('context_dir'), // Working directory relative to repo root (null = compose file's directory)
+	buildOnDeploy: integer('build_on_deploy', { mode: 'boolean' }).default(false),
+	noBuildCache: integer('no_build_cache', { mode: 'boolean' }).default(false),
+	repullImages: integer('repull_images', { mode: 'boolean' }).default(false),
+	forceRedeploy: integer('force_redeploy', { mode: 'boolean' }).default(false),
+	lastSync: text('last_sync'),
+	lastCommit: text('last_commit'),
+	syncStatus: text('sync_status').default('pending'),
+	syncError: text('sync_error'),
+	syncedFiles: text('synced_files'), // JSON manifest { relativePath: sha256hex } of files written on last sync
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	stackEnvUnique: unique().on(table.stackName, table.environmentId)
+}));
+
+export const stackSources = sqliteTable('stack_sources', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	stackName: text('stack_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	sourceType: text('source_type').notNull().default('internal'),
+	gitRepositoryId: integer('git_repository_id').references(() => gitRepositories.id, { onDelete: 'set null' }),
+	gitStackId: integer('git_stack_id').references(() => gitStacks.id, { onDelete: 'set null' }),
+	composePath: text('compose_path'), // Custom path to compose file (for stacks with non-default location)
+	envPath: text('env_path'), // Custom path to .env file (for stacks with non-default location)
+	secretProviderId: integer('secret_provider_id').references(() => secretProviders.id, { onDelete: 'set null' }),
+	// Names (no values) of secret keys injected from the bound provider on the last
+	// deploy, so container inspect can mask them without a live provider call.
+	injectedSecretKeys: text('injected_secret_keys'),
+	// Per-stack icon: a lucide name ('server'), 'selfhst:<ref>', or 'custom:<file>'.
+	// Null -> UI falls back to a generic icon.
+	icon: text('icon'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	stackSourceEnvUnique: unique().on(table.stackName, table.environmentId)
+}));
+
+// Per-container icon override. Containers are ephemeral Docker objects (no DB row of
+// their own), so the override is keyed by (containerName, environmentId) - the name is
+// stable across recreation (auto-update, compose up), unlike the container id. Absent
+// row -> the UI's automatic image/name icon matching applies.
+export const containerIconOverrides = sqliteTable('container_icon_overrides', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	containerName: text('container_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	// A lucide name ('server'), 'selfhst:<ref>', or 'custom:<file>'. Same shape as stack icons.
+	icon: text('icon').notNull(),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	containerIconEnvUnique: unique().on(table.containerName, table.environmentId)
+}));
+
+// User-defined organizational tags for containers and stacks.
+// Distinct from Docker labels. The catalog below is GLOBAL (one 'prod'/'infra'/etc
+// across the whole instance, unique on name). Assignments (container_tags/stack_tags)
+// ARE env-scoped and keyed by the container/stack NAME (stable across recreation), so
+// which containers/stacks carry a tag is decided per environment.
+export const tags = sqliteTable('tags', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull(),
+	color: text('color').notNull().default('slate'), // one of the fixed palette (tags-core.ts)
+	icon: text('icon'),                              // optional lucide icon name; null = default tag icon
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	// Unique on name. The migration makes the index case-INSENSITIVE (COLLATE NOCASE
+	// on sqlite, lower(name) on pg) so "Prod" and "prod" are the same tag even under
+	// a concurrent create; drizzle's DSL can't express that, so it lives in 0016.
+	tagNameUnique: unique().on(table.name)
+}));
+
+export const containerTags = sqliteTable('container_tags', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	containerName: text('container_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	tagId: integer('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	containerTagUnique: unique().on(table.containerName, table.environmentId, table.tagId)
+}));
+
+export const stackTags = sqliteTable('stack_tags', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	stackName: text('stack_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	tagId: integer('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	stackTagUnique: unique().on(table.stackName, table.environmentId, table.tagId)
+}));
+
+export const stackEnvironmentVariables = sqliteTable('stack_environment_variables', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	stackName: text('stack_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	key: text('key').notNull(),
+	value: text('value').notNull(),
+	isSecret: integer('is_secret', { mode: 'boolean' }).default(false),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	stackEnvVarUnique: unique().on(table.stackName, table.environmentId, table.key)
+}));
+
+// =============================================================================
+// SECURITY TABLES
+// =============================================================================
+
+export const vulnerabilityScans = sqliteTable('vulnerability_scans', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	imageId: text('image_id').notNull(),
+	imageName: text('image_name').notNull(),
+	scanner: text('scanner').notNull(),
+	scannedAt: text('scanned_at').notNull(),
+	scanDuration: integer('scan_duration'),
+	criticalCount: integer('critical_count').default(0),
+	highCount: integer('high_count').default(0),
+	mediumCount: integer('medium_count').default(0),
+	lowCount: integer('low_count').default(0),
+	negligibleCount: integer('negligible_count').default(0),
+	unknownCount: integer('unknown_count').default(0),
+	vulnerabilities: text('vulnerabilities'),
+	error: text('error'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	envImageIdx: index('vulnerability_scans_env_image_idx').on(table.environmentId, table.imageId)
+}));
+
+// =============================================================================
+// AUDIT LOGGING TABLES
+// =============================================================================
+
+export const auditLogs = sqliteTable('audit_logs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+	username: text('username').notNull(),
+	action: text('action').notNull(),
+	entityType: text('entity_type').notNull(),
+	entityId: text('entity_id'),
+	entityName: text('entity_name'),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'set null' }),
+	description: text('description'),
+	details: text('details'),
+	ipAddress: text('ip_address'),
+	userAgent: text('user_agent'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
+	createdAtIdx: index('audit_logs_created_at_idx').on(table.createdAt)
+}));
+
+// =============================================================================
+// CONTAINER ACTIVITY TABLES
+// =============================================================================
+
+export const containerEvents = sqliteTable('container_events', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	containerId: text('container_id').notNull(),
+	containerName: text('container_name'),
+	image: text('image'),
+	action: text('action').notNull(),
+	actorAttributes: text('actor_attributes'),
+	timestamp: text('timestamp').notNull(),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	envTimestampIdx: index('container_events_env_timestamp_idx').on(table.environmentId, table.timestamp)
+}));
+
+// =============================================================================
+// SCHEDULE EXECUTION TABLES
+// =============================================================================
+
+export const scheduleExecutions = sqliteTable('schedule_executions', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	// Link to the scheduled job
+	scheduleType: text('schedule_type').notNull(), // 'container_update' | 'git_stack_sync' | 'system_cleanup'
+	scheduleId: integer('schedule_id').notNull(), // ID in autoUpdateSettings or gitStacks, or 0 for system jobs
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	// What ran
+	entityName: text('entity_name').notNull(), // container name or stack name
+	// When and how
+	triggeredBy: text('triggered_by').notNull(), // 'cron' | 'webhook' | 'manual'
+	triggeredAt: text('triggered_at').notNull(),
+	startedAt: text('started_at'),
+	completedAt: text('completed_at'),
+	duration: integer('duration'), // milliseconds
+	// Result
+	status: text('status').notNull(), // 'queued' | 'running' | 'success' | 'warning' | 'failed' | 'skipped'
+	errorMessage: text('error_message'),
+	// Details
+	details: text('details'), // JSON with execution details
+	logs: text('logs'), // Execution logs/output
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	typeIdIdx: index('schedule_executions_type_id_idx').on(table.scheduleType, table.scheduleId),
+	// Powers "runs for this stack/container" lookups without a full table scan.
+	entityEnvIdx: index('schedule_executions_entity_env_idx').on(table.entityName, table.environmentId)
+}));
+
+// =============================================================================
+// PENDING CONTAINER UPDATES TABLE
+// =============================================================================
+
+export const pendingContainerUpdates = sqliteTable('pending_container_updates', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	environmentId: integer('environment_id').notNull().references(() => environments.id, { onDelete: 'cascade' }),
+	containerId: text('container_id').notNull(),
+	containerName: text('container_name').notNull(),
+	currentImage: text('current_image').notNull(),
+	// True when a digest image update is pending (the classic amber icon). Defaults
+	// true so pre-existing rows keep behaving exactly as before.
+	hasImageUpdate: integer('has_image_update', { mode: 'boolean' }).notNull().default(true),
+	// A newer VERSION tag (semver) for a pinned image, as JSON {tag,bump,skipped}.
+	// Null when there's no semver suggestion. Advisory - never auto-applied.
+	newerVersion: text('newer_version'),
+	// Hours left before a held update may be applied. Null when no cooldown applies,
+	// so a row can record "waiting" without claiming the update is ready.
+	releaseAgeRemainingHours: integer('release_age_remaining_hours'),
+	checkedAt: text('checked_at').default(sql`CURRENT_TIMESTAMP`),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	envContainerUnique: unique().on(table.environmentId, table.containerId)
+}));
+
+// =============================================================================
+// BACKUP DESTINATIONS TABLE
+// =============================================================================
+
+export const backupDestinations = sqliteTable('backup_destinations', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull().unique(),
+	repository: text('repository').notNull(),        // restic repo URL/path
+	password: text('password').notNull(),            // AES-256-GCM encrypted
+	envVars: text('env_vars'),                       // JSON: { key: value } — values encrypted
+	flags: text('flags'),                            // extra restic CLI flags
+	hostPath: text('host_path'),                     // bind-mount source for local repos
+	cacert: text('cacert'),                          // AES-256-GCM encrypted PEM: self-signed CA for a TLS backend (RESTIC_CACERT)
+	tlsClientCert: text('tls_client_cert'),          // AES-256-GCM encrypted PEM: client cert+key for mTLS (RESTIC_TLS_CLIENT_CERT)
+	sshPrivateKey: text('ssh_private_key'),          // AES-256-GCM encrypted private key for an SFTP backend
+	sshKnownHosts: text('ssh_known_hosts'),          // AES-256-GCM encrypted verified known_hosts data for an SFTP backend
+	policies: text('policies'),                      // JSON: { pruneSchedule, checkSchedule, autoUnlock, maxUnused }
+	lastTestAt: text('last_test_at'),
+	lastTestStatus: text('last_test_status'),        // 'success' | 'failed'
+	lastTestError: text('last_test_error'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// =============================================================================
+// BACKUP CONFIGS TABLE
+// =============================================================================
+
+export const backupConfigs = sqliteTable('backup_configs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	type: text('type').notNull().default('container'),  // 'container' | 'stack'
+	targetName: text('target_name').notNull(),
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }),
+	destinationId: integer('destination_id').notNull().references(() => backupDestinations.id, { onDelete: 'cascade' }),
+	enabled: integer('enabled', { mode: 'boolean' }).default(true),
+	allVolumes: integer('all_volumes', { mode: 'boolean' }).default(true),
+	selectedVolumes: text('selected_volumes'),       // JSON array of volume names
+	stopBeforeBackup: integer('stop_before_backup', { mode: 'boolean' }).default(false),
+	schedule: text('schedule'),                      // cron expression
+	retention: text('retention'),                    // JSON: { keepLast?, keepDaily?, keepWeekly?, keepMonthly?, keepYearly? }
+	options: text('options'),                        // JSON: { compression?, limitUpload?, limitDownload?, excludePatterns?, webhookSuccess?, webhookFailure? }
+	tags: text('tags'),                              // JSON array of strings
+	lastBackupAt: text('last_backup_at'),
+	lastBackupStatus: text('last_backup_status'),    // 'success' | 'failed'
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// =============================================================================
+// API TOKENS TABLE
+// =============================================================================
+
+export const apiTokens = sqliteTable('api_tokens', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	name: text('name').notNull(),
+	tokenHash: text('token_hash').notNull().unique(),
+	tokenPrefix: text('token_prefix').notNull(),
+	lastUsed: text('last_used'),
+	expiresAt: text('expires_at'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	userIdIdx: index('api_tokens_user_id_idx').on(table.userId),
+	tokenPrefixIdx: index('api_tokens_token_prefix_idx').on(table.tokenPrefix)
+}));
+
+// =============================================================================
+// USER PREFERENCES TABLE (unified key-value store)
+// =============================================================================
+
+export const userPreferences = sqliteTable('user_preferences', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }), // NULL = shared (free edition), set = per-user (enterprise)
+	environmentId: integer('environment_id').references(() => environments.id, { onDelete: 'cascade' }), // NULL for global prefs
+	key: text('key').notNull(), // e.g., 'dashboard_layout', 'logs_favorites'
+	value: text('value').notNull(), // JSON value
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => [
+	unique().on(table.userId, table.environmentId, table.key)
+]);
+
+// Template sources
+export const templateSources = sqliteTable('template_sources', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	sourceId: text('source_id').notNull().unique(), // stable identifier (e.g., 'portainer-lissy93')
+	name: text('name').notNull(),
+	url: text('url').notNull(),
+	enabled: integer('enabled', { mode: 'boolean' }).default(true),
+	builtin: integer('builtin', { mode: 'boolean' }).default(false),
+	sortOrder: integer('sort_order').default(0),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+// =============================================================================
+// TYPE EXPORTS
+// =============================================================================
+
+export type Environment = typeof environments.$inferSelect;
+export type NewEnvironment = typeof environments.$inferInsert;
+
+export type Registry = typeof registries.$inferSelect;
+export type NewRegistry = typeof registries.$inferInsert;
+
+export type HawserToken = typeof hawserTokens.$inferSelect;
+export type NewHawserToken = typeof hawserTokens.$inferInsert;
+
+export type Setting = typeof settings.$inferSelect;
+export type NewSetting = typeof settings.$inferInsert;
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+
+export type Role = typeof roles.$inferSelect;
+export type NewRole = typeof roles.$inferInsert;
+
+export type UserRole = typeof userRoles.$inferSelect;
+export type NewUserRole = typeof userRoles.$inferInsert;
+
+export type OidcConfig = typeof oidcConfig.$inferSelect;
+export type NewOidcConfig = typeof oidcConfig.$inferInsert;
+
+export type LdapConfig = typeof ldapConfig.$inferSelect;
+export type NewLdapConfig = typeof ldapConfig.$inferInsert;
+
+export type AuthSetting = typeof authSettings.$inferSelect;
+export type NewAuthSetting = typeof authSettings.$inferInsert;
+
+export type ConfigSet = typeof configSets.$inferSelect;
+export type NewConfigSet = typeof configSets.$inferInsert;
+
+export type NotificationSetting = typeof notificationSettings.$inferSelect;
+export type NewNotificationSetting = typeof notificationSettings.$inferInsert;
+
+export type EnvironmentNotification = typeof environmentNotifications.$inferSelect;
+export type NewEnvironmentNotification = typeof environmentNotifications.$inferInsert;
+
+export type GitCredential = typeof gitCredentials.$inferSelect;
+export type NewGitCredential = typeof gitCredentials.$inferInsert;
+
+export type SecretProviderRow = typeof secretProviders.$inferSelect;
+export type NewSecretProviderRow = typeof secretProviders.$inferInsert;
+
+export type GitRepository = typeof gitRepositories.$inferSelect;
+export type NewGitRepository = typeof gitRepositories.$inferInsert;
+
+export type GitStack = typeof gitStacks.$inferSelect;
+export type NewGitStack = typeof gitStacks.$inferInsert;
+
+export type StackSource = typeof stackSources.$inferSelect;
+export type NewStackSource = typeof stackSources.$inferInsert;
+
+export type VulnerabilityScan = typeof vulnerabilityScans.$inferSelect;
+export type NewVulnerabilityScan = typeof vulnerabilityScans.$inferInsert;
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
+
+export type ContainerEvent = typeof containerEvents.$inferSelect;
+export type NewContainerEvent = typeof containerEvents.$inferInsert;
+
+export type HostMetric = typeof hostMetrics.$inferSelect;
+export type NewHostMetric = typeof hostMetrics.$inferInsert;
+
+export type StackEvent = typeof stackEvents.$inferSelect;
+export type NewStackEvent = typeof stackEvents.$inferInsert;
+
+export type AutoUpdateSetting = typeof autoUpdateSettings.$inferSelect;
+export type NewAutoUpdateSetting = typeof autoUpdateSettings.$inferInsert;
+
+export type UserPreference = typeof userPreferences.$inferSelect;
+export type NewUserPreference = typeof userPreferences.$inferInsert;
+
+export type ScheduleExecution = typeof scheduleExecutions.$inferSelect;
+export type NewScheduleExecution = typeof scheduleExecutions.$inferInsert;
+
+export type StackEnvironmentVariable = typeof stackEnvironmentVariables.$inferSelect;
+export type NewStackEnvironmentVariable = typeof stackEnvironmentVariables.$inferInsert;
+
+export type PendingContainerUpdate = typeof pendingContainerUpdates.$inferSelect;
+export type NewPendingContainerUpdate = typeof pendingContainerUpdates.$inferInsert;
+
+export type ApiToken = typeof apiTokens.$inferSelect;
+export type NewApiToken = typeof apiTokens.$inferInsert;
+
+export type BackupDestination = typeof backupDestinations.$inferSelect;
+export type NewBackupDestination = typeof backupDestinations.$inferInsert;
+
+export type BackupConfig = typeof backupConfigs.$inferSelect;
+export type NewBackupConfig = typeof backupConfigs.$inferInsert;
+
+
+// =============================================================================
+// PASSKEYS (WebAuthn)
+// =============================================================================
+
+/**
+ * A registered WebAuthn credential.
+ *
+ * `counter` is the authenticator's signature counter: it must only ever move
+ * forward, so a replayed or cloned credential is refused at login. `aaguid`
+ * identifies the authenticator model, which is what lets a credential be named
+ * after the manager it lives in.
+ */
+export const passkeyCredentials = sqliteTable('passkey_credentials', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	credentialId: text('credential_id').notNull().unique(),
+	webauthnUserId: text('webauthn_user_id').notNull(),
+	publicKey: text('public_key').notNull(),
+	counter: integer('counter').notNull().default(0),
+	deviceType: text('device_type').notNull(),
+	backedUp: integer('backed_up', { mode: 'boolean' }).notNull().default(false),
+	transports: text('transports'),
+	aaguid: text('aaguid'),
+	name: text('name'),
+	createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+	userIdIdx: index('passkey_credentials_user_id_idx').on(table.userId),
+	userNameUnique: uniqueIndex('passkey_credentials_user_name_unique').on(table.userId, sql`lower(${table.name})`)
+}));
+
+export type PasskeyCredential = typeof passkeyCredentials.$inferSelect;
+export type NewPasskeyCredential = typeof passkeyCredentials.$inferInsert;

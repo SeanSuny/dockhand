@@ -1,0 +1,146 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1765804022462,
+      "tag": "0000_initial_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766378770502,
+      "tag": "0001_add_stack_env_vars",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1766763867484,
+      "tag": "0002_add_pending_container_updates",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767687362730,
+      "tag": "0003_add_stack_paths",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774155653752,
+      "tag": "0004_add_git_stack_deploy_options",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775312212996,
+      "tag": "0005_add_api_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777220350655,
+      "tag": "0006_add_git_stack_context_dir",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781158711008,
+      "tag": "0007_add_synced_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781620381909,
+      "tag": "0008_add_template_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781620382909,
+      "tag": "0009_add_backup_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783800723008,
+      "tag": "0010_add_secret_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786892847678,
+      "tag": "0011_pending_updates_semver",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1786967313223,
+      "tag": "0012_add_git_stack_branch",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787416084323,
+      "tag": "0013_add_stack_icon",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787468505425,
+      "tag": "0014_backup_tls_and_container_icons",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1788099526949,
+      "tag": "0015_deploy_run_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789748940854,
+      "tag": "0016_add_tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791094946737,
+      "tag": "0017_pending_update_cooldown",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791134066582,
+      "tag": "0018_add_passkey_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791395551648,
+      "tag": "0019_add_backup_sftp",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { authorize } from '$lib/server/authorize';
+import { getEnvironment, updateEnvironment } from '$lib/server/db';
+import { getDockerInfo, getHawserInfo } from '$lib/server/docker';
+import { edgeConnections, isEdgeConnected } from '$lib/server/hawser';
+import { daemonIsPodman } from '$lib/server/scanner-socket-detect';
+
+/**
+ * @openapi
+ * summary: Test connectivity to a saved environment's Docker/Hawser endpoint
+ * path: id:integer! Environment id (from GET /api/environments)
+ * resp-200: {success:boolean!, info:{serverVersion:string, containers:integer, images:integer, name:string, engine:string}, isEdgeMode:boolean, hawser:{}}
+ * resp-200-desc: success:false with a human-readable error message is also returned as HTTP 200 (connection/agent-not-connected states are not transport errors)
+ * resp-403: Permission denied
+ * resp-404: Environment not found
+ */
+export const POST: RequestHandler = async ({ params, cookies }) => {
+	const auth = await authorize(cookies);
+	if (auth.authEnabled && !await auth.can('environments', 'view')) {
+		return json({ error: 'Permission denied' }, { status: 403 });
+	}
+	const id = parseInt(params.id);
+	const envAccessDenied = await auth.requireEnvAccess(id);
+	if (envAccessDenied) return envAccessDenied;
+
+	try {
+		const env = await getEnvironment(id);
+
+		if (!env) {
+			return json({ error: 'Environment not found' }, { status: 404 });
+		}
+
+		// Edge mode - check connection status immediately without blocking
+		if (env.connectionType === 'hawser-edge') {
+			const edgeConn = edgeConnections.get(id);
+			const connected = isEdgeConnected(id);
+
+			if (!connected) {
+				console.log(`[Test] Edge environment ${id} (${env.name}) - agent not connected`);
+				return json({
+					success: false,
+					error: 'Edge agent is not connected',
+					isEdgeMode: true,
+					hawser: env.hawserVersion ? {
+						hawserVersion: env.hawserVersion,
+						agentId: env.hawserAgentId,
+						agentName: env.hawserAgentName
+					} : null
+				}, { status: 200 });
+			}
+
+			// Agent is connected - try to get Docker info with shorter timeout
+			console.log(`[Test] Edge environment ${id} (${env.name}) - agent connected, testing Docker...`);
+			try {
+				const [info, isPodman] = await Promise.all([
+					getDockerInfo(env.id) as Promise<any>,
+					daemonIsPodman(env.id)
+				]);
+				return json({
+					success: true,
+					info: {
+						serverVersion: info.ServerVersion,
+						containers: info.Containers,
+						images: info.Images,
+						name: info.Name,
+						engine: isPodman ? 'podman' : 'docker'
+					},
+					isEdgeMode: true,
+					hawser: edgeConn ? {
+						hawserVersion: edgeConn.agentVersion,
+						agentId: edgeConn.agentId,
+						agentName: edgeConn.agentName,
+						hostname: edgeConn.hostname,
+						dockerVersion: edgeConn.dockerVersion,
+						capabilities: edgeConn.capabilities
+					} : null
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : 'Docker API call failed';
+				console.error(`[Test] Edge environment ${id} Docker test failed:`, message);
+				return json({
+					success: false,
+					error: message,
+					isEdgeMode: true,
+					hawser: edgeConn ? {
+						hawserVersion: edgeConn.agentVersion,
+						agentId: edgeConn.agentId,
+						agentName: edgeConn.agentName
+					} : null
+				}, { status: 200 });
+			}
+		}
+
+		// Fetch Docker info, podman detection, and (for hawser-standard) hawser
+		// info in parallel — faster, and avoids serializing remote calls.
+		let info: any;
+		let hawserInfo = null;
+		let isPodman = false;
+		if (env.connectionType === 'hawser-standard') {
+			const [dockerResult, hawserResult, detected] = await Promise.all([
+				getDockerInfo(env.id),
+				getHawserInfo(id),
+				daemonIsPodman(env.id)
+			]);
+			info = dockerResult;
+			hawserInfo = hawserResult;
+			isPodman = detected;
+			if (hawserInfo?.hawserVersion) {
+				await updateEnvironment(id, {
+					hawserVersion: hawserInfo.hawserVersion,
+					hawserAgentId: hawserInfo.agentId,
+					hawserAgentName: hawserInfo.agentName,
+					hawserLastSeen: new Date().toISOString()
+				});
+			}
+		} else {
+			const [dockerResult, detected] = await Promise.all([
+				getDockerInfo(env.id),
+				daemonIsPodman(env.id)
+			]);
+			info = dockerResult;
+			isPodman = detected;
+		}
+
+		return json({
+			success: true,
+			info: {
+				serverVersion: info.ServerVersion,
+				containers: info.Containers,
+				images: info.Images,
+				name: info.Name,
+				engine: isPodman ? 'podman' : 'docker'
+			},
+			hawser: hawserInfo
+		});
+	} catch (error) {
+		const rawMessage = error instanceof Error ? error.message : 'Connection failed';
+		console.error('Failed to test connection:', rawMessage);
+
+		// Provide more helpful error messages for Hawser connections
+		let message = rawMessage;
+		if (rawMessage.includes('401') || rawMessage.toLowerCase().includes('unauthorized')) {
+			message = 'Invalid token - check that the Hawser token matches';
+		} else if (rawMessage.includes('403') || rawMessage.toLowerCase().includes('forbidden')) {
+			message = 'Access forbidden - check token permissions';
+		} else if (rawMessage.includes('ECONNREFUSED') || rawMessage.includes('Connection refused')) {
+			message = 'Connection refused - is Hawser running?';
+		} else if (rawMessage.includes('ETIMEDOUT') || rawMessage.includes('timeout') || rawMessage.includes('Timeout')) {
+			message = 'Connection timed out - check host and port';
+		} else if (rawMessage.includes('ENOTFOUND') || rawMessage.includes('getaddrinfo')) {
+			message = 'Host not found - check the hostname';
+		} else if (rawMessage.includes('EHOSTUNREACH')) {
+			message = 'Host unreachable - check network connectivity';
+		}
+
+		return json({ success: false, error: message }, { status: 200 });
+	}
+};

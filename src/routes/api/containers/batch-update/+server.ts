@@ -1,0 +1,176 @@
+import { collectPullWarning, type PullWarning } from '$lib/utils/pull-warning';
+import { trackedImageReference } from '$lib/utils/tracked-image';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { authorize } from '$lib/server/authorize';
+import { listContainers, pullImage, inspectContainer, inspectImage } from '$lib/server/docker';
+import { auditContainer } from '$lib/server/audit';
+import { recreateContainer } from '$lib/server/scheduler/tasks/container-update';
+import { isUpdateDisabledByLabel } from '$lib/server/container-labels';
+
+export interface BatchUpdateResult {
+	containerId: string;
+	containerName: string;
+	success: boolean;
+	error?: string;
+	warnings?: PullWarning[];
+}
+
+/**
+ * Batch update containers by recreating them with latest images.
+ * Preserves ALL container settings including health checks, resource limits,
+ * capabilities, DNS, security options, ulimits, and network connections.
+ * Expects JSON body: { containerIds: string[] }
+ *
+ * @openapi
+ * summary: Recreate a set of containers with their latest images, preserving all settings (requires the 'create' permission)
+ * description: Containers are processed sequentially; the response reports per-container success/failure plus a summary. Use the streaming variant for live progress. containerIds from GET /api/containers.
+ * query: env:integer! The target environment ID the container lives in (from GET /api/environments)
+ * body: {containerIds:array<string>!}
+ * body-example: {"containerIds":["3f4a1c2b9d8e","a1b2c3d4e5f6"]}
+ * resp-200: {success:boolean!, results:array<{containerId:string!, containerName:string!, success:boolean!, error:string, warnings:array<{status:string!, message:string!}>}>!, summary:{total:integer!, success:integer!, failed:integer!}!}
+ * resp-400: The containerIds array is missing or empty
+ * resp-403: Permission denied
+ * resp-500: Failed to run the batch update
+ */
+export const POST: RequestHandler = async (event) => {
+	const { url, cookies, request } = event;
+	const auth = await authorize(cookies);
+
+	const envId = url.searchParams.get('env');
+	const envIdNum = envId ? parseInt(envId) : undefined;
+
+	// Need create permission to recreate containers
+	if (auth.authEnabled && !await auth.can('containers', 'create', envIdNum)) {
+		return json({ error: 'Permission denied' }, { status: 403 });
+	}
+
+	try {
+		const body = await request.json();
+		const { containerIds } = body as { containerIds: string[] };
+
+		if (!containerIds || !Array.isArray(containerIds) || containerIds.length === 0) {
+			return json({ error: 'containerIds array is required' }, { status: 400 });
+		}
+
+		const results: BatchUpdateResult[] = [];
+
+		// Process containers sequentially to avoid resource conflicts
+		for (const containerId of containerIds) {
+			const warnings: PullWarning[] = [];
+			try {
+				const containers = await listContainers(true, envIdNum);
+				const container = containers.find(c => c.id === containerId);
+
+				if (!container) {
+					results.push({
+						warnings,
+						containerId,
+						containerName: 'unknown',
+						success: false,
+						error: 'Container not found'
+					});
+					continue;
+				}
+
+				// Get full container config
+				const inspectData = await inspectContainer(containerId, envIdNum) as any;
+				const config = inspectData.Config;
+				const imageName = trackedImageReference(config.Image, config.Labels);
+				const containerName = container.name;
+
+				// Capture the OLD image's Env/Labels BEFORE the pull for the env/label
+				// rebase (#1226, #1256) — the old digest may be GC'd after the pull.
+				let oldImageConfig: { Env?: string[]; Labels?: Record<string, string> } | null = null;
+				try {
+					const oldImg = await inspectImage(inspectData.Image, envIdNum) as any;
+					oldImageConfig = { Env: oldImg?.Config?.Env, Labels: oldImg?.Config?.Labels };
+				} catch {
+					// Best-effort; rebase falls back if unavailable.
+				}
+
+				// Skip containers with dockhand.update=false label
+				if (isUpdateDisabledByLabel(config.Labels)) {
+					results.push({
+						warnings,
+						containerId,
+						containerName,
+						success: true,
+						error: 'Skipped - dockhand.update=false label'
+					});
+					continue;
+				}
+
+				// Pull latest image first
+				try {
+					await pullImage(imageName, (data) => collectPullWarning(warnings, data), envIdNum);
+				} catch (pullError: any) {
+					results.push({
+						warnings,
+						containerId,
+						containerName,
+						success: false,
+						error: `Pull failed: ${pullError.message}`
+					});
+					continue;
+				}
+
+				let newContainerId = containerId;
+
+				const recreateResult = await recreateContainer(containerName, envIdNum, { oldImageConfig });
+				if (recreateResult.success) {
+					const updatedContainers = await listContainers(true, envIdNum);
+					const updatedContainer = updatedContainers.find(c => c.name === containerName);
+					if (updatedContainer) {
+						newContainerId = updatedContainer.id;
+					}
+				}
+
+				if (!recreateResult.success) {
+					results.push({
+						warnings,
+						containerId,
+						containerName,
+						success: false,
+						error: recreateResult.error || 'Container recreation failed'
+					});
+					continue;
+				}
+
+				// Audit log
+				await auditContainer(event, 'update', newContainerId, containerName, envIdNum, { batchUpdate: true });
+
+				results.push({
+					warnings,
+					containerId: newContainerId,
+					containerName,
+					success: true
+				});
+			} catch (error: any) {
+				results.push({
+					warnings,
+					containerId,
+					containerName: 'unknown',
+					success: false,
+					error: error.message
+				});
+			}
+		}
+
+		const successCount = results.filter(r => r.success).length;
+		const failCount = results.filter(r => !r.success).length;
+
+		return json({
+			success: failCount === 0,
+			results,
+			summary: {
+				total: results.length,
+				success: successCount,
+				failed: failCount
+			}
+		});
+	} catch (error: any) {
+		console.error('Error in batch update:', error);
+		return json({ error: 'Failed to batch update containers', details: error.message }, { status: 500 });
+	}
+};

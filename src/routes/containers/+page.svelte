@@ -1,0 +1,2893 @@
+<svelte:head>
+	<title>{m.nav_containers()} - Dockhand</title>
+</svelte:head>
+
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { toast } from 'svelte-sonner';
+	import { containerMatchesSearch } from '$lib/utils/container-search-core';
+	import { containerDisplayName } from '$lib/utils/container-display-name';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Select from '$lib/components/ui/select';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import ConfirmPopover from '$lib/components/ConfirmPopover.svelte';
+	import ContainerIcon from '$lib/components/ContainerIcon.svelte';
+	import { formatPorts, formatExposedPorts } from '$lib/utils/port-format';
+	import { formatBytes, formatBytesCompact } from '$lib/utils/format';
+	import MultiSelectFilter from '$lib/components/MultiSelectFilter.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '$lib/components/ui/label';
+	import { Input } from '$lib/components/ui/input';
+	import { SearchInput } from '$lib/components/ui/search-input';
+	import {
+		Play,
+		Square,
+		RotateCw,
+		Trash2,
+		Plus,
+		FileText,
+		Pencil,
+		NotepadText,
+		RefreshCw,
+		CircleArrowUp,
+		Clock,
+		X,
+		Terminal,
+		ArrowUpDown,
+		ArrowUp,
+		ArrowDown,
+		ExternalLink,
+		Globe,
+		LayoutPanelLeft,
+		Rows3,
+		GripVertical,
+		Skull,
+		Pause,
+		Eye,
+		Shell,
+		User,
+		CheckSquare,
+		Square as SquareIcon,
+		Check,
+		XCircle,
+		Icon,
+		AlertTriangle,
+		FolderOpen,
+		ShieldOff,
+		ShieldAlert,
+		ShieldX,
+		Shield,
+		ShieldCheck,
+		Box,
+		Copy,
+		Loader2,
+		AlertCircle,
+		Tag,
+		Unplug, Heart, HeartPulse, HeartOff } from 'lucide-svelte';
+	import { broom } from '@lucide/lab';
+	import { copyToClipboard } from '$lib/utils/clipboard';
+	import CreateContainerModal from './CreateContainerModal.svelte';
+	import EditContainerModal from './EditContainerModal.svelte';
+	import TerminalPanel from '../terminal/TerminalPanel.svelte';
+	import LogsPanel from '../logs/LogsPanel.svelte';
+	import ContainerInspectModal from './ContainerInspectModal.svelte';
+	import FileBrowserModal from './FileBrowserModal.svelte';
+	import BatchUpdateModal from './BatchUpdateModal.svelte';
+	import CheckUpdatesButton from '$lib/components/CheckUpdatesButton.svelte';
+	import DismissUpdatesButton from '$lib/components/DismissUpdatesButton.svelte';
+	import BatchOperationModal from '$lib/components/BatchOperationModal.svelte';
+	import VersionUpdateBadge from '$lib/components/VersionUpdateBadge.svelte';
+	import VersionUpdateModal from '$lib/components/VersionUpdateModal.svelte';
+	import type { ContainerInfo, TerminalMode } from '$lib/types';
+	import { matchesContainerHealthFilter, stateFilterValues } from '$lib/utils/grid-filters';
+	import { nextLogsSessions, panelsAfterRowClick, showsLogsIndicator } from '$lib/utils/active-logs-core';
+	import { matchesTagFilter, tagGroupDescriptor, mergeLabelTags, type Tag as UserTag, type TagColor, filterTagList, prunedTagFilter, withStackTags, stackLabelTags, mergeNamedTags } from '$lib/utils/tags-core';
+	import { isKnownIconName } from '$lib/utils/icons';
+	import { tagOrder } from '$lib/stores/tag-order';
+	import { applyOrder } from '$lib/utils/apply-order';
+	import TagChips from '$lib/components/TagChips.svelte';
+	import TagEditPopover from '$lib/components/TagEditPopover.svelte';
+	import TagFilter from '$lib/components/TagFilter.svelte';
+	import TagLucideIcon from '$lib/components/TagLucideIcon.svelte';
+	import { EmptyState, NoEnvironment } from '$lib/components/ui/empty-state';
+	import { currentEnvironment, environments, appendEnvParam, clearStaleEnvironment } from '$lib/stores/environment';
+	import { containerStore } from '$lib/stores/containers';
+	import { onDockerEvent, isContainerListChange } from '$lib/stores/events';
+	import { appSettings } from '$lib/stores/settings';
+	import { canAccess, isAdmin } from '$lib/stores/auth';
+	import { vulnerabilityCriteriaIcons } from '$lib/utils/update-steps';
+	import { compareIps } from '$lib/utils/ip';
+	import { parseUptimeToSeconds } from '$lib/utils/container-status';
+	import { formatUptime } from '$lib/i18n/time';
+	import { formatHostPortUrl } from '$lib/utils/url';
+	import { parseCustomUrl } from '$lib/utils/custom-url';
+	import { extractTraefikUrls } from '$lib/utils/traefik-urls';
+	import { extractPangolinUrls } from '$lib/utils/pangolin-urls';
+	import { extractCaddyUrls } from '$lib/utils/caddy-urls';
+	import { resolveChangelogUrl } from '$lib/utils/changelog-url';
+	import { detectShells, getBestShell, hasAvailableShell, USER_OPTIONS, getSavedUser, saveUserForContainer, getCustomUsers, removeCustomUser, type ShellDetectionResult } from '$lib/utils/shell-detection';
+	import { DataGrid } from '$lib/components/data-grid';
+	import type { ColumnConfig } from '$lib/types';
+	import type { DataGridRowState } from '$lib/components/data-grid/types';
+	import { m } from '$lib/paraglide/messages.js';
+
+	// Track change detection for stat highlighting (UI-only, stays in component)
+	let changedFields = $state<Map<string, Set<string>>>(new Map());
+
+	type SortField = 'name' | 'image' | 'state' | 'health' | 'uptime' | 'stack' | 'ip' | 'cpu' | 'memory' | 'ports' | 'diskRead' | 'diskWrite' | 'netRx' | 'netTx';
+	type SortDirection = 'asc' | 'desc';
+
+
+	// Data from persistent store (survives page navigation)
+	const containers = $derived($containerStore.data);
+	// User-set per-container icon overrides for the current env (name -> icon), batch-loaded.
+	let iconOverrides = $state<Record<string, string>>({});
+	async function loadIconOverrides(forEnvId: number | null) {
+		try {
+			const res = await fetch(appendEnvParam('/api/container-icons', forEnvId));
+			iconOverrides = res.ok ? await res.json() : {};
+		} catch {
+			iconOverrides = {};
+		}
+	}
+
+	// User-defined tags: assignments (name -> tagId[]) + the catalog.
+	let tagsMap = $state<Record<string, number[]>>({});
+	// Stack assignments, so a container can show what its stack carries. Inherited
+	// at read time rather than copied, so nothing has to be kept in sync.
+	let stackTagsMap = $state<Record<string, number[]>>({});
+	const INHERIT_STACK_TAGS_KEY = 'dockhand-containers-inherit-stack-tags';
+	let inheritStackTags = $state(
+		typeof window === 'undefined' || localStorage.getItem(INHERIT_STACK_TAGS_KEY) !== '0'
+	);
+	$effect(() => {
+		const v = inheritStackTags;
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(INHERIT_STACK_TAGS_KEY, v ? '1' : '0');
+	});
+	let tagCatalog = $state<UserTag[]>([]);
+	// The catalogue has actually been fetched. Until then the tag picker is only
+	// half-built, so a saved selection must not be measured against it.
+	let tagsLoaded = $state(false);
+	const tagById = $derived(new Map(tagCatalog.map((t) => [t.id, t])));
+	async function loadTags(forEnvId: number | null) {
+		try {
+			const [res, stackRes] = await Promise.all([
+				fetch(appendEnvParam('/api/container-tags', forEnvId)),
+				fetch(appendEnvParam('/api/stack-tags', forEnvId))
+			]);
+			tagsMap = res.ok ? await res.json() : {};
+			stackTagsMap = stackRes.ok ? await stackRes.json() : {};
+		} catch {
+			tagsMap = {};
+			stackTagsMap = {};
+		}
+	}
+	async function loadTagCatalog() {
+		// The catalogue is global, but the order it is shown and grouped in belongs
+		// to this user, so it is loaded alongside it - and again after a sign-in.
+		tagOrder.init();
+		// The tag catalog is global (not env-scoped); assignments load per env.
+		try {
+			const res = await fetch('/api/tags');
+			tagCatalog = res.ok ? (await res.json()).tags : [];
+		} catch {
+			tagCatalog = [];
+		}
+		tagsLoaded = true;
+		// Stale filter ids are dropped against filterTags, which knows the label
+		// tags on screen as well as the catalog.
+	}
+	// Tag filter, persisted per browser so it survives a refresh.
+	const TAG_FILTER_KEY = 'dockhand-containers-tag-filter';
+	const TAG_FILTER_MODE_KEY = 'dockhand-containers-tag-filter-mode';
+	let tagFilter = $state<number[]>(loadTagFilter());
+	let tagFilterMode = $state<'all' | 'any'>(loadTagFilterMode());
+	function loadTagFilter(): number[] {
+		if (typeof window === 'undefined') return [];
+		try { const s = localStorage.getItem(TAG_FILTER_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+	}
+	function loadTagFilterMode(): 'all' | 'any' {
+		if (typeof window === 'undefined') return 'any';
+		const s = localStorage.getItem(TAG_FILTER_MODE_KEY);
+		return s === 'all' || s === 'any' ? s : 'any';
+	}
+	$effect(() => {
+		const f = tagFilter, m = tagFilterMode;
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(TAG_FILTER_KEY, JSON.stringify(f));
+		localStorage.setItem(TAG_FILTER_MODE_KEY, m);
+	});
+	// Tags assigned in Dockhand, plus the ones the container names in its
+	// dockhand.tags label - so a container Dockhand never deployed is tagged too.
+	function tagsFor(container: { name: string; labels?: Record<string, string> }): UserTag[] {
+		const assigned = (tagsMap[container.name] ?? [])
+			.map((id) => tagById.get(id))
+			.filter((t): t is UserTag => !!t);
+		const own = mergeLabelTags(assigned, container.labels, tagCatalog, isKnownIconName);
+		if (!inheritStackTags) return own;
+		const stack = getComposeProject(container.labels);
+		if (!stack) return own;
+		const assignedToStack = (stackTagsMap[stack] ?? [])
+			.map((id) => tagById.get(id))
+			.filter((t): t is UserTag => !!t);
+		// A stack also carries whatever its services name in their labels, which is
+		// what the stacks page shows - inherit that too, or a service with no label
+		// of its own stays untagged under a stack the UI shows as tagged.
+		const fromStack = mergeNamedTags(
+			assignedToStack,
+			stackLabelTagsByProject[stack],
+			tagCatalog,
+			isKnownIconName
+		);
+		return withStackTags(own, fromStack);
+	}
+
+	// The label tags each compose project carries, unioned across its containers -
+	// the same rule listComposeStacks applies server-side, computed here from the
+	// rows already on screen rather than fetching the stacks.
+	const stackLabelTagsByProject = $derived.by(() => {
+		if (!inheritStackTags) return {} as Record<string, ReturnType<typeof stackLabelTags>>;
+		const byProject = new Map<string, Array<Record<string, string> | undefined>>();
+		for (const c of containers) {
+			const p = getComposeProject(c.labels);
+			if (!p) continue;
+			const list = byProject.get(p) ?? [];
+			list.push(c.labels);
+			byProject.set(p, list);
+		}
+		const out: Record<string, ReturnType<typeof stackLabelTags>> = {};
+		for (const [p, labels] of byProject) out[p] = stackLabelTags(labels);
+		return out;
+	});
+
+	// The filter lists the catalogue plus any tag only a label names, so a tag that
+	// lives in a label can still be filtered and grouped by.
+	const filterTags = $derived(filterTagList(tagCatalog, containers.map((c) => tagsFor(c))));
+
+	// Drop a selected tag the picker no longer offers - a deleted catalog tag, or a
+	// label tag whose last container is gone - so a filter can never empty the list
+	// with no visible cause. Waits for both the catalog and the rows: measuring a
+	// selection against a half-built picker would drop every valid id, and the
+	// result is persisted straight away.
+	$effect(() => {
+		tagFilter = prunedTagFilter(tagFilter, filterTags, tagsLoaded && containers.length > 0);
+	});
+
+	// Group-by-tag: partition rows by their unique tag COMBINATION (a container with
+	// prod+infra forms its own group, distinct from just prod). Persisted per browser.
+	const GROUP_BY_TAG_KEY = 'dockhand-containers-group-by-tag';
+	const COLLAPSED_GROUPS_KEY = 'dockhand-containers-collapsed-groups';
+	const SHOW_TAGS_KEY = 'dockhand-containers-show-tags';
+	const SHOW_BANDS_KEY = 'dockhand-containers-group-bands';
+	const INLINE_TAG_EDIT_KEY = 'dockhand-containers-inline-tag-editing';
+	const TAG_SETTINGS_EXPANDED_KEY = 'dockhand-containers-tag-settings-expanded';
+	// Show tag chips on rows (default true - only '0' hides them).
+	let showTags = $state(typeof window === 'undefined' || localStorage.getItem(SHOW_TAGS_KEY) !== '0');
+	// Coloured group bands (default true - only '0' hides them).
+	let showBands = $state(typeof window === 'undefined' || localStorage.getItem(SHOW_BANDS_KEY) !== '0');
+	// Show a tag-edit button on each row (default true - only '0' hides it).
+	let inlineTagEditing = $state(typeof window === 'undefined' || localStorage.getItem(INLINE_TAG_EDIT_KEY) !== '0');
+	// Tag-settings section open/closed (default open - only '0' collapses it).
+	let tagSettingsExpanded = $state(typeof window === 'undefined' || localStorage.getItem(TAG_SETTINGS_EXPANDED_KEY) !== '0');
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(SHOW_TAGS_KEY, showTags ? '1' : '0');
+	});
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(SHOW_BANDS_KEY, showBands ? '1' : '0');
+	});
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(INLINE_TAG_EDIT_KEY, inlineTagEditing ? '1' : '0');
+	});
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(TAG_SETTINGS_EXPANDED_KEY, tagSettingsExpanded ? '1' : '0');
+	});
+	let groupByTag = $state(typeof window !== 'undefined' && localStorage.getItem(GROUP_BY_TAG_KEY) === '1');
+	let collapsedGroups = $state<Set<string>>(loadCollapsedGroups());
+	function loadCollapsedGroups(): Set<string> {
+		if (typeof window === 'undefined') return new Set();
+		try { const s = localStorage.getItem(COLLAPSED_GROUPS_KEY); return new Set(s ? JSON.parse(s) : []); } catch { return new Set(); }
+	}
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(GROUP_BY_TAG_KEY, groupByTag ? '1' : '0');
+	});
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...collapsedGroups]));
+	});
+	// The order the tag lists actually show, so the groups read the same way:
+	// applyOrder decides where an unarranged tag sits, and this follows it.
+	const resolvedTagOrder = $derived(
+		applyOrder(tagCatalog, $tagOrder, (t) => t.id).map((t) => t.id)
+	);
+	const containerGroupBy = $derived(groupByTag ? (c: any) => tagGroupDescriptor(tagsFor(c), resolvedTagOrder) : undefined);
+	async function createTag(name: string, color: TagColor, icon: string | null): Promise<UserTag | null> {
+		try {
+			const res = await fetch('/api/tags', {
+				method: 'POST', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name, color, icon })
+			});
+			if (!res.ok) return null;
+			const tag = await res.json();
+			await loadTagCatalog();
+			return tag;
+		} catch { return null; }
+	}
+	async function applyContainerTags(name: string, tagIds: number[]) {
+		tagsMap = { ...tagsMap, [name]: tagIds };
+		try {
+			await fetch(appendEnvParam(`/api/container-tags/${encodeURIComponent(name)}`, envId), {
+				method: 'PUT', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tagIds })
+			});
+		} catch { /* optimistic; reload on next env switch */ }
+	}
+	const containerStats = $derived($containerStore.stats);
+	const autoUpdateSettings = $derived($containerStore.autoUpdateSettings);
+	const envHasScanning = $derived($containerStore.envHasScanning);
+	const envVulnerabilityCriteria = $derived($containerStore.envVulnerabilityCriteria);
+	const loading = $derived($containerStore.loading);
+
+	let envId = $state<number | null>(null);
+
+	// Derived: current environment details for reactive port URL generation
+	const currentEnvDetails = $derived($environments.find(e => e.id === $currentEnvironment?.id) ?? null);
+
+	// Search and sort state - initialize from URL for persistence across navigation
+	const initialSearch = $page.url.searchParams.get('search')
+		?? $page.url.searchParams.get('image') ?? '';
+	let searchQuery = $state(initialSearch);
+	let sortField = $state<SortField>('name');
+	let sortDirection = $state<SortDirection>('asc');
+
+	// Status filter state — also carries the synthetic 'update-available'
+	// pseudo-status (#1063), which ANDs with actual Docker states.
+	const STATUS_FILTER_STORAGE_KEY = 'dockhand-containers-status-filter';
+	const UPDATE_AVAILABLE_FILTER_VALUE = 'update-available';
+	const NEWER_VERSION_FILTER_VALUE = 'newer-version';
+	let statusFilter = $state<string[]>([]);
+
+	// Status types with icons for filter and table
+	const statusTypes = [
+		{ value: 'running', label: m.containers_list_filter_running(), icon: Play, color: 'text-emerald-500' },
+		{ value: 'paused', label: m.containers_list_filter_paused(), icon: Pause, color: 'text-amber-500' },
+		{ value: 'restarting', label: m.containers_list_filter_restarting(), icon: RotateCw, color: 'text-red-500' },
+		{ value: 'exited', label: m.containers_list_filter_exited(), icon: Square, color: 'text-rose-500' },
+		{ value: 'created', label: m.containers_list_filter_created(), icon: Plus, color: 'text-sky-500' },
+		{ value: 'dead', label: m.containers_list_filter_dead(), icon: Skull, color: 'text-gray-500' }
+	];
+
+	function getStatusIcon(state: string) {
+		const status = statusTypes.find(s => s.value === state.toLowerCase());
+		return status?.icon || Square;
+	}
+
+	function getStatusIconColor(state: string): string {
+		const status = statusTypes.find(s => s.value === state.toLowerCase());
+		return status?.color || 'text-muted-foreground';
+	}
+
+	// Text shown for a state or health value; the raw Docker value stays in use for logic
+	// and styling, and an unknown value is shown as it is.
+	function getStateLabel(state: string): string {
+		switch (state.toLowerCase()) {
+			case 'running':
+				return m.containers_list_state_running();
+			case 'paused':
+				return m.containers_list_state_paused();
+			case 'restarting':
+				return m.containers_list_state_restarting();
+			case 'exited':
+				return m.containers_list_state_exited();
+			case 'created':
+				return m.containers_list_state_created();
+			case 'dead':
+				return m.containers_list_state_dead();
+			default:
+				return state;
+		}
+	}
+
+	function getHealthLabel(health: string): string {
+		switch (health) {
+			case 'healthy':
+				return m.containers_list_health_healthy();
+			case 'unhealthy':
+				return m.containers_list_health_unhealthy();
+			case 'starting':
+				return m.containers_list_health_starting();
+			default:
+				return health;
+		}
+	}
+
+	function loadStatusFilter() {
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem(STATUS_FILTER_STORAGE_KEY);
+			if (saved) {
+				try {
+					statusFilter = JSON.parse(saved);
+				} catch {
+					statusFilter = [];
+				}
+			}
+		}
+	}
+
+	function saveStatusFilter() {
+		if (typeof window !== 'undefined') {
+			localStorage.setItem(STATUS_FILTER_STORAGE_KEY, JSON.stringify(statusFilter));
+		}
+	}
+
+	// Save status filter when it changes
+	$effect(() => {
+		const _s = statusFilter;
+		saveStatusFilter();
+	});
+
+	// Sync search query to URL for persistence across navigation
+	$effect(() => {
+		const q = searchQuery;
+		const url = new URL($page.url);
+		if (q) url.searchParams.set('search', q);
+		else url.searchParams.delete('search');
+		url.searchParams.delete('image'); // clean up legacy param
+		if (url.toString() !== $page.url.toString()) {
+			goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+		}
+	});
+
+	// Track if initial fetch has been done
+	let initialFetchDone = $state(false);
+
+	// Subscribe to environment changes using $effect
+	$effect(() => {
+		const env = $currentEnvironment;
+		const newEnvId = env?.id ?? null;
+
+		// Only fetch if environment actually changed or this is initial load
+		if (env && (newEnvId !== envId || !initialFetchDone)) {
+			const isEnvSwitch = envId !== null && newEnvId !== envId;
+			envId = newEnvId;
+			initialFetchDone = true;
+			// (CheckUpdatesButton resets its own state when envId changes)
+			// Clear shell detection cache for new environment
+			shellDetectionCache = {};
+
+			if (isEnvSwitch) {
+				// Full env switch — invalidate cache, show spinner
+				containerStore.invalidate();
+			}
+			// Refresh data (store handles loading state internally)
+			containerStore.refresh(newEnvId);
+			loadIconOverrides(newEnvId);
+			loadTags(newEnvId);
+			loadTagCatalog(); // global catalog; assignments come from loadTags
+		} else if (!env) {
+			// No environment - clear data and stop loading
+			envId = null;
+			shellDetectionCache = {};
+			containerStore.clear();
+			iconOverrides = {};
+			tagsMap = {};
+			tagCatalog = [];
+		}
+	});
+	let showCreateModal = $state(false);
+	let showEditModal = $state(false);
+	let editContainerId = $state('');
+
+	// Inspect modal state
+	let showInspectModal = $state(false);
+	let inspectContainerId = $state('');
+	let inspectContainerName = $state('');
+
+	// File browser modal state
+	let showFileBrowserModal = $state(false);
+	let fileBrowserContainerId = $state('');
+	let fileBrowserContainerName = $state('');
+	let fileBrowserContainerImage = $state('');
+
+	// Terminal state - track active terminals per container
+	interface ActiveTerminal {
+		containerId: string;
+		containerName: string;
+		shell: string;
+		user: string;
+		mode: TerminalMode;
+	}
+	let activeTerminals = $state<ActiveTerminal[]>([]);
+	let currentTerminalContainerId = $state<string | null>(null);
+	let terminalPopoverStates = $state<Record<string, boolean>>({});
+	let terminalMode = $state<TerminalMode>('exec');
+	let terminalShell = $state('/bin/bash');
+	let terminalUser = $state('root');
+	let terminalCustomUser = $state('');
+	let terminalCustomUsers = $state<string[]>([]);
+
+	// Confirmation popover state
+	let confirmStopId = $state<string | null>(null);
+	let confirmRestartId = $state<string | null>(null);
+	let confirmDeleteId = $state<string | null>(null);
+
+	// Bulk action confirmation state
+	let confirmBulkStop = $state(false);
+	let confirmBulkStart = $state(false);
+	let confirmBulkRestart = $state(false);
+	let confirmBulkPause = $state(false);
+	let confirmBulkUnpause = $state(false);
+	let confirmBulkRemove = $state(false);
+
+	// Prune state
+	let confirmPrune = $state(false);
+	let pruneStatus = $state<'idle' | 'pruning' | 'success' | 'error'>('idle');
+
+	// Update confirmation
+	let confirmUpdateAll = $state(false);
+	let confirmUpdateId = $state<string | null>(null);
+	// Separate open-state for the update icon in the image column so it does not
+	// share a popover with the identical icon in the actions column (#1435).
+	let confirmImageUpdateId = $state<string | null>(null);
+	let confirmUpdateSelected = $state(false);
+
+	// Update check state
+	let checkUpdatesBtn = $state<{ reset: () => void } | null>(null);
+	let showBatchUpdateModal = $state(false);
+	const batchUpdateContainerIds = $derived($containerStore.pendingUpdateIds);
+	const batchUpdateContainerNames = $derived($containerStore.pendingUpdateNames);
+
+	// Version-update (semver) release-notes modal — opened from the Tag badge.
+	let versionModalContainer = $state<ContainerInfo | null>(null);
+	let versionModalNewer = $state<import('$lib/server/semver/find-newer').NewerVersion | null>(null);
+	function openVersionModal(container: ContainerInfo, newer: import('$lib/server/semver/find-newer').NewerVersion) {
+		versionModalContainer = container;
+		versionModalNewer = newer;
+	}
+
+	// Single container update mode (doesn't overwrite batch list)
+	let singleUpdateContainerId = $state<string | null>(null);
+	let singleUpdateContainerName = $state<string | null>(null);
+
+	// Operation error state
+	let operationError = $state<{ id: string; message: string } | null>(null);
+
+	// Timeout tracking for cleanup
+	let pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+
+	function clearErrorAfterDelay(id: string) {
+		pendingTimeouts.push(setTimeout(() => {
+			if (operationError?.id === id) operationError = null;
+		}, 5000));
+	}
+
+	// Multi-select state (for bulk actions via checkbox)
+	let selectedContainers = $state<Set<string>>(new Set());
+	let bulkActionInProgress = $state(false);
+
+	// Row highlight state (visual only, for row click)
+	let highlightedRowId = $state<string | null>(null);
+
+	// Batch operation modal state
+	let showBatchOpModal = $state(false);
+	let batchOpTitle = $state('');
+	let batchOpOperation = $state('');
+	let batchOpItems = $state<Array<{ id: string; name: string }>>([]);
+	let batchOpOptions = $state<Record<string, any>>({});
+
+	// Set of container IDs with updates available (for O(1) lookup)
+	const containersWithUpdatesSet = $derived(new Set(batchUpdateContainerIds));
+
+	// Whether any semver badges are showing (may be true with zero digest updates).
+	const hasNewerVersions = $derived($containerStore.newerVersions.size > 0);
+
+	// Container IDs whose last update check failed (e.g. registry rate-limited) — #1255
+	const containersWithFailedCheckSet = $derived(new Set($containerStore.failedUpdateIds));
+	const failedUpdateErrors = $derived($containerStore.failedUpdateErrors);
+
+	// Hours left on a held update, keyed by container ID. Deliberately kept OUT of
+	// containersWithUpdatesSet: the cooldown is what stops the update, so offering it
+	// for a bulk update would promise something it blocks.
+	const coolingDownMap = $derived($containerStore.coolingDown);
+
+	// Any update indicator on the page - digest updates, newer-version tags, or failed
+	// checks. Drives the compact "dismiss all" (×) button.
+	const hasUpdateIndicators = $derived(
+		$containerStore.pendingUpdateIds.length > 0 ||
+		hasNewerVersions ||
+		coolingDownMap.size > 0 ||
+		$containerStore.failedUpdateIds.length > 0
+	);
+
+
+	// Newer-version-tag (semver) suggestions from the last check, keyed by container ID.
+	const newerVersionsMap = $derived($containerStore.newerVersions);
+
+	// Filter dropdown entries: real statuses plus the synthetic
+	// "update-available" entry, only offered once we know about a pending
+	// update — picking it on an empty set would just empty the list (#1063).
+	const filterOptions = $derived([
+		...statusTypes,
+		...(containersWithUpdatesSet.size > 0
+			? [{
+					value: UPDATE_AVAILABLE_FILTER_VALUE,
+					label: m.containers_list_update_available(),
+					icon: CircleArrowUp,
+					color: 'text-amber-500'
+				}]
+			: []),
+		...(hasNewerVersions
+			? [{
+					value: NEWER_VERSION_FILTER_VALUE,
+					label: m.containers_list_filter_newer_version(),
+					icon: Tag,
+					color: 'text-amber-500'
+				}]
+			: []),
+		// Always offered, unlike the entries above: the question "is anything
+		// unhealthy" is asked precisely when the answer is no.
+		{ value: 'health:unhealthy', label: m.containers_list_filter_unhealthy(), icon: HeartOff, color: 'text-red-500', colorLabel: true },
+		{ value: 'health:starting', label: m.containers_list_filter_starting_up(), icon: Heart, color: 'text-amber-500' },
+		{ value: 'health:healthy', label: m.containers_list_filter_healthy(), icon: HeartPulse, color: 'text-emerald-500' }
+	]);
+
+	// Drop the 'update-available' filter when no pending updates remain —
+	// otherwise the user has no way to deselect it (dropdown hides the
+	// entry) and the list stays empty (#1063).
+	$effect(() => {
+		if (
+			statusFilter.includes(UPDATE_AVAILABLE_FILTER_VALUE) &&
+			containersWithUpdatesSet.size === 0
+		) {
+			statusFilter = statusFilter.filter((v) => v !== UPDATE_AVAILABLE_FILTER_VALUE);
+		}
+		// Same guard for the newer-version filter: drop it once no container has a
+		// newer version, or the dropdown hides the entry and the list stays empty.
+		if (statusFilter.includes(NEWER_VERSION_FILTER_VALUE) && !hasNewerVersions) {
+			statusFilter = statusFilter.filter((v) => v !== NEWER_VERSION_FILTER_VALUE);
+		}
+	});
+
+	// Count of updatable containers (excluding system containers like Dockhand/Hawser)
+	const updatableContainersCount = $derived(
+		batchUpdateContainerIds.filter(id => {
+			const container = containers.find(c => c.id === id);
+			return container && !container.systemContainer;
+		}).length
+	);
+
+	// Check if any selected container has an update available (excluding system containers)
+	const selectedHaveUpdates = $derived(
+		Array.from(selectedContainers).some(id => {
+			const container = containers.find(c => c.id === id);
+			return container && containersWithUpdatesSet.has(id) && !container.systemContainer;
+		})
+	);
+
+	// Count selected containers with updates (excluding system containers)
+	const selectedWithUpdatesCount = $derived(
+		Array.from(selectedContainers).filter(id => {
+			const container = containers.find(c => c.id === id);
+			return container && containersWithUpdatesSet.has(id) && !container.systemContainer;
+		}).length
+	);
+
+	// Selection helpers
+	function selectNone() {
+		selectedContainers = new Set();
+	}
+
+	// Bulk actions - now use BatchOperationModal
+	function startBatchOperation(
+		opTitle: string,
+		operation: string,
+		targetContainers: ContainerInfo[],
+		options: Record<string, any> = {}
+	) {
+		batchOpTitle = opTitle;
+		batchOpOperation = operation;
+		batchOpItems = targetContainers.map(c => ({ id: c.id, name: c.name }));
+		batchOpOptions = options;
+		showBatchOpModal = true;
+	}
+
+	function handleBatchOpClose() {
+		showBatchOpModal = false;
+	}
+
+	function handleBatchOpComplete() {
+		selectedContainers = new Set();
+		containerStore.refreshContainers(envId);
+	}
+
+	function bulkStart() {
+		startBatchOperation(
+			m.containers_list_batch_starting({ count: selectedStopped.length }),
+			'start',
+			selectedStopped
+		);
+	}
+
+	function bulkStop() {
+		startBatchOperation(
+			m.containers_list_batch_stopping({ count: selectedRunning.length }),
+			'stop',
+			selectedRunning
+		);
+	}
+
+	function bulkRestart() {
+		startBatchOperation(
+			m.containers_list_batch_restarting({ count: selectedNonSystem.length }),
+			'restart',
+			selectedNonSystem
+		);
+	}
+
+	function bulkPause() {
+		startBatchOperation(
+			m.containers_list_batch_pausing({ count: selectedRunning.length }),
+			'pause',
+			selectedRunning
+		);
+	}
+
+	function bulkUnpause() {
+		startBatchOperation(
+			m.containers_list_batch_unpausing({ count: selectedPaused.length }),
+			'unpause',
+			selectedPaused
+		);
+	}
+
+	function bulkRemove() {
+		startBatchOperation(
+			m.containers_list_batch_removing({ count: selectedNonSystem.length }),
+			'remove',
+			selectedNonSystem,
+			{ force: true }
+		);
+	}
+
+	async function pruneContainers() {
+		pruneStatus = 'pruning';
+		confirmPrune = false;
+		try {
+			const response = await fetch(appendEnvParam('/api/prune/containers', envId), {
+				method: 'POST'
+			});
+			if (response.ok) {
+				pruneStatus = 'success';
+				await containerStore.refreshContainers(envId);
+			} else {
+				pruneStatus = 'error';
+			}
+		} catch (error) {
+			pruneStatus = 'error';
+		}
+		pendingTimeouts.push(setTimeout(() => {
+			pruneStatus = 'idle';
+		}, 3000));
+	}
+
+
+	function handleUpdateCheckComplete(result: {
+		withUpdates: Array<{ containerId: string; containerName: string }>;
+		failed?: Array<{ containerId: string; error: string }>;
+		newerVersions?: Array<{ containerId: string; newerVersion: import('$lib/server/semver/find-newer').NewerVersion }>;
+		coolingDown?: Map<string, number>;
+	}) {
+		if (result.withUpdates.length === 0) {
+			containerStore.setPendingUpdates([], new Map());
+		} else {
+			// Prepare data for batch update modal (but don't open it yet)
+			containerStore.setPendingUpdates(
+				result.withUpdates.map((r) => r.containerId),
+				new Map(result.withUpdates.map((r) => [r.containerId, r.containerName]))
+			);
+		}
+		// Record failed checks so their containers show a "check failed" state
+		// instead of masquerading as up to date (#1255).
+		const failed = result.failed ?? [];
+		containerStore.setFailedUpdates(
+			failed.map((f) => f.containerId),
+			new Map(failed.map((f) => [f.containerId, f.error]))
+		);
+		// Newer-version-tag (semver) suggestions — advisory badge, session-only.
+		const newer = result.newerVersions ?? [];
+		containerStore.setNewerVersions(new Map(newer.map((n) => [n.containerId, n.newerVersion])));
+		// Held updates, from the same check: without this the Clock indicators would
+		// still show whatever the previous check found.
+		containerStore.setCoolingDown(result.coolingDown ?? new Map());
+	}
+
+	// Load pending updates from database (persisted from check-updates or scheduled jobs)
+	async function loadPendingUpdates() {
+		if (!envId) return;
+		await containerStore.loadPendingUpdates(envId);
+		// The "found" (green) button state is driven by hasPendingUpdates below.
+	}
+
+	function updateSelectedContainers() {
+		// Only include selected containers that have updates available (excluding system containers)
+		const selectedWithUpdates = Array.from(selectedContainers).filter(id => {
+			const container = containers.find(c => c.id === id);
+			return container && containersWithUpdatesSet.has(id) && !container.systemContainer;
+		});
+		if (selectedWithUpdates.length === 0) return;
+
+		const selectedNames = new Map<string, string>();
+		for (const id of selectedWithUpdates) {
+			const container = containers.find(c => c.id === id);
+			if (container) {
+				selectedNames.set(id, container.name);
+			}
+		}
+		containerStore.setPendingUpdates(selectedWithUpdates, selectedNames);
+		showBatchUpdateModal = true;
+	}
+
+	async function dismissPendingUpdates() {
+		const envId = $currentEnvironment?.id;
+		if (!envId) return;
+		try {
+			const response = await fetch(`/api/containers/pending-updates?env=${envId}`, { method: 'DELETE' });
+			if (response.ok) {
+				containerStore.setPendingUpdates([], new Map());
+				// Failed-check state is session-only — clear it here too so "Clear"
+				// dismisses the red "check failed" icons alongside the amber ones.
+				containerStore.setFailedUpdates([], new Map());
+				// Newer-version (semver) badges are session-only too — dismiss them alongside.
+				containerStore.setNewerVersions(new Map());
+				// The DELETE removed the held rows as well, so their Clock indicators must
+				// go with them - otherwise they render against rows that no longer exist.
+				containerStore.setCoolingDown(new Map());
+			}
+		} catch {
+			toast.error(m.containers_list_toast_clear_updates_failed());
+		}
+	}
+
+	function updateAllContainers() {
+		if (batchUpdateContainerIds.length === 0) return;
+
+		// Build names map from all containers with updates (excluding system containers)
+		const allNames = new Map<string, string>();
+		for (const id of batchUpdateContainerIds) {
+			const container = containers.find(c => c.id === id);
+			if (container && !container.systemContainer) {
+				allNames.set(id, container.name);
+			}
+		}
+		if (allNames.size === 0) return;
+		containerStore.patch({ pendingUpdateNames: allNames });
+		showBatchUpdateModal = true;
+	}
+
+	function updateSingleContainer(containerId: string, containerName: string) {
+		// Use single-container mode to avoid overwriting the batch list
+		singleUpdateContainerId = containerId;
+		singleUpdateContainerName = containerName;
+		showBatchUpdateModal = true;
+	}
+
+	function handleBatchUpdateClose() {
+		showBatchUpdateModal = false;
+		singleUpdateContainerId = null;
+		singleUpdateContainerName = null;
+		checkUpdatesBtn?.reset();
+	}
+
+	function handleBatchUpdateComplete(results: { success: string[]; failed: string[]; blocked: string[] }) {
+		if (results.success.length > 0) {
+			toast.success(m.containers_list_toast_updated({ count: results.success.length }));
+		}
+		if (results.failed.length > 0) {
+			toast.error(m.containers_list_toast_update_failed({ count: results.failed.length }));
+		}
+		if (results.blocked.length > 0) {
+			toast.warning(m.containers_list_toast_updates_blocked({ count: results.blocked.length }));
+		}
+		selectedContainers = new Set();
+
+		// Clear single-update mode
+		singleUpdateContainerId = null;
+		singleUpdateContainerName = null;
+
+		// Reload pending updates from database to restore highlighting for remaining containers
+		loadPendingUpdates();
+
+		containerStore.refreshContainers(envId);
+	}
+
+	// Action in progress state (for animations)
+	let stoppingId = $state<string | null>(null);
+	let restartingId = $state<string | null>(null);
+
+	// Helper to check if container has active terminal
+	function hasActiveTerminal(containerId: string): boolean {
+		return activeTerminals.some(t => t.containerId === containerId);
+	}
+
+	// Helper to get active terminal
+	function getActiveTerminal(containerId: string): ActiveTerminal | undefined {
+		return activeTerminals.find(t => t.containerId === containerId);
+	}
+
+	// Shell detection state per container
+	let shellDetectionCache = $state<Record<string, ShellDetectionResult>>({});
+	let detectingShellsFor = $state<string | null>(null);
+
+	// Check if any shell is available for a container
+	function anyShellAvailableFor(containerId: string): boolean {
+		const detection = shellDetectionCache[containerId];
+		return !detection || hasAvailableShell(detection);
+	}
+
+	// Detect shells when popover opens
+	async function detectContainerShells(containerId: string) {
+		if (shellDetectionCache[containerId] || detectingShellsFor === containerId) return;
+
+		detectingShellsFor = containerId;
+		try {
+			const result = await detectShells(containerId, $currentEnvironment?.id ?? null);
+			shellDetectionCache[containerId] = result;
+
+			// Auto-select best available shell if current is not available
+			const bestShell = getBestShell(result, terminalShell);
+			if (bestShell && bestShell !== terminalShell) {
+				terminalShell = bestShell;
+			}
+		} catch (error) {
+			console.error('Failed to detect shells:', error);
+		} finally {
+			detectingShellsFor = null;
+		}
+	}
+
+	// User options from shared utilities
+	const userOptions = USER_OPTIONS;
+
+	// Stats polling interval - module scope for cleanup in onDestroy
+	let statsInterval: ReturnType<typeof setInterval> | null = null;
+	let unsubscribeDockerEvent: (() => void) | null = null;
+
+	// Logs state - track active logs per container (like terminals)
+	interface ActiveLogs {
+		containerId: string;
+		containerName: string;
+	}
+	let activeLogs = $state<ActiveLogs[]>([]);
+	let currentLogsContainerId = $state<string | null>(null);
+
+	// A row is "showing logs" when its panel is the visible one. Only one panel is
+	// rendered, so asking the session list instead would light a second row.
+	function hasActiveLogs(containerId: string): boolean {
+		return showsLogsIndicator(currentLogsContainerId, containerId);
+	}
+
+	// Helper to get active logs
+	function getActiveLogs(containerId: string): ActiveLogs | undefined {
+		return activeLogs.find(l => l.containerId === containerId);
+	}
+
+	// Layout state - horizontal (panels at bottom) or vertical (panels on right)
+	type LayoutMode = 'horizontal' | 'vertical';
+	const LAYOUT_STORAGE_KEY = 'dockhand-containers-layout';
+	const PANEL_WIDTH_STORAGE_KEY = 'dockhand-containers-panel-width';
+	const DEFAULT_PANEL_WIDTH = 400;
+	const MIN_PANEL_WIDTH = 250;
+	const MAX_PANEL_WIDTH = 800;
+
+	let layoutMode = $state<LayoutMode>('horizontal');
+	let panelWidth = $state(DEFAULT_PANEL_WIDTH);
+	let isResizingWidth = $state(false);
+	let mainContentRef: HTMLDivElement | undefined;
+
+	function loadLayoutMode() {
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem(LAYOUT_STORAGE_KEY) as LayoutMode;
+			if (saved === 'horizontal' || saved === 'vertical') {
+				layoutMode = saved;
+			}
+			const savedWidth = localStorage.getItem(PANEL_WIDTH_STORAGE_KEY);
+			if (savedWidth) {
+				const w = parseInt(savedWidth);
+				if (!isNaN(w) && w >= MIN_PANEL_WIDTH && w <= MAX_PANEL_WIDTH) {
+					panelWidth = w;
+				}
+			}
+		}
+	}
+
+	function toggleLayoutMode() {
+		layoutMode = layoutMode === 'horizontal' ? 'vertical' : 'horizontal';
+		if (typeof window !== 'undefined') {
+			localStorage.setItem(LAYOUT_STORAGE_KEY, layoutMode);
+		}
+	}
+
+	function startWidthResize(e: MouseEvent) {
+		e.preventDefault();
+		isResizingWidth = true;
+		document.addEventListener('mousemove', handleWidthResize);
+		document.addEventListener('mouseup', stopWidthResize);
+	}
+
+	function handleWidthResize(e: MouseEvent) {
+		if (!isResizingWidth || !mainContentRef) return;
+		const containerRect = mainContentRef.getBoundingClientRect();
+		const newWidth = containerRect.right - e.clientX;
+		panelWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, newWidth));
+	}
+
+	function stopWidthResize() {
+		isResizingWidth = false;
+		document.removeEventListener('mousemove', handleWidthResize);
+		document.removeEventListener('mouseup', stopWidthResize);
+		if (typeof window !== 'undefined') {
+			localStorage.setItem(PANEL_WIDTH_STORAGE_KEY, String(panelWidth));
+		}
+	}
+
+	let scrollContainer: HTMLDivElement | undefined;
+
+	// Filtered and sorted containers - use $derived.by for complex logic
+	const filteredContainers = $derived.by(() => {
+		let result = containers;
+
+		// Filter out stopped/exited containers if setting is disabled
+		if (!$appSettings.showStoppedContainers) {
+			result = result.filter(c => c.state.toLowerCase() !== 'exited');
+		}
+
+		// Filter by status. The synthetic 'update-available' value (#1063)
+		// is split off so it ANDs with real-state selections instead of
+		// being treated like another Docker state.
+		const stateValues = stateFilterValues(statusFilter, [
+			UPDATE_AVAILABLE_FILTER_VALUE,
+			NEWER_VERSION_FILTER_VALUE
+		]);
+		const updatesOnly = statusFilter.includes(UPDATE_AVAILABLE_FILTER_VALUE);
+		const newerVersionOnly = statusFilter.includes(NEWER_VERSION_FILTER_VALUE);
+		if (stateValues.length > 0) {
+			result = result.filter((c) => stateValues.includes(c.state.toLowerCase()));
+		}
+		if (updatesOnly) {
+			result = result.filter((c) => containersWithUpdatesSet.has(c.id));
+		}
+		if (newerVersionOnly) {
+			result = result.filter((c) => newerVersionsMap.has(c.id));
+		}
+		result = result.filter((c) => matchesContainerHealthFilter(c.health, statusFilter));
+
+		// Filter by search query (name, image, any label key/value, or a
+		// `label:key`/`label:key=value` filter - see containerMatchesSearch).
+		if (searchQuery.trim()) {
+			result = result.filter(c => containerMatchesSearch(c, searchQuery));
+		}
+
+		// Filter by user-defined tags.
+		if (tagFilter.length > 0) {
+			result = result.filter((c) => matchesTagFilter(tagsFor(c).map((t) => t.id), tagFilter, tagFilterMode));
+		}
+
+		// Sort
+		result = [...result].sort((a, b) => {
+			let cmp = 0;
+			switch (sortField) {
+				case 'name':
+					cmp = containerDisplayName(a).localeCompare(containerDisplayName(b)) || a.name.localeCompare(b.name);
+					break;
+				case 'image':
+					cmp = a.image.localeCompare(b.image);
+					break;
+				case 'state':
+					// Running first, then others alphabetically
+					const stateOrder = { running: 0, paused: 1, created: 2, exited: 3 };
+					cmp = (stateOrder[a.state.toLowerCase() as keyof typeof stateOrder] ?? 4) -
+						  (stateOrder[b.state.toLowerCase() as keyof typeof stateOrder] ?? 4);
+					break;
+				case 'health':
+					const healthOrder: Record<string, number> = { unhealthy: 0, starting: 1, healthy: 2 };
+					const healthA = a.health ? (healthOrder[a.health] ?? 1) : 3;
+					const healthB = b.health ? (healthOrder[b.health] ?? 1) : 3;
+					cmp = healthA - healthB;
+					break;
+				case 'uptime':
+					cmp = parseUptimeToSeconds(a.status) - parseUptimeToSeconds(b.status);
+					break;
+				case 'stack':
+					const stackA = a.labels?.['com.docker.compose.project'] || '';
+					const stackB = b.labels?.['com.docker.compose.project'] || '';
+					cmp = stackA.localeCompare(stackB);
+					break;
+				case 'ports':
+					const getLowestPort = (c: ContainerInfo) => {
+						const publicPorts = (c.ports || [])
+							.filter((p: any) => p.PublicPort)
+							.map((p: any) => p.PublicPort!);
+						return publicPorts.length > 0 ? Math.min(...publicPorts) : Infinity;
+					};
+					cmp = getLowestPort(a) - getLowestPort(b);
+					break;
+				case 'ip':
+					const ipA = getContainerIp(a.networks);
+					const ipB = getContainerIp(b.networks);
+					cmp = compareIps(ipA, ipB);
+					break;
+				case 'cpu':
+					const cpuA = containerStats.get(a.id)?.cpuPercent ?? -1;
+					const cpuB = containerStats.get(b.id)?.cpuPercent ?? -1;
+					cmp = cpuA - cpuB;
+					break;
+				case 'memory':
+					const memA = containerStats.get(a.id)?.memoryUsage ?? -1;
+					const memB = containerStats.get(b.id)?.memoryUsage ?? -1;
+					cmp = memA - memB;
+					break;
+				case 'diskRead':
+					cmp = (containerStats.get(a.id)?.blockRead ?? -1) - (containerStats.get(b.id)?.blockRead ?? -1);
+					break;
+				case 'diskWrite':
+					cmp = (containerStats.get(a.id)?.blockWrite ?? -1) - (containerStats.get(b.id)?.blockWrite ?? -1);
+					break;
+				case 'netRx':
+					cmp = (containerStats.get(a.id)?.networkRx ?? -1) - (containerStats.get(b.id)?.networkRx ?? -1);
+					break;
+				case 'netTx':
+					cmp = (containerStats.get(a.id)?.networkTx ?? -1) - (containerStats.get(b.id)?.networkTx ?? -1);
+					break;
+			}
+			// Secondary sort by name for stability when primary values are equal
+			if (cmp === 0 && sortField !== 'name') {
+				cmp = containerDisplayName(a).localeCompare(containerDisplayName(b)) || a.name.localeCompare(b.name);
+			}
+			return sortDirection === 'asc' ? cmp : -cmp;
+		});
+
+		return result;
+	});
+
+	// Check if all filtered containers are selected
+	const allFilteredSelected = $derived(
+		filteredContainers.length > 0 && filteredContainers.every(c => selectedContainers.has(c.id))
+	);
+
+	// Check if some (but not all) filtered containers are selected
+	const someFilteredSelected = $derived(
+		filteredContainers.some(c => selectedContainers.has(c.id)) && !allFilteredSelected
+	);
+
+	// Get selected containers that are in current filter
+	const selectedInFilter = $derived(
+		filteredContainers.filter(c => selectedContainers.has(c.id))
+	);
+
+	// Count by state for selected containers (exclude system containers from destructive actions)
+	const selectedNonSystem = $derived(selectedInFilter.filter(c => !c.systemContainer));
+	const selectedRunning = $derived(selectedNonSystem.filter(c => c.state === 'running'));
+	const selectedStopped = $derived(selectedNonSystem.filter(c => c.state !== 'running' && c.state !== 'paused'));
+	const selectedPaused = $derived(selectedNonSystem.filter(c => c.state === 'paused'));
+
+	// Thin wrappers — delegate to persistent store
+	function fetchContainers() {
+		return containerStore.refreshContainers(envId);
+	}
+
+	// Check if highlightChanges is enabled for current environment. Read from the full
+	// environments list first (authoritative); the thin currentEnvironment store omits
+	// the flag on some switch paths, which otherwise reverts it to the default.
+	const highlightChangesEnabled = $derived(
+		currentEnvDetails?.highlightChanges ?? $currentEnvironment?.highlightChanges ?? true
+	);
+
+	// Helper to check if a stat field changed significantly
+	function hasFieldChanged(containerId: string, field: string, oldVal: number | undefined, newVal: number | undefined): boolean {
+		if (oldVal === undefined || newVal === undefined) return false;
+		// For CPU, consider significant if changed by more than 0.5%
+		if (field === 'cpu') return Math.abs(newVal - oldVal) > 0.5;
+		// For memory, consider significant if changed by more than 1MB
+		if (field === 'memory') return Math.abs(newVal - oldVal) > 1024 * 1024;
+		// For network/disk, consider significant if changed by more than 10KB
+		return Math.abs(newVal - oldVal) > 10 * 1024;
+	}
+
+	// Helper to check if a field is currently highlighted
+	function isFieldHighlighted(containerId: string, field: string): boolean {
+		if (!highlightChangesEnabled) return false;
+		return changedFields.get(containerId)?.has(field) ?? false;
+	}
+
+	// Detect stat changes for highlighting when store stats update
+	$effect(() => {
+		const currentStats = $containerStore.stats;
+		const prevStats = $containerStore.previousStats;
+
+		if (!highlightChangesEnabled || prevStats.size === 0) return;
+
+		const newChangedFields = new Map<string, Set<string>>();
+		for (const [id, stat] of currentStats) {
+			const prev = prevStats.get(id);
+			if (prev) {
+				const changes = new Set<string>();
+				if (hasFieldChanged(id, 'cpu', prev.cpuPercent, stat.cpuPercent)) changes.add('cpu');
+				if (hasFieldChanged(id, 'memory', prev.memoryUsage, stat.memoryUsage)) changes.add('memory');
+				if (hasFieldChanged(id, 'networkRx', prev.networkRx, stat.networkRx)) changes.add('network');
+				if (hasFieldChanged(id, 'networkTx', prev.networkTx, stat.networkTx)) changes.add('network');
+				if (hasFieldChanged(id, 'blockRead', prev.blockRead, stat.blockRead)) changes.add('disk');
+				if (hasFieldChanged(id, 'blockWrite', prev.blockWrite, stat.blockWrite)) changes.add('disk');
+				if (changes.size > 0) {
+					newChangedFields.set(id, changes);
+				}
+			}
+		}
+
+		changedFields = newChangedFields;
+		if (newChangedFields.size > 0) {
+			pendingTimeouts.push(setTimeout(() => {
+				changedFields = new Map();
+			}, 1500));
+		}
+	});
+
+	async function startContainer(id: string) {
+		operationError = null;
+		const container = containers.find(c => c.id === id);
+		const name = container?.name || id.slice(0, 12);
+		try {
+			const response = await fetch(appendEnvParam(`/api/containers/${id}/start`, envId), { method: 'POST' });
+			if (!response.ok) {
+				const data = await response.json();
+				operationError = { id, message: data.error || m.containers_list_error_start() };
+				toast.error(m.containers_list_toast_start_failed({ name }));
+				clearErrorAfterDelay(id);
+				return;
+			}
+			toast.success(m.containers_list_toast_started({ name }));
+			await containerStore.refreshContainers(envId);
+		} catch (error) {
+			console.error('Failed to start container:', error);
+			operationError = { id, message: m.containers_list_error_start() };
+			toast.error(m.containers_list_toast_start_failed({ name }));
+			clearErrorAfterDelay(id);
+		}
+	}
+
+	async function stopContainer(id: string) {
+		operationError = null;
+		stoppingId = id;
+		const container = containers.find(c => c.id === id);
+		const name = container?.name || id.slice(0, 12);
+		try {
+			const response = await fetch(appendEnvParam(`/api/containers/${id}/stop`, envId), { method: 'POST' });
+			if (!response.ok) {
+				const data = await response.json();
+				operationError = { id, message: data.error || m.containers_list_error_stop() };
+				toast.error(m.containers_list_toast_stop_failed({ name }));
+				clearErrorAfterDelay(id);
+				return;
+			}
+			toast.success(m.containers_list_toast_stopped({ name }));
+			await containerStore.refreshContainers(envId);
+		} catch (error) {
+			console.error('Failed to stop container:', error);
+			operationError = { id, message: m.containers_list_error_stop() };
+			toast.error(m.containers_list_toast_stop_failed({ name }));
+			clearErrorAfterDelay(id);
+		} finally {
+			stoppingId = null;
+		}
+	}
+
+	async function pauseContainer(id: string) {
+		operationError = null;
+		const container = containers.find(c => c.id === id);
+		const name = container?.name || id.slice(0, 12);
+		try {
+			const response = await fetch(appendEnvParam(`/api/containers/${id}/pause`, envId), { method: 'POST' });
+			if (!response.ok) {
+				const data = await response.json();
+				operationError = { id, message: data.error || m.containers_list_error_pause() };
+				toast.error(m.containers_list_toast_pause_failed({ name }));
+				clearErrorAfterDelay(id);
+				return;
+			}
+			toast.success(m.containers_list_toast_paused({ name }));
+			await containerStore.refreshContainers(envId);
+		} catch (error) {
+			console.error('Failed to pause container:', error);
+			operationError = { id, message: m.containers_list_error_pause() };
+			toast.error(m.containers_list_toast_pause_failed({ name }));
+			clearErrorAfterDelay(id);
+		}
+	}
+
+	async function unpauseContainer(id: string) {
+		operationError = null;
+		const container = containers.find(c => c.id === id);
+		const name = container?.name || id.slice(0, 12);
+		try {
+			const response = await fetch(appendEnvParam(`/api/containers/${id}/unpause`, envId), { method: 'POST' });
+			if (!response.ok) {
+				const data = await response.json();
+				operationError = { id, message: data.error || m.containers_list_error_unpause() };
+				toast.error(m.containers_list_toast_unpause_failed({ name }));
+				clearErrorAfterDelay(id);
+				return;
+			}
+			toast.success(m.containers_list_toast_resumed({ name }));
+			await containerStore.refreshContainers(envId);
+		} catch (error) {
+			console.error('Failed to unpause container:', error);
+			operationError = { id, message: m.containers_list_error_unpause() };
+			toast.error(m.containers_list_toast_unpause_failed({ name }));
+			clearErrorAfterDelay(id);
+		}
+	}
+
+	async function restartContainer(id: string) {
+		operationError = null;
+		restartingId = id;
+		const container = containers.find(c => c.id === id);
+		const name = container?.name || id.slice(0, 12);
+		try {
+			const response = await fetch(appendEnvParam(`/api/containers/${id}/restart`, envId), { method: 'POST' });
+			if (!response.ok) {
+				const data = await response.json();
+				operationError = { id, message: data.error || m.containers_list_error_restart() };
+				toast.error(m.containers_list_toast_restart_failed({ name }));
+				clearErrorAfterDelay(id);
+				return;
+			}
+			toast.success(m.containers_list_toast_restarted({ name }));
+			await containerStore.refreshContainers(envId);
+		} catch (error) {
+			console.error('Failed to restart container:', error);
+			operationError = { id, message: m.containers_list_error_restart() };
+			toast.error(m.containers_list_toast_restart_failed({ name }));
+			clearErrorAfterDelay(id);
+		} finally {
+			restartingId = null;
+		}
+	}
+
+	async function removeContainer(id: string) {
+		operationError = null;
+		const container = containers.find(c => c.id === id);
+		const name = container?.name || id.slice(0, 12);
+		try {
+			const response = await fetch(appendEnvParam(`/api/containers/${id}?force=true`, envId), { method: 'DELETE' });
+			if (!response.ok) {
+				const data = await response.json();
+				operationError = { id, message: data.error || m.containers_list_error_remove() };
+				toast.error(m.containers_list_toast_remove_failed({ name }));
+				clearErrorAfterDelay(id);
+				return;
+			}
+			toast.success(m.containers_list_toast_removed({ name }));
+			await containerStore.refreshContainers(envId);
+		} catch (error) {
+			console.error('Failed to remove container:', error);
+			operationError = { id, message: m.containers_list_error_remove() };
+			toast.error(m.containers_list_toast_remove_failed({ name }));
+			clearErrorAfterDelay(id);
+		}
+	}
+
+	function openTerminal(container: ContainerInfo) {
+		// Check if there's already an active terminal for this container
+		const existingTerminal = getActiveTerminal(container.id);
+		if (existingTerminal) {
+			// Just show the existing terminal
+			currentTerminalContainerId = container.id;
+			terminalPopoverStates[container.id] = false;
+		} else {
+			// Restore saved user for this container
+			const savedUser = getSavedUser(container.id);
+			terminalUser = savedUser ?? 'root';
+			terminalCustomUsers = getCustomUsers();
+			// Show popover to configure new terminal
+			terminalPopoverStates[container.id] = true;
+		}
+	}
+
+	function startTerminal(container: ContainerInfo) {
+		const mode: TerminalMode = terminalMode;
+		if (mode === 'exec') saveUserForContainer(container.id, terminalUser);
+		terminalCustomUsers = getCustomUsers();
+		const terminal: ActiveTerminal = {
+			containerId: container.id,
+			containerName: container.name,
+			shell: terminalShell,
+			user: terminalUser,
+			mode
+		};
+		activeTerminals = [...activeTerminals, terminal];
+		currentTerminalContainerId = container.id;
+		terminalPopoverStates[container.id] = false;
+	}
+
+	function closeTerminal(containerId: string) {
+		activeTerminals = activeTerminals.filter(t => t.containerId !== containerId);
+		if (currentTerminalContainerId === containerId) {
+			currentTerminalContainerId = null;
+		}
+	}
+
+	function showLogs(container: ContainerInfo) {
+		// Check if there's already active logs for this container
+		if (hasActiveLogs(container.id)) {
+			// Just show the existing logs
+			currentLogsContainerId = container.id;
+		} else {
+			activeLogs = nextLogsSessions(activeLogs, container);
+			currentLogsContainerId = container.id;
+		}
+	}
+
+	function closeLogs(containerId: string) {
+		activeLogs = activeLogs.filter(l => l.containerId !== containerId);
+		if (currentLogsContainerId === containerId) {
+			currentLogsContainerId = null;
+		}
+	}
+
+	function selectContainer(container: ContainerInfo) {
+		const next = panelsAfterRowClick(
+			{ logsId: currentLogsContainerId, terminalId: currentTerminalContainerId },
+			container.id,
+			hasActiveTerminal
+		);
+		currentLogsContainerId = next.logsId;
+		currentTerminalContainerId = next.terminalId;
+	}
+
+	function editContainer(id: string) {
+		editContainerId = id;
+		showEditModal = true;
+	}
+
+	function inspectContainer(container: ContainerInfo) {
+		inspectContainerId = container.id;
+		inspectContainerName = container.name;
+		showInspectModal = true;
+	}
+
+	function browseFiles(container: ContainerInfo) {
+		fileBrowserContainerId = container.id;
+		fileBrowserContainerName = container.name;
+		fileBrowserContainerImage = container.image;
+		showFileBrowserModal = true;
+	}
+
+	function getStatusClasses(state: string): string {
+		const base = 'state-badge px-1.5 py-0.5 rounded-sm text-xs font-medium text-black dark:text-white shadow-sm whitespace-nowrap justify-center';
+		switch (state.toLowerCase()) {
+			case 'running':
+				return `${base} bg-emerald-200 dark:bg-emerald-800`;
+			case 'exited':
+				return `${base} bg-rose-200 dark:bg-rose-800`;
+			case 'restarting':
+				return `${base} bg-red-300 dark:bg-red-700`;
+			case 'paused':
+				return `${base} bg-amber-200 dark:bg-amber-800`;
+			case 'created':
+				return `${base} bg-sky-200 dark:bg-sky-800`;
+			default:
+				return `${base} bg-slate-200 dark:bg-slate-700`;
+		}
+	}
+
+	function extractHostFromUrl(urlString: string): string | null {
+		if (!urlString) return null;
+
+		// Handle tcp://, http://, https:// URLs
+		const protocolMatch = urlString.match(/^(?:tcp|http|https):\/\/([^:/]+)/i);
+		if (protocolMatch) {
+			return protocolMatch[1];
+		}
+
+		// Handle hostname:port format (no protocol)
+		const hostPortMatch = urlString.match(/^([^:/]+):\d+$/);
+		if (hostPortMatch) {
+			return hostPortMatch[1];
+		}
+
+		// Just a hostname
+		return urlString;
+	}
+
+	function getPortUrl(publicPort: number): string | null {
+		const env = currentEnvDetails;
+		if (!env) return null;
+
+		// Priority 1: Use publicIp if configured
+		if (env.publicIp) {
+			return formatHostPortUrl(env.publicIp, publicPort);
+		}
+
+		// Priority 2: Extract from host for direct/hawser-standard
+		const connectionType = env.connectionType || 'socket';
+
+		if (connectionType === 'direct' && env.host) {
+			// Remote Docker via TCP - extract host from URL (e.g., tcp://192.168.1.4:2376)
+			const host = extractHostFromUrl(env.host);
+			if (host) return formatHostPortUrl(host, publicPort);
+		} else if (connectionType === 'hawser-standard' && env.host) {
+			// Hawser standard mode - extract host from URL
+			const host = extractHostFromUrl(env.host);
+			if (host) return formatHostPortUrl(host, publicPort);
+		}
+
+		// No public IP available for socket or hawser-edge
+		return null;
+	}
+
+	function getContainerIp(networks: ContainerInfo['networks']): string {
+		if (!networks) return '-';
+		const entries = Object.entries(networks);
+		if (entries.length === 0) return '-';
+		const ip = entries[0][1]?.ipAddress;
+		return ip || '-';
+	}
+
+	let copiedCommand = $state<string | null>(null);
+	let copyFailed = $state(false);
+
+	async function copyCommand(text: string) {
+		const ok = await copyToClipboard(text);
+		if (ok) {
+			copiedCommand = text;
+			toast.success(m.containers_list_toast_copied());
+			setTimeout(() => { copiedCommand = null; }, 2000);
+		} else {
+			copyFailed = true;
+			setTimeout(() => { copyFailed = false; }, 2000);
+		}
+	}
+
+	function getHealthVariant(health?: string): 'default' | 'destructive' | 'secondary' | 'outline' {
+		switch (health) {
+			case 'healthy':
+				return 'default';
+			case 'unhealthy':
+				return 'destructive';
+			case 'starting':
+				return 'secondary';
+			default:
+				return 'outline';
+		}
+	}
+
+	function formatMounts(mounts: ContainerInfo['mounts']): string[] {
+		if (!mounts || mounts.length === 0) return [];
+		return mounts.map(m => {
+			const src = m.source.length > 20 ? '...' + m.source.slice(-17) : m.source;
+			return `${src}:${m.destination}`;
+		});
+	}
+
+	function getComposeProject(labels: ContainerInfo['labels']): string | null {
+		return labels?.['com.docker.compose.project'] || null;
+	}
+
+	function toggleSort(field: SortField) {
+		if (sortField === field) {
+			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortField = field;
+			sortDirection = field === 'state' ? 'asc' : 'asc';
+		}
+	}
+
+
+
+	// Handle tab visibility changes (e.g., user switches back from another tab)
+	function handleVisibilityChange() {
+		if (document.visibilityState === 'visible' && envId) {
+			// Tab became visible - refresh data immediately
+			containerStore.refreshContainers(envId);
+			containerStore.refreshStats(envId);
+		}
+	}
+
+	onMount(async () => {
+		loadLayoutMode();
+		loadStatusFilter();
+		terminalCustomUsers = getCustomUsers();
+
+		// Load persisted pending updates from database
+		loadPendingUpdates();
+
+		// Listen for tab visibility changes to refresh when user returns
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		document.addEventListener('resume', handleVisibilityChange);
+
+		// Initial fetch is handled by $effect - no need to duplicate here
+
+		// Set up interval to refresh stats every 5 seconds (use module-scope var for cleanup)
+		statsInterval = setInterval(() => {
+			if (envId) containerStore.refreshStats(envId);
+		}, 5000);
+
+		// Subscribe to container events (SSE connection is global in layout)
+		unsubscribeDockerEvent = onDockerEvent((event) => {
+			if (envId && isContainerListChange(event)) {
+				containerStore.refreshContainers(envId);
+				containerStore.refreshStats(envId);
+			}
+		});
+
+		// Note: In Svelte 5, cleanup must be in onDestroy, not returned from onMount
+	});
+
+	// Cleanup on component destroy
+	onDestroy(() => {
+		// Clear stats polling interval
+		if (statsInterval) {
+			clearInterval(statsInterval);
+			statsInterval = null;
+		}
+
+		// Unsubscribe from Docker events
+		if (unsubscribeDockerEvent) {
+			unsubscribeDockerEvent();
+			unsubscribeDockerEvent = null;
+		}
+
+		// Cleanup resize event listeners and pending timeouts
+		document.removeEventListener('mousemove', handleWidthResize);
+		document.removeEventListener('mouseup', stopWidthResize);
+		document.removeEventListener('visibilitychange', handleVisibilityChange);
+		document.removeEventListener('resume', handleVisibilityChange);
+		pendingTimeouts.forEach(id => clearTimeout(id));
+		pendingTimeouts = [];
+	});
+</script>
+
+<div class="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
+	<div class="shrink-0 flex flex-wrap justify-between items-center gap-3 min-h-8">
+		<PageHeader icon={Box} title={m.nav_containers()} count={containers.length} />
+		<div class="flex flex-wrap items-center gap-2">
+			<SearchInput bind:value={searchQuery} placeholder={m.containers_list_search_placeholder()} class="h-8 w-64 text-sm" />
+			<!-- Status filter (multi-select). The synthetic 'update-available'
+			     entry appears once at least one container has a pending update,
+			     and ANDs with selected real states (#1063). -->
+			<MultiSelectFilter
+				bind:value={statusFilter}
+				options={filterOptions}
+				placeholder={m.containers_list_filter_all_statuses()}
+				pluralLabel={m.containers_list_filter_plural()}
+				width="w-48"
+				defaultIcon={Box}
+			/>
+			<TagFilter tags={filterTags} bind:selected={tagFilter} bind:mode={tagFilterMode} bind:groupBy={groupByTag} bind:showTags={showTags} bind:showBands={showBands} bind:inlineEditing={inlineTagEditing} bind:inheritStackTags bind:settingsExpanded={tagSettingsExpanded} />
+			<!-- Action buttons: scroll horizontally on narrow screens (mobile) instead of
+			     clipping the overflow. min-w-0 lets the row shrink below its content so
+			     overflow-x can kick in; shrink-0 keeps each button its natural size. -->
+			<div class="flex gap-2 overflow-x-auto min-w-0 max-w-full [&>*]:shrink-0">
+				{#if $canAccess('containers', 'create')}
+				<Button size="sm" variant="secondary" onclick={() => (showCreateModal = true)}>
+					<Plus class="w-3.5 h-3.5" />
+					{m.containers_list_create()}
+				</Button>
+				{/if}
+				<CheckUpdatesButton
+					bind:this={checkUpdatesBtn}
+					{envId}
+					hasPendingUpdates={updatableContainersCount > 0}
+					onComplete={handleUpdateCheckComplete}
+				/>
+				{#if updatableContainersCount > 0}
+				<ConfirmPopover
+					localized
+					open={confirmUpdateAll}
+					action={m.confirm_action_update()}
+					itemType={m.containers_list_confirm_all_containers({ count: updatableContainersCount })}
+					confirmText={m.containers_list_update_all()}
+					variant="default"
+					title={m.containers_list_update_all_title()}
+					position="left"
+					onConfirm={updateAllContainers}
+					onOpenChange={(open) => confirmUpdateAll = open}
+					unstyled
+				>
+					{#snippet children({ open })}
+						<Button
+							size="sm"
+							variant="outline"
+							class="border-amber-500/40 text-amber-600 hover:bg-amber-500/10 hover:border-amber-500"
+						>
+							<CircleArrowUp class="w-3.5 h-3.5" />
+							{m.containers_list_update_all_count({ count: updatableContainersCount })}
+						</Button>
+					{/snippet}
+				</ConfirmPopover>
+				{/if}
+				<DismissUpdatesButton
+					show={hasUpdateIndicators}
+					digestCount={updatableContainersCount}
+					newerVersionCount={$containerStore.newerVersions.size}
+					coolingDownCount={coolingDownMap.size}
+					onDismiss={dismissPendingUpdates}
+				/>
+				{#if $canAccess('containers', 'remove')}
+				<ConfirmPopover
+					localized
+					open={confirmPrune}
+					action={m.confirm_action_prune()}
+					itemType={m.containers_list_confirm_stopped_containers()}
+					title={m.containers_list_prune_title()}
+					position="left"
+					onConfirm={pruneContainers}
+					onOpenChange={(open) => confirmPrune = open}
+					unstyled
+				>
+					{#snippet children({ open })}
+						<Button size="sm" variant="outline" disabled={pruneStatus === 'pruning'}>
+							{#if pruneStatus === 'pruning'}
+								<RefreshCw class="w-3.5 h-3.5 mr-1 animate-spin" />
+							{:else if pruneStatus === 'success'}
+								<Check class="w-3.5 h-3.5 mr-1 text-green-600" />
+							{:else if pruneStatus === 'error'}
+								<XCircle class="w-3.5 h-3.5 mr-1 text-destructive" />
+							{:else}
+								<Icon iconNode={broom} class="w-3.5 h-3.5" />
+							{/if}
+							{m.containers_list_prune()}
+						</Button>
+					{/snippet}
+				</ConfirmPopover>
+				{/if}
+				<Button size="sm" variant="outline" onclick={fetchContainers}>{m.containers_list_refresh()}</Button>
+				<Button
+					size="sm"
+					variant="outline"
+					onclick={toggleLayoutMode}
+					class="h-8 w-8 p-0"
+					title={layoutMode === 'horizontal' ? m.containers_list_layout_vertical() : m.containers_list_layout_horizontal()}
+				>
+					{#if layoutMode === 'horizontal'}
+						<LayoutPanelLeft class="w-4 h-4" />
+					{:else}
+						<Rows3 class="w-4 h-4" />
+					{/if}
+				</Button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Selection bar - always reserve space to prevent layout shift -->
+	<div class="h-4 shrink-0">
+		{#if selectedContainers.size > 0}
+			<div class="flex items-center gap-1 text-xs text-muted-foreground h-full">
+			<span>{m.containers_list_selected_count({ count: selectedInFilter.length })}</span>
+			<button
+				type="button"
+				class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all"
+				onclick={selectNone}
+				disabled={bulkActionInProgress}
+			>
+				{m.containers_list_clear_selection()}
+			</button>
+			{#if selectedStopped.length > 0 && $canAccess('containers', 'start')}
+				<ConfirmPopover
+					localized
+					open={confirmBulkStart}
+					action={m.confirm_action_start()}
+					itemType={m.containers_list_confirm_stopped_count({ count: selectedStopped.length })}
+					title={m.containers_list_bulk_start_title({ count: selectedStopped.length })}
+					variant="secondary"
+					unstyled
+					onConfirm={bulkStart}
+					onOpenChange={(open) => confirmBulkStart = open}
+				>
+					{#snippet children({ open })}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-green-600 hover:border-green-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
+							<Play class="w-3 h-3" />
+							{m.containers_list_start()}
+						</span>
+					{/snippet}
+				</ConfirmPopover>
+			{/if}
+			{#if selectedRunning.length > 0 && $canAccess('containers', 'stop')}
+				<ConfirmPopover
+					localized
+					open={confirmBulkStop}
+					action={m.confirm_action_stop()}
+					itemType={m.containers_list_confirm_running_count({ count: selectedRunning.length })}
+					title={m.containers_list_bulk_stop_title({ count: selectedRunning.length })}
+					unstyled
+					onConfirm={bulkStop}
+					onOpenChange={(open) => confirmBulkStop = open}
+				>
+					{#snippet children({ open })}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-red-600 hover:border-red-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
+							<Square class="w-3 h-3" />
+							{m.containers_list_stop()}
+						</span>
+					{/snippet}
+				</ConfirmPopover>
+				<ConfirmPopover
+					localized
+					open={confirmBulkPause}
+					action={m.confirm_action_pause()}
+					itemType={m.containers_list_confirm_running_count({ count: selectedRunning.length })}
+					title={m.containers_list_bulk_pause_title({ count: selectedRunning.length })}
+					variant="secondary"
+					unstyled
+					onConfirm={bulkPause}
+					onOpenChange={(open) => confirmBulkPause = open}
+				>
+					{#snippet children({ open })}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-yellow-600 hover:border-yellow-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
+							<Pause class="w-3 h-3" />
+							{m.containers_list_pause()}
+						</span>
+					{/snippet}
+				</ConfirmPopover>
+			{/if}
+			{#if selectedPaused.length > 0 && $canAccess('containers', 'start')}
+				<ConfirmPopover
+					localized
+					open={confirmBulkUnpause}
+					action={m.confirm_action_unpause()}
+					itemType={m.containers_list_confirm_paused_count({ count: selectedPaused.length })}
+					title={m.containers_list_bulk_unpause_title({ count: selectedPaused.length })}
+					variant="secondary"
+					unstyled
+					onConfirm={bulkUnpause}
+					onOpenChange={(open) => confirmBulkUnpause = open}
+				>
+					{#snippet children({ open })}
+						<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-blue-600 hover:border-blue-500/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
+							<Play class="w-3 h-3" />
+							{m.containers_list_unpause()}
+						</span>
+					{/snippet}
+				</ConfirmPopover>
+			{/if}
+			{#if selectedNonSystem.length > 0 && $canAccess('containers', 'restart')}
+			<ConfirmPopover
+				localized
+				open={confirmBulkRestart}
+				action={m.confirm_action_restart()}
+				itemType={m.containers_list_confirm_container_count({ count: selectedNonSystem.length })}
+				title={m.containers_list_bulk_restart_title({ count: selectedNonSystem.length })}
+				variant="secondary"
+				unstyled
+				onConfirm={bulkRestart}
+				onOpenChange={(open) => confirmBulkRestart = open}
+			>
+				{#snippet children({ open })}
+					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:border-foreground/30 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
+						<RotateCw class="w-3 h-3" />
+						{m.containers_list_restart()}
+					</span>
+				{/snippet}
+			</ConfirmPopover>
+			{/if}
+			{#if selectedNonSystem.length > 0 && $canAccess('containers', 'remove')}
+			<ConfirmPopover
+				localized
+				open={confirmBulkRemove}
+				action={m.confirm_action_remove()}
+				itemType={m.containers_list_confirm_container_count({ count: selectedNonSystem.length })}
+				title={m.containers_list_bulk_remove_title({ count: selectedNonSystem.length })}
+				unstyled
+				onConfirm={bulkRemove}
+				onOpenChange={(open) => confirmBulkRemove = open}
+			>
+				{#snippet children({ open })}
+					<span class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-border hover:text-destructive hover:border-destructive/40 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}">
+						<Trash2 class="w-3 h-3" />
+						{m.containers_list_remove()}
+					</span>
+				{/snippet}
+			</ConfirmPopover>
+			{/if}
+			{#if selectedHaveUpdates}
+			<ConfirmPopover
+				localized
+				open={confirmUpdateSelected}
+				action={m.confirm_action_update()}
+				itemType={m.containers_list_confirm_selected_count({ count: selectedWithUpdatesCount })}
+				confirmText={m.containers_list_update()}
+				variant="default"
+				title={m.containers_list_update_selected_title()}
+				onConfirm={updateSelectedContainers}
+				onOpenChange={(open) => confirmUpdateSelected = open}
+				unstyled
+			>
+				{#snippet children({ open })}
+					<span
+						class="inline-flex items-center gap-1 px-1.5 py-0 rounded border border-amber-500/40 text-amber-600 hover:border-amber-500 hover:shadow transition-all cursor-pointer {bulkActionInProgress ? 'opacity-50' : ''}"
+					>
+						<CircleArrowUp class="w-3 h-3" />
+						{m.containers_list_update_selected_count({ count: selectedWithUpdatesCount })}
+					</span>
+				{/snippet}
+			</ConfirmPopover>
+			{/if}
+			{#if bulkActionInProgress}
+				<CircleArrowUp class="w-3 h-3 animate-spin ml-1" />
+			{/if}
+			</div>
+		{/if}
+	</div>
+
+	{#if !loading && ($environments.length === 0 || !$currentEnvironment)}
+		<NoEnvironment />
+	{:else if !loading && containers.length === 0}
+		<EmptyState
+			icon={Box}
+			title={m.containers_list_empty_title()}
+			description={m.containers_list_empty_description()}
+		/>
+	{:else}
+		<!-- Main content area - changes based on layout mode -->
+		<div
+			bind:this={mainContentRef}
+			class="flex-1 min-h-0 {layoutMode === 'vertical' ? 'flex gap-3' : 'flex flex-col gap-3'}"
+		>
+<!-- Table section -->
+			<DataGrid
+				data={filteredContainers}
+				keyField="id"
+				gridId="containers"
+				loading={loading}
+				selectable
+				groupBy={containerGroupBy}
+				bind:collapsedGroups={collapsedGroups}
+				ungroupedLabel={m.containers_list_untagged()}
+				showGroupBands={showBands}
+				bind:selectedKeys={selectedContainers}
+				sortState={{ field: sortField, direction: sortDirection }}
+				onSortChange={(state) => { sortField = state.field as SortField; sortDirection = state.direction; }}
+				highlightedKey={highlightedRowId}
+				rowClass={(container) => {
+					let classes = '';
+					if (currentLogsContainerId === container.id) classes += 'bg-blue-500/10 hover:bg-blue-500/15 ';
+					if (currentTerminalContainerId === container.id) classes += 'bg-green-500/10 hover:bg-green-500/15 ';
+					if ($appSettings.highlightUpdates && containersWithUpdatesSet.has(container.id)) classes += 'has-update ';
+					return classes;
+				}}
+				onRowClick={(container, e) => {
+					if (activeLogs.length > 0 || activeTerminals.length > 0) {
+						selectContainer(container);
+					}
+					highlightedRowId = highlightedRowId === container.id ? null : container.id;
+				}}
+			>
+				{#snippet groupHeaderLabel(group)}
+					{#each group.icons as ic}
+						{#if ic}<TagLucideIcon name={ic} class="h-3 w-3 shrink-0" />{:else}<Tag class="h-3 w-3 shrink-0" />{/if}
+					{/each}
+					<span>{group.label}</span>
+				{/snippet}
+				{#snippet cell(column, container, rowState)}
+					{@const ports = formatPorts(container.ports)}
+					{@const stack = getComposeProject(container.labels)}
+					{#if column.id === 'name'}
+						<div class="flex items-center gap-1.5 min-w-0">
+							<ContainerIcon image={container.image} name={container.name} override={iconOverrides[container.name]} {envId} class="w-4 h-4" />
+							<button
+								type="button"
+								class="text-xs font-medium truncate text-left hover:text-primary hover:underline cursor-pointer"
+								title={container.name}
+								onclick={(e) => { e.stopPropagation(); inspectContainer(container); }}
+							>{containerDisplayName(container)}</button>
+							<!-- System containers (Dockhand, Hawser) carry no label badge; only an
+							     amber update indicator when a new version is out (they can't be
+							     self-updated from the UI, so the tooltip points to the update path). -->
+							{#if container.systemContainer && containersWithUpdatesSet.has(container.id)}
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Badge variant="secondary" class="text-2xs py-0 px-1 shrink-0 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 cursor-help flex items-center gap-0.5">
+											<CircleArrowUp class="w-2.5 h-2.5" />
+										</Badge>
+									</Tooltip.Trigger>
+									<Tooltip.Content side="right" class="w-auto p-3">
+										<div class="space-y-2">
+											<p class="font-medium text-sm flex items-center gap-1.5 whitespace-nowrap">
+												<CircleArrowUp class="w-4 h-4 text-amber-500" />
+												{m.containers_list_update_available()}
+											</p>
+											{#if container.systemContainer === 'dockhand'}
+												<a
+													href="/settings?tab=about"
+													class="text-primary hover:underline text-xs flex items-center gap-1 whitespace-nowrap"
+													onclick={(e) => e.stopPropagation()}
+												>
+													{m.containers_list_settings_about()}
+												</a>
+											{:else}
+												<p class="text-muted-foreground text-xs whitespace-nowrap">{m.containers_list_hawser_update_hint()}</p>
+												<a
+													href="https://github.com/Finsys/hawser"
+													target="_blank"
+													rel="noopener noreferrer"
+													class="text-primary hover:underline text-xs flex items-center gap-1 whitespace-nowrap"
+													onclick={(e) => e.stopPropagation()}
+												>
+													<ExternalLink class="w-3 h-3" />
+													{m.containers_list_hawser_update_instructions()}
+												</a>
+											{/if}
+										</div>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							{/if}
+							{#if showTags}<TagChips tags={tagsFor(container)} />{/if}
+							{#if inlineTagEditing && $canAccess('containers', 'edit')}
+								<span onclick={(e) => e.stopPropagation()} role="presentation">
+									<TagEditPopover
+										catalog={tagCatalog}
+										selected={tagsMap[container.name] ?? []}
+										inherited={tagsFor(container).filter((t) => t.inherited).map((t) => t.id)}
+										onCreate={createTag}
+										onApply={(ids) => applyContainerTags(container.name, ids)}
+										allowCreate={$isAdmin}
+									/>
+								</span>
+							{/if}
+						</div>
+					{:else if column.id === 'image'}
+						<div class="flex items-center gap-1.5 {$appSettings.highlightUpdates && containersWithUpdatesSet.has(container.id) ? 'update-border' : ''}">
+							{#if containersWithUpdatesSet.has(container.id)}
+								{#if container.systemContainer}
+									<!-- System containers cannot be updated from the UI - show the
+									     indicator but leave it non-clickable (matches the actions column). -->
+									<span title={m.containers_list_update_available()}>
+										<CircleArrowUp class="w-3 h-3 text-amber-500 {$appSettings.highlightUpdates ? 'glow-amber' : ''} shrink-0" />
+									</span>
+								{:else}
+									<ConfirmPopover
+										localized
+										open={confirmImageUpdateId === container.id}
+										action={m.confirm_action_update()}
+										itemType={m.containers_item_container()}
+										itemName={container.name}
+										title={m.containers_list_update_click_title()}
+										onConfirm={() => updateSingleContainer(container.id, container.name)}
+										onOpenChange={(open) => confirmImageUpdateId = open ? container.id : null}
+									>
+										{#snippet children({ open })}
+											<span title={m.containers_list_update_available()} class="cursor-pointer">
+												<CircleArrowUp class="w-3 h-3 text-amber-500 hover:text-amber-400 transition-colors {$appSettings.highlightUpdates ? 'glow-amber' : ''} shrink-0" />
+											</span>
+										{/snippet}
+									</ConfirmPopover>
+								{/if}
+								{#if $appSettings.showImageChangelogLinks}
+									{@const changelogUrl = resolveChangelogUrl(container.image, container.labels)}
+									{#if changelogUrl}
+										<a
+											href={changelogUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											onclick={(e) => e.stopPropagation()}
+											title={m.containers_list_view_changelog()}
+											class="shrink-0 text-amber-500 hover:text-amber-400 transition-colors"
+										>
+											<NotepadText class="w-3 h-3" />
+										</a>
+									{/if}
+								{/if}
+							{:else if coolingDownMap.has(container.id)}
+								<!-- An update exists but the image is too young to apply. Muted, not
+								     amber: there is nothing for the user to act on. -->
+								<span title={m.containers_list_update_held_title({ count: coolingDownMap.get(container.id)! })}>
+									<Clock class="w-3 h-3 text-muted-foreground shrink-0" />
+								</span>
+							{:else if containersWithFailedCheckSet.has(container.id)}
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<AlertTriangle class="w-3 h-3 text-red-500 shrink-0 cursor-help" />
+									</Tooltip.Trigger>
+									<Tooltip.Content side="right" class="w-72 p-3">
+										<div class="space-y-1.5">
+											<p class="font-medium text-sm flex items-center gap-1.5 whitespace-nowrap">
+												<AlertTriangle class="w-4 h-4 text-red-500 shrink-0" />
+												{m.containers_list_update_check_failed()}
+											</p>
+											<p class="text-muted-foreground text-xs break-words">{failedUpdateErrors.get(container.id) ?? m.containers_list_registry_query_failed()}</p>
+											<p class="text-muted-foreground text-xs">{m.containers_list_update_status_unknown()}</p>
+										</div>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							{/if}
+							{#if newerVersionsMap.has(container.id)}
+								<VersionUpdateBadge
+									newerVersion={newerVersionsMap.get(container.id)!}
+									variant="pill"
+									onclick={() => openVersionModal(container, newerVersionsMap.get(container.id)!)}
+								/>
+							{/if}
+							<span class="text-xs text-muted-foreground truncate" title={container.image}>{container.image}</span>
+						</div>
+					{:else if column.id === 'state'}
+						{@const StateIcon = getStatusIcon(container.state)}
+						<span class="{getStatusClasses(container.state)} inline-flex items-center gap-1">
+							<StateIcon class="w-[1em] h-[1em] {container.state.toLowerCase() === 'restarting' ? 'animate-spin' : ''}" />
+							{getStateLabel(container.state)}
+						</span>
+					{:else if column.id === 'health'}
+						{#if container.health}
+							<div class="flex items-center justify-center" title={getHealthLabel(container.health)}>
+								{#if container.health === 'healthy'}
+									<span class="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse"></span>
+								{:else if container.health === 'unhealthy'}
+									<span class="h-2.5 w-2.5 rounded-full bg-red-500"></span>
+								{:else}
+									<span class="h-2.5 w-2.5 rounded-full bg-yellow-500 animate-pulse"></span>
+								{/if}
+							</div>
+						{:else}
+							<div class="flex items-center justify-center">
+								<span class="text-gray-400 dark:text-gray-600 text-xs">-</span>
+							</div>
+						{/if}
+					{:else if column.id === 'uptime'}
+						<span class="text-xs text-muted-foreground whitespace-nowrap">{formatUptime(container.status)}</span>
+					{:else if column.id === 'restartCount'}
+						{#if container.restartCount > 0}
+							<span class="text-xs text-red-500 text-center block" title={m.containers_list_restart_count({ count: container.restartCount })}>{container.restartCount}</span>
+						{:else}
+							<span class="text-gray-400 dark:text-gray-600 text-xs text-center block">-</span>
+						{/if}
+					{:else if column.id === 'cpu'}
+						<div class="{isFieldHighlighted(container.id, 'cpu') ? 'stat-highlight' : ''} text-right">
+							{#if containerStats.get(container.id)}
+								{@const stats = containerStats.get(container.id)}
+								<span class="text-xs font-mono {stats.cpuPercent > 80 ? 'text-red-500' : stats.cpuPercent > 50 ? 'text-yellow-500' : 'text-muted-foreground'}">{stats.cpuPercent.toFixed(1)}%</span>
+							{:else if container.state === 'running'}
+								<span class="text-xs text-muted-foreground/50">...</span>
+							{:else}
+								<span class="text-gray-400 dark:text-gray-600 text-xs">-</span>
+							{/if}
+						</div>
+					{:else if column.id === 'memory'}
+						<div class="{isFieldHighlighted(container.id, 'memory') ? 'stat-highlight' : ''} text-right">
+							{#if containerStats.get(container.id)}
+								{@const stats = containerStats.get(container.id)}
+								{@const memLimitLabel = stats.memoryLimit ? formatBytes(stats.memoryLimit) : m.containers_list_memory_unlimited()}
+								{@const memoryTooltip = stats.memoryCache > 0
+									? m.containers_list_memory_title_cache({ usage: formatBytes(stats.memoryUsage), limit: memLimitLabel, total: formatBytes(stats.memoryRaw), cache: formatBytes(stats.memoryCache) })
+									: `${formatBytes(stats.memoryUsage)} / ${memLimitLabel}`}
+								<span class="text-xs font-mono {stats.memoryPercent > 80 ? 'text-red-500' : stats.memoryPercent > 50 ? 'text-yellow-500' : 'text-muted-foreground'}" title={memoryTooltip}>{formatBytesCompact(stats.memoryUsage)}<span class="text-muted-foreground/50">/{stats.memoryLimit ? formatBytesCompact(stats.memoryLimit, 0) : '∞'}</span></span>
+							{:else if container.state === 'running'}
+								<span class="text-xs text-muted-foreground/50">...</span>
+							{:else}
+								<span class="text-gray-400 dark:text-gray-600 text-xs">-</span>
+							{/if}
+						</div>
+					{:else if column.id === 'networkIO'}
+						<div class="{isFieldHighlighted(container.id, 'network') ? 'stat-highlight' : ''} text-right whitespace-nowrap">
+							{#if containerStats.get(container.id)}
+								{@const stats = containerStats.get(container.id)}
+								<span class="text-xs font-mono text-muted-foreground" title={m.containers_list_network_title({ received: formatBytes(stats.networkRx), sent: formatBytes(stats.networkTx) })}>
+									<span class="text-2xs text-blue-400">↓</span>{formatBytesCompact(stats.networkRx, 0)} <span class="text-2xs text-orange-400">↑</span>{formatBytesCompact(stats.networkTx, 0)}
+								</span>
+							{:else if container.state === 'running'}
+								<span class="text-xs text-muted-foreground/50">...</span>
+							{:else}
+								<span class="text-gray-400 dark:text-gray-600 text-xs">-</span>
+							{/if}
+						</div>
+					{:else if column.id === 'diskIO'}
+						<div class="{isFieldHighlighted(container.id, 'disk') ? 'stat-highlight' : ''} text-right whitespace-nowrap">
+							{#if containerStats.get(container.id)}
+								{@const stats = containerStats.get(container.id)}
+								<span class="text-xs font-mono text-muted-foreground" title={m.containers_list_disk_title({ read: formatBytes(stats.blockRead), written: formatBytes(stats.blockWrite) })}>
+									<span class="text-2xs text-green-400">r</span>{formatBytesCompact(stats.blockRead, 0)} <span class="text-2xs text-yellow-400">w</span>{formatBytesCompact(stats.blockWrite, 0)}
+								</span>
+							{:else if container.state === 'running'}
+								<span class="text-xs text-muted-foreground/50">...</span>
+							{:else}
+								<span class="text-gray-400 dark:text-gray-600 text-xs">-</span>
+							{/if}
+						</div>
+					{:else if column.id === 'ip'}
+						{@const networkEntries = container.networks ? Object.entries(container.networks) : []}
+						{@const primaryIp = getContainerIp(container.networks)}
+						{#if networkEntries.length > 1 && primaryIp !== '-'}
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<span class="inline-flex items-center gap-1">
+										<code class="text-xs">{primaryIp}</code>
+										<span class="text-2xs px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium">+{networkEntries.length - 1}</span>
+									</span>
+								</Tooltip.Trigger>
+								<Tooltip.Content side="top" class="max-w-none">
+									{#each networkEntries as [name, net]}
+										<div class="font-mono text-xs">{name}: {net.ipAddress || m.containers_list_no_ip()}</div>
+									{/each}
+								</Tooltip.Content>
+							</Tooltip.Root>
+						{:else}
+							<code class="text-xs">{primaryIp}</code>
+						{/if}
+					{:else if column.id === 'ports'}
+						{@const exposedPorts = $appSettings.showExposedPorts ? formatExposedPorts(container.ports) : []}
+						{@const parsedUrl = parseCustomUrl(container.labels?.['dockhand.url'])}
+						{@const traefikUrls = (parsedUrl || !$appSettings.honorProxyLabels) ? [] : extractTraefikUrls(container.labels)}
+						{@const pangolinUrls = (parsedUrl || !$appSettings.honorProxyLabels) ? [] : extractPangolinUrls(container.labels)}
+						{@const caddyUrls = (parsedUrl || !$appSettings.honorProxyLabels) ? [] : extractCaddyUrls(container.labels)}
+						{#if ports.length > 0 || exposedPorts.length > 0 || parsedUrl || traefikUrls.length > 0 || pangolinUrls.length > 0 || caddyUrls.length > 0}
+							{@const compactPorts = $appSettings.compactPorts}
+							{@const displayPorts = compactPorts && ports.length > 1 ? [ports[0]] : ports}
+							{@const remainingCount = ports.length - 1}
+							<div class="flex {compactPorts ? 'flex-nowrap' : 'flex-wrap'} gap-1">
+								{#if parsedUrl}
+									<a
+										href={parsedUrl.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										onclick={(e) => e.stopPropagation()}
+										class="inline-flex items-center gap-0.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary px-1 py-0.5 rounded transition-colors shrink-0"
+										title={m.containers_list_open_in_new_tab({ url: parsedUrl.url })}
+									>
+										<Globe class="w-2.5 h-2.5" />
+										<span class="max-w-[120px] truncate">{parsedUrl.name || parsedUrl.url.replace(/^https?:\/\//, '')}</span>
+										<ExternalLink class="w-2.5 h-2.5 opacity-60" />
+									</a>
+								{/if}
+								<!-- Traefik fallback URLs (#2). dockhand.url suppresses these. -->
+								{#each traefikUrls as t}
+									<a
+										href={t.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										onclick={(e) => e.stopPropagation()}
+										class="inline-flex items-center gap-0.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary px-1 py-0.5 rounded transition-colors shrink-0"
+										title={m.containers_list_traefik_title({ router: t.router, url: t.url })}
+									>
+										<Globe class="w-2.5 h-2.5" />
+										<span class="max-w-[120px] truncate">{t.url.replace(/^https?:\/\//, '')}</span>
+										<ExternalLink class="w-2.5 h-2.5 opacity-60" />
+									</a>
+								{/each}
+								<!-- Pangolin fallback URLs (#2 follow-up). dockhand.url suppresses these. -->
+								{#each pangolinUrls as p}
+									<a
+										href={p.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										onclick={(e) => e.stopPropagation()}
+										class="inline-flex items-center gap-0.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary px-1 py-0.5 rounded transition-colors shrink-0"
+										title={m.containers_list_pangolin_title({ resource: p.resource, url: p.url })}
+									>
+										<Globe class="w-2.5 h-2.5" />
+										<span class="max-w-[120px] truncate">{p.displayName ?? p.url.replace(/^https?:\/\//, '')}</span>
+										<ExternalLink class="w-2.5 h-2.5 opacity-60" />
+									</a>
+								{/each}
+									<!-- caddy-docker-proxy fallback URLs (#1390). dockhand.url suppresses these. -->
+									{#each caddyUrls as c}
+										<a
+											href={c.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											onclick={(e) => e.stopPropagation()}
+											class="inline-flex items-center gap-0.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary px-1 py-0.5 rounded transition-colors shrink-0"
+											title="Caddy {c.group}: {c.url}"
+										>
+											<Globe class="w-2.5 h-2.5" />
+											<span class="max-w-[120px] truncate">{c.url.replace(/^https?:\/\//, '')}</span>
+											<ExternalLink class="w-2.5 h-2.5 opacity-60" />
+										</a>
+									{/each}
+								{#each displayPorts as port}
+									{@const portParsed = parseCustomUrl(container.labels?.[`dockhand.port.${port.publicPort}.url`])}
+									{@const portUrl = portParsed?.url || null}
+									{@const url = portUrl || (currentEnvDetails ? getPortUrl(port.publicPort) : null)}
+									{#if url}
+										<a
+											href={url}
+											target="_blank"
+											rel="noopener noreferrer"
+											onclick={(e) => e.stopPropagation()}
+											class="inline-flex items-center gap-0.5 text-xs {portUrl ? 'bg-primary/10 hover:bg-primary/20 text-primary' : 'bg-muted hover:bg-blue-500/20 hover:text-blue-500'} px-1 py-0.5 rounded transition-colors shrink-0"
+											title={m.containers_list_open_in_new_tab({ url })}
+										>
+											<code>{portParsed?.name ?? port.display}</code>
+											<ExternalLink class="w-2.5 h-2.5 {portUrl ? 'opacity-60' : 'text-muted-foreground'}" />
+										</a>
+									{:else}
+										<code class="text-xs bg-muted px-1 py-0.5 rounded shrink-0">{port.display}</code>
+									{/if}
+								{/each}
+								{#if compactPorts && remainingCount > 0}
+									<span
+										class="text-xs bg-muted text-muted-foreground px-1 py-0.5 rounded cursor-default shrink-0"
+										title={ports.map(p => p.display).join(', ')}
+									>+{remainingCount}</span>
+								{/if}
+								{#each exposedPorts as port}
+									<code class="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-1 py-0.5 rounded shrink-0" title={m.containers_list_exposed_port()}>{port.display}</code>
+								{/each}
+							</div>
+						{:else}
+							<span class="text-gray-400 dark:text-gray-600 text-xs">-</span>
+						{/if}
+					{:else if column.id === 'autoUpdate'}
+						{#if autoUpdateSettings.get(container.name)?.enabled}
+							{@const settings = autoUpdateSettings.get(container.name)}
+							<div class="flex items-center justify-center gap-1">
+								<span class="text-xs text-green-500 cursor-default" title={settings?.tooltip}>{settings?.label}</span>
+								{#if envHasScanning}
+									{@const criteria = settings?.vulnerabilityCriteria || 'never'}
+									{@const icon = vulnerabilityCriteriaIcons[criteria]}
+									{#if icon}
+										{@const IconComponent = icon.component}
+										<span class="cursor-default" title={icon.title()}>
+											<IconComponent class={icon.class} />
+										</span>
+									{/if}
+								{/if}
+							</div>
+						{:else if !$canAccess('schedules', 'view')}
+							<!-- The schedules are withheld from this account, so the cell says
+							     that rather than the "-" that claims nothing is scheduled. -->
+							<span
+								class="text-gray-400 dark:text-gray-600 text-xs text-center block cursor-default"
+								title={m.containers_list_no_schedules_permission()}>?</span>
+						{:else}
+							<span class="text-gray-400 dark:text-gray-600 text-xs text-center block">-</span>
+						{/if}
+					{:else if column.id === 'stack'}
+						{#if stack}
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<button
+										type="button"
+										onclick={(e) => { e.stopPropagation(); goto(appendEnvParam(`/stacks?search=${encodeURIComponent(stack)}`, envId)); }}
+										class="cursor-pointer"
+									>
+										<Badge variant="outline" class="text-xs py-0 px-1.5 hover:bg-primary/10 hover:border-primary/50 transition-colors truncate max-w-full">{stack}</Badge>
+									</button>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p class="text-sm whitespace-nowrap">{stack}</p>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						{:else}
+							<span class="text-gray-400 dark:text-gray-600 text-xs">-</span>
+						{/if}
+					{:else if column.id === 'actions'}
+						<div class="relative flex gap-0.5 justify-end">
+							{#if containersWithUpdatesSet.has(container.id) && !container.systemContainer}
+								<ConfirmPopover
+									localized
+									open={confirmUpdateId === container.id}
+									action={m.confirm_action_update()}
+									itemType={m.containers_item_container()}
+									itemName={container.name}
+									title={m.containers_list_update_click_title()}
+									onConfirm={() => updateSingleContainer(container.id, container.name)}
+									onOpenChange={(open) => confirmUpdateId = open ? container.id : null}
+								>
+									{#snippet children({ open })}
+										<CircleArrowUp class="grid-action-icon text-amber-500 {$appSettings.highlightUpdates ? 'glow-amber' : ''}" />
+									{/snippet}
+								</ConfirmPopover>
+							{/if}
+							{#if $canAccess('containers', 'logs')}
+							{#if hasActiveLogs(container.id)}
+								<button
+									type="button"
+									onclick={(e) => { e.stopPropagation(); currentLogsContainerId = container.id; }}
+									title={m.containers_list_show_logs()}
+									class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+								>
+									<FileText class="w-4 h-4 text-blue-400" style="filter: drop-shadow(0 0 4px rgba(96,165,250,0.9)) drop-shadow(0 0 8px rgba(96,165,250,0.6));" strokeWidth={2.5} />
+								</button>
+							{:else}
+								<button
+									type="button"
+									onclick={(e) => { e.stopPropagation(); showLogs(container); }}
+									title={m.containers_list_open_logs()}
+									class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+								>
+									<FileText class="grid-action-icon grid-action-logs text-muted-foreground hover:text-foreground" />
+								</button>
+							{/if}
+							{/if}
+							{#if container.state === 'running' && $canAccess('containers', 'exec')}
+							{#if hasActiveTerminal(container.id)}
+								<button
+									type="button"
+									onclick={(e) => { e.stopPropagation(); currentTerminalContainerId = container.id; }}
+									title={m.containers_list_show_terminal()}
+									class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+								>
+									<Terminal class="w-4 h-4 text-green-400" style="filter: drop-shadow(0 0 4px rgba(74,222,128,0.9)) drop-shadow(0 0 8px rgba(74,222,128,0.6));" strokeWidth={2.5} />
+								</button>
+							{:else}
+								<Popover.Root open={terminalPopoverStates[container.id] ?? false} onOpenChange={(open) => {
+									terminalPopoverStates[container.id] = open;
+									if (open) {
+										// Default each freshly-opened session to exec so a prior container's
+										// Attach choice (terminalMode is shared) doesn't carry over, and the
+										// picker/shell controls always render. Restore this container's saved user.
+										terminalMode = 'exec';
+										terminalUser = getSavedUser(container.id) ?? 'root';
+										terminalCustomUsers = getCustomUsers();
+										detectContainerShells(container.id);
+									}
+								}}>
+									<Popover.Trigger
+										onclick={(e: MouseEvent) => e.stopPropagation()}
+										class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+									>
+										<Terminal class="grid-action-icon grid-action-terminal text-muted-foreground hover:text-foreground" />
+									</Popover.Trigger>
+									<Popover.Content class="w-56 p-0" align="end" sideOffset={5}>
+										<div class="px-3 py-2 border-b bg-muted/50">
+											<div class="flex items-center gap-2">
+												<Terminal class="w-3.5 h-3.5 text-muted-foreground" />
+												<span class="text-xs font-medium truncate" title={container.name}>{container.name}</span>
+											</div>
+										</div>
+										{#if terminalMode === 'exec' && detectingShellsFor === container.id}
+											<div class="p-4 text-center">
+												<Loader2 class="w-5 h-5 mx-auto mb-2 text-muted-foreground animate-spin" />
+												<p class="text-xs text-muted-foreground">{m.containers_list_detecting_shells()}</p>
+											</div>
+										{:else if terminalMode === 'exec' && !anyShellAvailableFor(container.id)}
+											<div class="p-4 text-center">
+												<AlertCircle class="w-5 h-5 mx-auto mb-2 text-amber-500" />
+												<p class="text-xs font-medium text-amber-500">{m.containers_list_no_shell()}</p>
+												<p class="text-xs text-muted-foreground mt-1">{m.containers_list_no_shell_installed()}</p>
+											</div>
+										{:else}
+											<div class="p-3 space-y-3">
+												<div class="space-y-1.5">
+													<Label class="text-xs">{m.containers_list_terminal_mode()}</Label>
+													<Select.Root type="single" value={terminalMode} onValueChange={(value) => {
+														terminalMode = value as TerminalMode;
+														if (terminalMode === 'exec') detectContainerShells(container.id);
+													}}>
+														<Select.Trigger class="w-full h-8 text-xs">
+															{#if terminalMode === 'attach'}
+																<Unplug class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																{m.containers_list_terminal_attach()}
+															{:else}
+																<Shell class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																{m.containers_list_terminal_exec()}
+															{/if}
+														</Select.Trigger>
+														<Select.Content>
+															<Select.Item value="exec" label={m.containers_list_terminal_exec()}>
+																<Shell class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																{m.containers_list_terminal_exec()}
+															</Select.Item>
+															<Select.Item value="attach" label={m.containers_list_terminal_attach()}>
+																<Unplug class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																{m.containers_list_terminal_attach()}
+															</Select.Item>
+														</Select.Content>
+													</Select.Root>
+													</div>
+													{#if terminalMode === 'exec'}
+														<div class="space-y-1.5">
+															<Label class="text-xs">{m.containers_list_terminal_shell()}</Label>
+															<Select.Root type="single" bind:value={terminalShell}>
+																<Select.Trigger class="w-full h-8 text-xs">
+																	<Shell class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																	<span>{shellDetectionCache[container.id]?.allShells.find(o => o.path === terminalShell)?.label || m.containers_list_select()}</span>
+																</Select.Trigger>
+																<Select.Content>
+																	{#if shellDetectionCache[container.id]}
+																		{#each shellDetectionCache[container.id].allShells as option}
+																			<Select.Item value={option.path} label={option.label} disabled={!option.available}>
+																				<Shell class="w-3 h-3 mr-1.5 {option.available ? 'text-green-500' : 'text-muted-foreground/40'}" />
+																				<span class={option.available ? 'text-foreground' : 'text-muted-foreground/60'}>
+																					{option.label}
+																					{#if !option.available}
+																						<span class="text-xs ml-1">{m.containers_list_shell_unavailable()}</span>
+																					{/if}
+																				</span>
+																			</Select.Item>
+																		{/each}
+																	{/if}
+																</Select.Content>
+															</Select.Root>
+													</div>
+													<div class="space-y-1.5">
+														<Label class="text-xs">{m.containers_list_terminal_user()}</Label>
+														<Select.Root type="single" bind:value={terminalUser}>
+															<Select.Trigger class="w-full h-8 text-xs">
+																<User class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																<span>{userOptions.find(o => o.value === terminalUser)?.label || terminalUser || m.containers_list_select()}</span>
+															</Select.Trigger>
+															<Select.Content>
+																{#each userOptions as option}
+																	<Select.Item value={option.value} label={option.label}>
+																		<User class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																		{option.label}
+																	</Select.Item>
+																{/each}
+																{#if terminalCustomUsers.length > 0}
+																	<div class="h-px bg-border my-1"></div>
+																	{#each terminalCustomUsers as cu}
+																		<div class="flex items-center group">
+																			<Select.Item value={cu} label={cu} class="flex-1">
+																				<User class="w-3 h-3 mr-1.5 text-muted-foreground" />
+																				{cu}
+																			</Select.Item>
+																			<button
+																				type="button"
+																				class="p-1 mr-1 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+																				onclick={(e) => { e.stopPropagation(); e.preventDefault(); removeCustomUser(cu); terminalCustomUsers = getCustomUsers(); if (terminalUser === cu) { terminalUser = 'root'; } }}
+																				title={m.containers_list_remove_user()}
+																			>
+																				<Trash2 class="w-3 h-3" />
+																			</button>
+																		</div>
+																	{/each}
+																{/if}
+																<div class="h-px bg-border my-1"></div>
+																<div class="px-2 py-1">
+																	<Input
+																		class="h-7 text-xs"
+																		placeholder={m.containers_list_add_user_placeholder()}
+																		bind:value={terminalCustomUser}
+																		onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter' && terminalCustomUser.trim()) { const u = terminalCustomUser.trim(); terminalUser = u; saveUserForContainer(container.id, u); terminalCustomUsers = getCustomUsers(); terminalCustomUser = ''; } }}
+																		onclick={(e) => e.stopPropagation()}
+																	/>
+																</div>
+															</Select.Content>
+														</Select.Root>
+													</div>
+												{/if}
+													<Button size="sm" class="w-full h-7 text-xs" onclick={() => startTerminal(container)}>
+													<Terminal class="w-3 h-3" />
+													{m.containers_list_terminal_connect()}
+												</Button>
+											</div>
+										{/if}
+									</Popover.Content>
+								</Popover.Root>
+							{/if}
+							{/if}
+							{#if container.state === 'running' && $canAccess('containers', 'exec')}
+							<button
+								type="button"
+								onclick={() => browseFiles(container)}
+								title={m.containers_list_browse_files()}
+								class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+							>
+								<FolderOpen class="grid-action-icon grid-action-info text-muted-foreground hover:text-foreground" />
+							</button>
+							{/if}
+							<button
+								type="button"
+								onclick={() => inspectContainer(container)}
+								title={m.containers_list_view_details()}
+								class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+							>
+								<Eye class="grid-action-icon grid-action-info text-muted-foreground hover:text-foreground" />
+							</button>
+							{#if $canAccess('containers', 'create')}
+							<button
+								type="button"
+								onclick={() => editContainer(container.id)}
+								title={m.containers_list_edit()}
+								class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+							>
+								<Pencil class="grid-action-icon grid-action-edit text-muted-foreground hover:text-foreground" />
+							</button>
+							{/if}
+							{#if !container.systemContainer}
+							{#if container.state === 'paused'}
+								{#if $canAccess('containers', 'start')}
+								<button
+									type="button"
+									onclick={() => unpauseContainer(container.id)}
+									title={m.containers_list_unpause()}
+									class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+								>
+									<Play class="grid-action-icon grid-action-start text-muted-foreground hover:text-green-500" />
+								</button>
+								{/if}
+							{:else if container.state !== 'running' && container.state !== 'restarting'}
+								{#if $canAccess('containers', 'start')}
+								<button
+									type="button"
+									onclick={() => startContainer(container.id)}
+									title={m.containers_list_start()}
+									class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+								>
+									<Play class="grid-action-icon grid-action-start text-muted-foreground hover:text-green-500" />
+								</button>
+								{/if}
+							{/if}
+							{#if $canAccess('containers', 'restart')}
+							<ConfirmPopover
+								localized
+								open={confirmRestartId === container.id}
+								action={m.confirm_action_restart()}
+								itemType={m.containers_item_container()}
+								itemName={container.name}
+								title={m.containers_list_restart()}
+								variant="secondary"
+								onConfirm={() => restartContainer(container.id)}
+								onOpenChange={(open) => confirmRestartId = open ? container.id : null}
+							>
+								{#snippet children({ open })}
+									<RotateCw class="grid-action-icon grid-action-restart {open ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'} {restartingId === container.id ? 'animate-spin text-foreground' : ''}" />
+								{/snippet}
+							</ConfirmPopover>
+							{/if}
+							{#if container.state === 'running' || container.state === 'restarting'}
+								{#if container.state === 'running'}
+								<button
+									type="button"
+									onclick={() => pauseContainer(container.id)}
+									title={m.containers_list_pause()}
+									class="p-0.5 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+								>
+									<Pause class="grid-action-icon grid-action-pause text-muted-foreground hover:text-yellow-500" />
+								</button>
+								{/if}
+								{#if $canAccess('containers', 'stop')}
+								<ConfirmPopover
+									localized
+									open={confirmStopId === container.id}
+									action={m.confirm_action_stop()}
+									itemType={m.containers_item_container()}
+									itemName={container.name}
+									title={m.containers_list_stop()}
+									onConfirm={() => stopContainer(container.id)}
+									onOpenChange={(open) => confirmStopId = open ? container.id : null}
+								>
+									{#snippet children({ open })}
+										<Square class="grid-action-icon grid-action-stop {open ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'} {stoppingId === container.id ? 'animate-pulse text-destructive' : ''}" />
+									{/snippet}
+								</ConfirmPopover>
+								{/if}
+							{/if}
+							{/if}
+							{#if !container.systemContainer && $canAccess('containers', 'remove')}
+							<ConfirmPopover
+								localized
+								open={confirmDeleteId === container.id}
+								action={m.confirm_action_delete()}
+								itemType={m.containers_item_container()}
+								itemName={container.name}
+								title={m.containers_list_remove()}
+								onConfirm={() => removeContainer(container.id)}
+								onOpenChange={(open) => confirmDeleteId = open ? container.id : null}
+							>
+								{#snippet children({ open })}
+									<Trash2 class="grid-action-icon grid-action-delete {open ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}" />
+								{/snippet}
+							</ConfirmPopover>
+							{/if}
+							{#if operationError?.id === container.id}
+								<div class="absolute bottom-full right-0 mb-1 z-50 bg-destructive text-destructive-foreground rounded-md shadow-lg p-2 text-xs whitespace-nowrap flex items-center gap-2 max-w-xs">
+									<AlertTriangle class="w-3 h-3 flex-shrink-0" />
+									<span class="truncate">{operationError.message}</span>
+									<button onclick={() => operationError = null} class="flex-shrink-0 hover:bg-white/20 rounded p-0.5">
+										<X class="w-3 h-3" />
+									</button>
+								</div>
+							{/if}
+						</div>
+					{/if}
+				{/snippet}
+			</DataGrid>
+
+			<!-- Panels section - in vertical mode this is a column on the right with resize handle -->
+			{#if layoutMode === 'vertical' && (currentLogsContainerId || currentTerminalContainerId)}
+				<!-- Vertical resize handle -->
+				<div
+					role="separator"
+					aria-orientation="vertical"
+					class="w-2 cursor-ew-resize flex items-center justify-center hover:bg-muted transition-colors {isResizingWidth ? 'bg-muted' : ''}"
+					onmousedown={startWidthResize}
+				>
+					<GripVertical class="w-4 h-8 text-zinc-600" />
+				</div>
+
+				<div class="flex flex-col gap-3 h-full overflow-hidden" style="width: {panelWidth}px; flex-shrink: 0;">
+					<!-- Current Logs Panel -->
+					{#if currentLogsContainerId}
+						{@const activeLog = activeLogs.find(l => l.containerId === currentLogsContainerId)}
+						{#if activeLog}
+							<div class="flex-1 min-h-0">
+								<LogsPanel
+									containerId={activeLog.containerId}
+									containerName={activeLog.containerName}
+									visible={true}
+									envId={envId}
+									fillHeight={true}
+									onClose={() => closeLogs(activeLog.containerId)}
+								/>
+							</div>
+						{/if}
+					{/if}
+
+					<!-- Terminal panels: render EVERY open session so each keeps its own
+					     live WebSocket/xterm; only the current one is visible. Switching
+					     just toggles visibility, so a running process (e.g. top) in a
+					     backgrounded session stays alive and its shell stays its own. -->
+					{#each activeTerminals as t (t.containerId)}
+						<!-- Do NOT display:none a backgrounded panel; TerminalPanel hides
+						     itself off-screen while keeping its size so xterm can fit. -->
+						<div class="min-h-0" class:flex-1={t.containerId === currentTerminalContainerId}>
+							<TerminalPanel
+								containerId={t.containerId}
+								containerName={t.containerName}
+								shell={t.shell}
+								user={t.user}
+								mode={t.mode}
+								visible={t.containerId === currentTerminalContainerId}
+								envId={envId}
+								fillHeight={true}
+								onClose={() => closeTerminal(t.containerId)}
+							/>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Panels for horizontal mode - below the table, full width -->
+		{#if layoutMode === 'horizontal'}
+			<!-- Show current logs panel -->
+			{#if currentLogsContainerId}
+				{@const activeLog = activeLogs.find(l => l.containerId === currentLogsContainerId)}
+				{#if activeLog}
+					<LogsPanel
+						containerId={activeLog.containerId}
+						containerName={activeLog.containerName}
+						visible={true}
+						envId={envId}
+						onClose={() => closeLogs(activeLog.containerId)}
+					/>
+				{/if}
+			{/if}
+
+			<!-- Terminal panels: render every open session (each keeps its own live
+			     WebSocket/xterm); only the current one is visible. -->
+			{#each activeTerminals as t (t.containerId)}
+				<!-- TerminalPanel hides a backgrounded session off-screen (keeps size for
+				     xterm fit); do not display:none it or a background xterm gets 0x0. -->
+				<TerminalPanel
+					containerId={t.containerId}
+					containerName={t.containerName}
+					shell={t.shell}
+					user={t.user}
+					mode={t.mode}
+					visible={t.containerId === currentTerminalContainerId}
+					envId={envId}
+					onClose={() => closeTerminal(t.containerId)}
+				/>
+			{/each}
+		{/if}
+	{/if}
+</div>
+
+<CreateContainerModal
+	bind:open={showCreateModal}
+	onClose={() => (showCreateModal = false)}
+	onSuccess={fetchContainers}
+/>
+
+<EditContainerModal
+	bind:open={showEditModal}
+	containerId={editContainerId}
+	onClose={() => { showEditModal = false; loadTags(envId); }}
+	onSuccess={fetchContainers}
+	onIconChanged={() => loadIconOverrides(envId)}
+/>
+
+<ContainerInspectModal
+	bind:open={showInspectModal}
+	containerId={inspectContainerId}
+	containerName={inspectContainerName}
+	onRename={(newName) => {
+		// Update the container name in the local state
+		inspectContainerName = newName;
+		// Refresh the container list
+		fetchContainers();
+	}}
+	onStart={$canAccess('containers', 'start') ? (id) => startContainer(id) : undefined}
+	onStop={$canAccess('containers', 'stop') ? (id) => stopContainer(id) : undefined}
+	onRestart={$canAccess('containers', 'restart') ? (id) => restartContainer(id) : undefined}
+	onRemove={$canAccess('containers', 'remove') ? (id) => removeContainer(id) : undefined}
+	onEdit={$canAccess('containers', 'edit') ? (id) => editContainer(id) : undefined}
+	onUpdate={$canAccess('containers', 'create')
+		? (id, name) => updateSingleContainer(id, name)
+		: undefined}
+/>
+
+<FileBrowserModal
+	bind:open={showFileBrowserModal}
+	containerId={fileBrowserContainerId}
+	containerName={fileBrowserContainerName}
+	containerImage={fileBrowserContainerImage}
+	envId={envId ?? undefined}
+	onclose={() => showFileBrowserModal = false}
+/>
+
+<BatchUpdateModal
+	bind:open={showBatchUpdateModal}
+	containerIds={singleUpdateContainerId ? [singleUpdateContainerId] : batchUpdateContainerIds}
+	containerNames={singleUpdateContainerId && singleUpdateContainerName ? new Map([[singleUpdateContainerId, singleUpdateContainerName]]) : batchUpdateContainerNames}
+	{envId}
+	vulnerabilityCriteria={envHasScanning ? envVulnerabilityCriteria : 'never'}
+	onClose={handleBatchUpdateClose}
+	onComplete={handleBatchUpdateComplete}
+/>
+
+<VersionUpdateModal
+	bind:container={versionModalContainer}
+	newerVersion={versionModalNewer}
+	{envId}
+/>
+
+<BatchOperationModal
+	bind:open={showBatchOpModal}
+	title={batchOpTitle}
+	operation={batchOpOperation}
+	entityType="containers"
+	items={batchOpItems}
+	envId={envId ?? undefined}
+	options={batchOpOptions}
+	onClose={handleBatchOpClose}
+	onComplete={handleBatchOpComplete}
+/>
+
+<style>
+	@keyframes amber-glow {
+		0% {
+			background-color: rgb(245 158 11 / 0.3);
+			box-shadow: inset 0 0 8px rgb(245 158 11 / 0.5);
+		}
+		100% {
+			background-color: transparent;
+			box-shadow: none;
+		}
+	}
+
+	:global(.stat-highlight) {
+		animation: amber-glow 1.5s ease-out;
+		border-radius: 2px;
+	}
+
+	/* Update available row styling */
+	:global(tr.has-update) {
+		background-color: rgb(245 158 11 / 0.15) !important;
+	}
+
+	:global(tr.has-update:hover) {
+		background-color: rgb(245 158 11 / 0.25) !important;
+	}
+
+	:global(.update-border) {
+		position: relative;
+		margin: -4px -8px -4px -8px;
+		padding: 4px 8px 4px 8px;
+		border: 2px solid rgb(245 158 11);
+		border-radius: 4px;
+		box-shadow: 0 0 8px rgb(245 158 11 / 0.4);
+	}
+
+</style>
+

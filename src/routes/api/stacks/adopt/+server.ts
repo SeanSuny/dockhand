@@ -1,0 +1,58 @@
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { authorize } from '$lib/server/authorize';
+import { adoptSelectedStacks, type DiscoveredStack } from '$lib/server/stack-scanner';
+
+/**
+ * @openapi
+ * summary: Adopt previously discovered compose stacks into Dockhand for a given environment
+ * description: environmentId from GET /api/environments.
+ * body: {stacks:array<{name:string!, composePath:string!}>!, environmentId:integer!}
+ * body-example: {"stacks":[{"name":"web","composePath":"/opt/stacks/web/compose.yaml"}],"environmentId":1}
+ * resp-200: {adopted:array<string>!, failed:array<{name:string!, error:string!}>!}
+ * resp-200-example: {"adopted":["web"],"failed":[]}
+ * resp-400: No stacks provided, missing environmentId, or a stack is missing name/composePath
+ * resp-403: Permission denied (requires stacks:create)
+ * resp-500: Unexpected error while adopting stacks
+ */
+export const POST: RequestHandler = async ({ request, cookies }) => {
+	const auth = await authorize(cookies);
+
+	try {
+		const body = await request.json();
+		const stacks = body.stacks as DiscoveredStack[];
+		const environmentId = body.environmentId as number | undefined;
+
+		if (!stacks || !Array.isArray(stacks) || stacks.length === 0) {
+			return json({ error: 'No stacks provided' }, { status: 400 });
+		}
+
+		if (!environmentId || typeof environmentId !== 'number') {
+			return json({ error: 'Environment ID is required' }, { status: 400 });
+		}
+
+		// Scope the permission and access check to the target environment (from the
+		// body) so a role scoped to other environments can't adopt into this one.
+		if (auth.authEnabled && !await auth.can('stacks', 'create', environmentId)) {
+			return json({ error: 'Permission denied' }, { status: 403 });
+		}
+		const envAccessDenied = await auth.requireEnvAccess(environmentId);
+		if (envAccessDenied) return envAccessDenied;
+
+		// Validate each stack has required fields
+		for (const stack of stacks) {
+			if (!stack.name || !stack.composePath) {
+				return json({ error: 'Invalid stack data: missing name or composePath' }, { status: 400 });
+			}
+		}
+
+		const result = await adoptSelectedStacks(stacks, environmentId);
+
+		return json({
+			adopted: result.adopted,
+			failed: result.failed
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : 'Unknown error';
+		return json({ error: message }, { status: 500 });
+	}
+};

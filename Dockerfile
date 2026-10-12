@@ -1,0 +1,194 @@
+# syntax=docker/dockerfile:1.4
+# =============================================================================
+# Dockhand Docker Image - Node.js Runtime (Security-Hardened Build)
+# =============================================================================
+# Uses Node.js instead of Bun to eliminate BoringSSL native memory leaks
+# on mTLS connections. Same Wolfi-based security-hardened OS.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: OS Generator (Alpine + apko tool)
+# -----------------------------------------------------------------------------
+FROM alpine:3.21 AS os-builder
+
+ARG TARGETARCH
+
+WORKDIR /work
+
+# Install apko tool
+ARG APKO_VERSION=0.30.34
+RUN apk add --no-cache curl unzip \
+    && ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "amd64") \
+    && curl -sL "https://github.com/chainguard-dev/apko/releases/download/v${APKO_VERSION}/apko_${APKO_VERSION}_linux_${ARCH}.tar.gz" \
+       | tar -xz --strip-components=1 -C /usr/local/bin \
+    && chmod +x /usr/local/bin/apko
+
+# Generate apko.yaml — Node.js binary comes from node:24-slim, not Wolfi
+RUN APKO_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
+    && printf '%s\n' \
+    "contents:" \
+    "  repositories:" \
+    "    - https://packages.wolfi.dev/os" \
+    "  keyring:" \
+    "    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub" \
+    "  packages:" \
+    "    - wolfi-base" \
+    "    - ca-certificates" \
+    "    - busybox" \
+    "    - tzdata" \
+    "    - docker-cli" \
+    "    - docker-compose=5.5.1-r2" \
+    "    - docker-cli-buildx" \
+    "    - sqlite" \
+    "    - postgresql-client" \
+    "    - git" \
+    "    - openssh-client" \
+    "    - openssh-keygen" \
+    "    - curl" \
+    "    - tini" \
+    "    - su-exec" \
+    "    - restic" \
+    "    - glibc" \
+    "    - libstdc++" \
+    "entrypoint:" \
+    "  command: /bin/sh -l" \
+    "archs:" \
+    "  - ${APKO_ARCH}" \
+    > apko.yaml
+
+# Build the OS tarball and extract rootfs
+RUN apko build apko.yaml dockhand-base:latest output.tar \
+    && mkdir -p rootfs \
+    && tar -xf output.tar \
+    && LAYER=$(tar -tf output.tar | grep '.tar.gz$' | head -1) \
+    && tar -xzf "$LAYER" -C rootfs
+
+# -----------------------------------------------------------------------------
+# Stage 2: Application Builder (pure Node.js)
+# -----------------------------------------------------------------------------
+# Pinned to node 24.18.1 (the exact node v1.0.40 shipped with). node 24.19.0 has a napi
+# teardown bug that crashes the better-sqlite3 native addon during `npm run build`
+# (Statement::~Statement -> Assert(env != nullptr), exit 134). The `24-slim` moving tag
+# picked up 24.19.0, and once the build cache was pruned every build recompiled the addon
+# on the broken node. Pinning the digest restores the known-good v1.0.40 toolchain.
+FROM --platform=$TARGETPLATFORM node:24.18.1-slim@sha256:235600a8101ab264e117b1768e925532262668dc9b581ef1dd7d96ced463b8e7 AS app-builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    jq git curl python3 make g++ libnss-wrapper \
+    && rm -rf /var/lib/apt/lists/* \
+    && cp "$(dpkg -L libnss-wrapper | grep 'libnss_wrapper\.so$')" /usr/local/lib/libnss_wrapper.so
+
+# Copy package files and install dependencies (--ignore-scripts blocks malicious postinstall hooks)
+COPY package.json package-lock.json ./
+RUN MAKEFLAGS="-j$(nproc)" npm ci --ignore-scripts \
+    && MAKEFLAGS="-j$(nproc)" npm rebuild better-sqlite3 argon2
+
+# Copy source code and build
+COPY . .
+# The message catalogue puts the build close to Node's default heap: it needs over 3 GB
+# at 2168 keys across 6 locales and grows with every locale. Without a limit the build
+# dies as an exit-134 OOM with no useful message, so state the ceiling here.
+RUN NODE_OPTIONS=--max-old-space-size=6144 npm run build
+
+# Production dependencies only
+# Preserve better-sqlite3 native addon (no prebuilds exist for Node 24 ABI 137)
+RUN cp -r node_modules/better-sqlite3/build /tmp/better-sqlite3-build \
+    && rm -rf node_modules \
+    && npm ci --omit=dev --ignore-scripts \
+    && cp -r /tmp/better-sqlite3-build node_modules/better-sqlite3/build \
+    && rm -rf node_modules/@types /tmp/better-sqlite3-build
+
+# Build Go collector
+FROM --platform=$BUILDPLATFORM golang:1.26.9 AS go-builder
+ARG TARGETARCH
+WORKDIR /app
+COPY collector/ ./collector/
+RUN cd collector && CGO_ENABLED=0 GOARCH=$TARGETARCH go build -o /app/bin/collection-worker .
+
+# -----------------------------------------------------------------------------
+# Stage 3: Final Image (Scratch + Custom Wolfi OS)
+# -----------------------------------------------------------------------------
+FROM scratch
+
+# Install custom Wolfi OS with Node.js
+COPY --from=os-builder /work/rootfs/ /
+
+# Copy Node.js binary from official node:24-slim (platform-correct, conservative CPU baseline)
+# Wolfi's nodejs-24 targets ARMv8.1+ which causes SIGILL on Cortex-A53 (Raspberry Pi 3+)
+COPY --from=app-builder /usr/local/bin/node /usr/local/bin/node
+
+# Copy libnss_wrapper for git SSH with arbitrary UIDs
+COPY --from=app-builder /usr/local/lib/libnss_wrapper.so /usr/lib/libnss_wrapper.so
+
+WORKDIR /app
+
+# Set up environment variables
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    NODE_ENV=production \
+    PORT=3000 \
+    HOST=0.0.0.0 \
+    DATA_DIR=/app/data \
+    HOME=/home/dockhand \
+    PUID=1001 \
+    PGID=1001
+
+# Create docker compose plugin symlink
+RUN mkdir -p /usr/libexec/docker/cli-plugins \
+    && ln -sf /usr/bin/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+
+# Create dockhand user and group
+RUN addgroup -g 1001 dockhand \
+    && adduser -u 1001 -G dockhand -h /home/dockhand -D dockhand
+
+# Copy application files with correct ownership
+COPY --from=app-builder --chown=dockhand:dockhand /app/node_modules ./node_modules
+COPY --from=app-builder --chown=dockhand:dockhand /app/package.json ./
+COPY --from=app-builder --chown=dockhand:dockhand /app/build ./build
+COPY --from=app-builder --chown=dockhand:dockhand /app/server.js ./
+
+# Copy Go collector binary
+COPY --from=go-builder --chown=dockhand:dockhand /app/bin/collection-worker ./bin/collection-worker
+
+# Copy database migrations
+COPY --chown=dockhand:dockhand drizzle/ ./drizzle/
+COPY --chown=dockhand:dockhand drizzle-pg/ ./drizzle-pg/
+
+# Copy legal documents
+COPY --chown=dockhand:dockhand LICENSE.txt PRIVACY.txt ./
+
+# Copy entrypoint script
+COPY docker-entrypoint-node.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Copy emergency scripts
+COPY --chown=dockhand:dockhand scripts/emergency/ ./scripts/
+RUN chmod +x ./scripts/*.sh ./scripts/**/*.sh 2>/dev/null || true
+
+# Create data directories
+RUN mkdir -p /home/dockhand/.dockhand/stacks /app/data \
+    && chown dockhand:dockhand /app/data /home/dockhand /home/dockhand/.dockhand /home/dockhand/.dockhand/stacks
+
+# OCI image annotations (#1217) — lets tooling map this image back to its
+# source repo (image registry name differs from GitHub repo name).
+LABEL org.opencontainers.image.source="https://github.com/Finsys/dockhand" \
+      org.opencontainers.image.url="https://dockhand.pro" \
+      org.opencontainers.image.title="Dockhand" \
+      org.opencontainers.image.description="Docker management" \
+      org.opencontainers.image.vendor="Finsys" \
+      org.opencontainers.image.licenses="BUSL-1.1"
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD if [ "$(echo "${HTTPS_MODE:-off}" | tr '[:upper:]' '[:lower:]')" = "on" ]; then \
+            curl -fsk https://localhost:${PORT:-3000}/ || exit 1; \
+        else \
+            curl -fs http://localhost:${PORT:-3000}/ || exit 1; \
+        fi
+
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+CMD []

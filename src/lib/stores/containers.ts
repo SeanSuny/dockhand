@@ -1,0 +1,393 @@
+import { writable, get } from 'svelte/store';
+import { browser } from '$app/environment';
+import { splitPendingUpdates } from '$lib/utils/pending-update-rows';
+import type { ContainerInfo, ContainerStats } from '$lib/types';
+import { appendEnvParam, clearStaleEnvironment, environments } from '$lib/stores/environment';
+import { appSettings } from '$lib/stores/settings';
+import { toast } from 'svelte-sonner';
+import type { NewerVersion } from '$lib/types';
+import { m } from '$lib/paraglide/messages.js';
+
+export interface AutoUpdateSetting {
+	enabled: boolean;
+	label: string;
+	tooltip: string;
+	vulnerabilityCriteria?: string;
+}
+
+export interface ContainerStoreState {
+	/** Container list */
+	data: ContainerInfo[];
+	/** Live stats keyed by container ID */
+	stats: Map<string, ContainerStats>;
+	/** Previous stats snapshot for change detection */
+	previousStats: Map<string, ContainerStats>;
+	/** Auto-update settings keyed by container name */
+	autoUpdateSettings: Map<string, AutoUpdateSetting>;
+	/** Container IDs with pending updates */
+	pendingUpdateIds: string[];
+	/** Container names for pending updates, keyed by ID */
+	pendingUpdateNames: Map<string, string>;
+	/** Container IDs whose last update check failed (e.g. registry rate-limited) */
+	failedUpdateIds: string[];
+	/** Update-check error message keyed by container ID (for tooltip) */
+	failedUpdateErrors: Map<string, string>;
+	/** Newer VERSION tag (semver) suggestions from the last check, keyed by container ID. Advisory. */
+	newerVersions: Map<string, NewerVersion>;
+	/**
+	 * Hours left on a held update, keyed by container ID. An entry means an update
+	 * exists but the image is too young to apply, so it is shown as waiting and is
+	 * deliberately NOT offered for a bulk update.
+	 */
+	coolingDown: Map<string, number>;
+	/** Whether the current environment has vulnerability scanning */
+	envHasScanning: boolean;
+	/** Environment-level vulnerability criteria */
+	envVulnerabilityCriteria: 'never' | 'any' | 'critical_high' | 'critical' | 'more_than_current';
+	/** True during initial load (no cached data for this env) */
+	loading: boolean;
+	/** The environment ID this data belongs to */
+	envId: number | null;
+}
+
+const INITIAL_STATE: ContainerStoreState = {
+	data: [],
+	stats: new Map(),
+	previousStats: new Map(),
+	autoUpdateSettings: new Map(),
+	pendingUpdateIds: [],
+	pendingUpdateNames: new Map(),
+	failedUpdateIds: [],
+	failedUpdateErrors: new Map(),
+	newerVersions: new Map(),
+	coolingDown: new Map(),
+	envHasScanning: false,
+	envVulnerabilityCriteria: 'never',
+	loading: true,
+	envId: null
+};
+
+function createContainerStore() {
+	const { subscribe, set, update } = writable<ContainerStoreState>({ ...INITIAL_STATE });
+
+	// In-flight request tracking to avoid duplicate concurrent fetches
+	let fetchingContainers = false;
+	let fetchingStats = false;
+
+	function patch(partial: Partial<ContainerStoreState>) {
+		update((s) => ({ ...s, ...partial }));
+	}
+
+	function formatSchedule(
+		scheduleType: string,
+		cronExpression: string
+	): { label: string; tooltip: string } {
+		if (!cronExpression) return { label: m.containersstore_label_on(), tooltip: m.dashboard_status_auto_update() };
+
+		const parts = cronExpression.split(' ');
+		if (parts.length < 5) return { label: 'cron', tooltip: cronExpression };
+
+		const [min, hr, , , dow] = parts;
+		const hourNum = parseInt(hr);
+		const minNum = parseInt(min);
+		const is12Hour = get(appSettings).timeFormat === '12h';
+
+		let timeStr: string;
+		if (is12Hour) {
+			const ampm = hourNum >= 12 ? 'PM' : 'AM';
+			const hour12 = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+			timeStr = `${hour12}:${minNum.toString().padStart(2, '0')} ${ampm}`;
+		} else {
+			timeStr = `${hourNum.toString().padStart(2, '0')}:${minNum.toString().padStart(2, '0')}`;
+		}
+
+		if (scheduleType === 'daily' || dow === '*') {
+			return { label: m.containersstore_label_daily(), tooltip: m.containersstore_tooltip_daily({ time: timeStr }) };
+		}
+
+		if (scheduleType === 'weekly') {
+			const days = [m.containersstore_day_sun, m.containersstore_day_mon, m.containersstore_day_tue, m.containersstore_day_wed, m.containersstore_day_thu, m.containersstore_day_fri, m.containersstore_day_sat];
+			const dayName = days[parseInt(dow)]?.() || dow;
+			const fullDayNames = [m.cron_sunday, m.cron_monday, m.cron_tuesday, m.cron_wednesday, m.cron_thursday, m.cron_friday, m.cron_saturday];
+			return {
+				label: dayName,
+				tooltip: m.containersstore_tooltip_weekly({ day: fullDayNames[parseInt(dow)]?.() || dow, time: timeStr })
+			};
+		}
+
+		return { label: 'cron', tooltip: cronExpression };
+	}
+
+	async function checkScannerSettings(envId: number | null) {
+		if (!envId) {
+			patch({ envHasScanning: false, envVulnerabilityCriteria: 'never' });
+			return;
+		}
+		try {
+			const [scannerResponse, updateCheckResponse] = await Promise.all([
+				fetch(`/api/settings/scanner?env=${envId}&settingsOnly=true`),
+				fetch(`/api/environments/${envId}/update-check`)
+			]);
+
+			let envHasScanning = false;
+			let envVulnerabilityCriteria: ContainerStoreState['envVulnerabilityCriteria'] = 'never';
+
+			if (scannerResponse.ok) {
+				const data = await scannerResponse.json();
+				const settings = data.settings || data;
+				envHasScanning = settings.scanner !== 'none';
+			}
+
+			if (updateCheckResponse.ok) {
+				const data = await updateCheckResponse.json();
+				envVulnerabilityCriteria = data.settings?.vulnerabilityCriteria || 'never';
+			}
+
+			patch({ envHasScanning, envVulnerabilityCriteria });
+		} catch {
+			patch({ envHasScanning: false, envVulnerabilityCriteria: 'never' });
+		}
+	}
+
+	async function fetchAutoUpdateSettings(envId: number | null) {
+		const settings = new Map<string, AutoUpdateSetting>();
+		const envParam = envId ? `?env=${envId}` : '';
+
+		await checkScannerSettings(envId);
+
+		try {
+			const response = await fetch(`/api/auto-update${envParam}`);
+			if (response.ok) {
+				const data = await response.json();
+				for (const [containerName, setting] of Object.entries(data)) {
+					if (
+						setting &&
+						typeof setting === 'object' &&
+						'enabled' in setting &&
+						(setting as any).enabled
+					) {
+						const s = setting as {
+							enabled: boolean;
+							scheduleType: string;
+							cronExpression: string | null;
+							vulnerabilityCriteria: string;
+						};
+						const { label, tooltip } = formatSchedule(
+							s.scheduleType,
+							s.cronExpression || ''
+						);
+						settings.set(containerName, {
+							enabled: true,
+							label,
+							tooltip,
+							vulnerabilityCriteria: s.vulnerabilityCriteria || 'never'
+						});
+					}
+				}
+			}
+		} catch (err) {
+			console.error('Failed to fetch auto-update settings:', err);
+		}
+
+		patch({ autoUpdateSettings: settings });
+	}
+
+	async function fetchContainersInternal(envId: number | null) {
+		if (!browser || !envId || fetchingContainers) return;
+		fetchingContainers = true;
+
+		const state = get({ subscribe });
+		// Only show loading spinner if we have no cached data for this env
+		const showLoading = state.data.length === 0 || state.envId !== envId;
+		if (showLoading) {
+			patch({ loading: true });
+		}
+
+		try {
+			const response = await fetch(appendEnvParam('/api/containers', envId));
+			if (!response.ok) {
+				if (response.status === 404 && envId) {
+					clearStaleEnvironment(envId);
+					environments.refresh();
+					return;
+				}
+				toast.error(m.containersstore_load_failed());
+				return;
+			}
+			const data: ContainerInfo[] = await response.json();
+			patch({ data, envId });
+
+			// Fetch auto-update settings after containers load
+			await fetchAutoUpdateSettings(envId);
+		} catch (error) {
+			console.error('Failed to fetch containers:', error);
+			toast.error(m.containersstore_load_failed());
+		} finally {
+			patch({ loading: false });
+			fetchingContainers = false;
+		}
+	}
+
+	let statsAbortController: AbortController | null = null;
+
+	async function fetchStatsInternal(envId: number | null) {
+		if (!browser || !envId || fetchingStats) return;
+		fetchingStats = true;
+
+		// Abort any previous in-flight stream
+		statsAbortController?.abort();
+		statsAbortController = new AbortController();
+
+		// Snapshot previous stats once at cycle start
+		update((s) => ({ ...s, previousStats: new Map(s.stats) }));
+
+		try {
+			const response = await fetch(
+				appendEnvParam('/api/containers/stats/stream', envId),
+				{ signal: statsAbortController.signal }
+			);
+
+			if (!response.ok || !response.body) {
+				return;
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || '';
+
+				let currentEvent = '';
+				for (const line of lines) {
+					if (line.startsWith(':')) continue;
+
+					if (line.startsWith('event: ')) {
+						currentEvent = line.slice(7).trim();
+					} else if (line.startsWith('data: ')) {
+						if (currentEvent === 'stat') {
+							try {
+								const stat: ContainerStats = JSON.parse(line.slice(6));
+								// Merge into existing stats map
+								update((s) => {
+									const newStats = new Map(s.stats);
+									newStats.set(stat.id, stat);
+									return { ...s, stats: newStats };
+								});
+							} catch {
+								// Skip malformed data
+							}
+						}
+						// done/error events — just let the loop finish
+						currentEvent = '';
+					}
+				}
+			}
+		} catch (error: any) {
+			if (error?.name !== 'AbortError') {
+				console.error('Failed to fetch container stats:', error);
+			}
+		} finally {
+			fetchingStats = false;
+		}
+	}
+
+	async function loadPendingUpdatesInternal(envId: number | null) {
+		if (!browser || !envId) return;
+		try {
+			const response = await fetch(appendEnvParam('/api/containers/pending-updates', envId));
+			if (!response.ok) return;
+			const data = await response.json();
+			// A persisted row can carry a digest update, a newer-version (semver)
+			// suggestion, or both. Split them: only hasImageUpdate rows drive the amber
+			// "update available" state; newerVersion rows drive the Tag badge. Always
+			// patch (even on an empty list) so a cleared server state clears the store -
+			// otherwise stale badges/counters linger after the last update is applied.
+			const split = splitPendingUpdates(data);
+			patch({
+				pendingUpdateIds: split.updatable.map((u) => u.containerId),
+				pendingUpdateNames: new Map(split.updatable.map((u) => [u.containerId, u.containerName])),
+				newerVersions: split.newerVersions as Map<string, NewerVersion>,
+				coolingDown: split.coolingDown
+			});
+		} catch {
+			// Ignore errors - background load
+		}
+	}
+
+	return {
+		subscribe,
+
+		/** Full refresh: containers + auto-update settings */
+		refreshContainers(envId: number | null) {
+			return fetchContainersInternal(envId);
+		},
+
+		/** Stats-only refresh (called on 5s interval) */
+		refreshStats(envId: number | null) {
+			return fetchStatsInternal(envId);
+		},
+
+		/** Full refresh: containers + stats + settings + pending updates */
+		async refresh(envId: number | null) {
+			await Promise.all([
+				fetchContainersInternal(envId),
+				fetchStatsInternal(envId),
+				loadPendingUpdatesInternal(envId)
+			]);
+		},
+
+		/** Reload pending updates from database */
+		loadPendingUpdates(envId: number | null) {
+			return loadPendingUpdatesInternal(envId);
+		},
+
+		/** Clear all data (environment switch) */
+		invalidate() {
+			statsAbortController?.abort();
+			fetchingStats = false;
+			set({
+				...INITIAL_STATE,
+				loading: true
+			});
+		},
+
+		/** Clear data without loading state (no environment selected) */
+		clear() {
+			statsAbortController?.abort();
+			fetchingStats = false;
+			set({ ...INITIAL_STATE, loading: false });
+		},
+
+		/** Update pending update IDs and names directly (from check-updates action) */
+		setPendingUpdates(ids: string[], names: Map<string, string>) {
+			patch({ pendingUpdateIds: ids, pendingUpdateNames: names });
+		},
+
+		/** Record which containers' last update check failed, with error text (#1255) */
+		setFailedUpdates(ids: string[], errors: Map<string, string>) {
+			patch({ failedUpdateIds: ids, failedUpdateErrors: errors });
+		},
+
+		/** Record newer-version-tag (semver) suggestions from the last check. Session-only, advisory. */
+		setNewerVersions(map: Map<string, NewerVersion>) {
+			patch({ newerVersions: map });
+		},
+
+		/** Record which containers are waiting out the minimum image age, as id -> hours left. */
+		setCoolingDown(map: Map<string, number>) {
+			patch({ coolingDown: map });
+		},
+
+		/** Patch arbitrary fields */
+		patch
+	};
+}
+
+export const containerStore = createContainerStore();

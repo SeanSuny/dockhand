@@ -1,0 +1,657 @@
+import { trackedImageReference } from '$lib/utils/tracked-image';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { authorize } from '$lib/server/authorize';
+import {
+	listContainers,
+	inspectContainer,
+	pullImage,
+	getTempImageTag,
+	isDigestBasedImage,
+	getImageIdByTag,
+	removeTempImage,
+	tagImage,
+	inspectImage
+} from '$lib/server/docker';
+import { auditContainer } from '$lib/server/audit';
+import { getScannerSettings, scanImage } from '$lib/server/scanner';
+import { saveVulnerabilityScan, removePendingContainerUpdateByName, getPendingContainerUpdates, getEnvironment, type VulnerabilityCriteria } from '$lib/server/db';
+import { resolveContainer, labelForMissing } from '$lib/utils/stale-container-id';
+import { parseImageNameAndTag, shouldBlockUpdate, combineScanSummaries, isSystemContainer, isEnvironmentTransportContainer, batchUpdateStillApplies } from '$lib/server/scheduler/tasks/update-utils';
+import { isUpdateDisabledByLabel } from '$lib/server/container-labels';
+import { recreateContainer } from '$lib/server/scheduler/tasks/container-update';
+import { createJob, appendLine, completeJob, failJob } from '$lib/server/jobs';
+
+export interface ScanResult {
+	critical: number;
+	high: number;
+	medium: number;
+	low: number;
+	negligible?: number;
+	unknown?: number;
+}
+
+export interface ScannerResult extends ScanResult {
+	scanner: 'grype' | 'trivy';
+}
+
+export interface UpdateProgress {
+	type: 'start' | 'progress' | 'pull_log' | 'scan_start' | 'scan_log' | 'scan_complete' | 'blocked' | 'complete' | 'error';
+	containerId?: string;
+	containerName?: string;
+	step?: 'pulling' | 'scanning' | 'stopping' | 'removing' | 'creating' | 'starting' | 'done' | 'failed' | 'blocked' | 'skipped';
+	message?: string;
+	current?: number;
+	total?: number;
+	success?: boolean;
+	error?: string;
+	summary?: {
+		total: number;
+		success: number;
+		failed: number;
+		blocked: number;
+		skipped: number;
+	};
+	// Pull log specific fields
+	pullStatus?: string;
+	pullMessage?: string;
+	pullId?: string;
+	pullProgress?: string;
+	// Scan specific fields
+	scanResult?: ScanResult;
+	scannerResults?: ScannerResult[];
+	blockReason?: string;
+	scanner?: string;
+	vulnerabilities?: Array<{
+		id: string;
+		severity: string;
+		package: string;
+		version: string;
+		fixedVersion?: string;
+		link?: string;
+		scanner: string;
+	}>;
+}
+
+/** id -> what the last update check recorded, read once for the whole batch. */
+async function pendingRows(
+	envId: number | null
+): Promise<Map<string, { name: string; image: string | null }>> {
+	if (envId == null) return new Map();
+	try {
+		const rows = await getPendingContainerUpdates(envId);
+		return new Map(rows.map((r) => [r.containerId, { name: r.containerName, image: r.currentImage ?? null }]));
+	} catch {
+		return new Map();
+	}
+}
+
+/**
+ * Batch update containers with streaming progress.
+ * Expects JSON body: { containerIds: string[], vulnerabilityCriteria?: VulnerabilityCriteria }
+ *
+ * @openapi
+ * summary: Recreate a set of containers with live streaming progress (Server-Sent Events), optionally blocking on vulnerability criteria (requires the 'create' permission)
+ * description: Returns a `text/event-stream` reporting per-container progress. `vulnerabilityCriteria` (default "never") can block an update when a container's image scan exceeds the configured severity threshold. containerIds from GET /api/containers.
+ * query: env:integer! The target environment ID the container lives in (from GET /api/environments)
+ * body: {containerIds:array<string>!, vulnerabilityCriteria:string}
+ * body-example: {"containerIds":["3f4a1c2b9d8e"],"vulnerabilityCriteria":"never"}
+ * resp-200: Server-Sent Events stream (text/event-stream) of per-container update progress
+ * resp-400: Invalid JSON body, or the containerIds array is missing or empty
+ * resp-403: Permission denied
+ */
+export const POST: RequestHandler = async (event) => {
+	const { url, cookies, request } = event;
+	const auth = await authorize(cookies);
+
+	const envId = url.searchParams.get('env');
+	const envIdNum = envId ? parseInt(envId) : undefined;
+
+	// Need create permission to recreate containers
+	if (auth.authEnabled && !await auth.can('containers', 'create', envIdNum)) {
+		return json({ error: 'Permission denied' }, { status: 403 });
+	}
+
+	let body: { containerIds: string[]; vulnerabilityCriteria?: VulnerabilityCriteria };
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
+
+	const { containerIds, vulnerabilityCriteria = 'never' } = body;
+
+	if (!containerIds || !Array.isArray(containerIds) || containerIds.length === 0) {
+		return json({ error: 'containerIds array is required' }, { status: 400 });
+	}
+
+	// Job pattern: create job, run in background, return jobId immediately
+	const job = createJob();
+
+	const sendData = (data: UpdateProgress) => {
+		appendLine(job, { data });
+	};
+
+	(async () => {
+		let successCount = 0;
+		let failCount = 0;
+		let blockedCount = 0;
+		let skippedCount = 0;
+
+		// Get scanner settings for this environment
+		const scannerSettings = await getScannerSettings(envIdNum);
+		// Scan if scanning is enabled (scanner !== 'none')
+		// The vulnerabilityCriteria only controls whether to BLOCK updates, not whether to SCAN
+		const shouldScan = scannerSettings.scanner !== 'none';
+
+		// Send start event
+		sendData({
+			type: 'start',
+			total: containerIds.length,
+			message: `Starting update of ${containerIds.length} container${containerIds.length > 1 ? 's' : ''}${shouldScan ? ' with vulnerability scanning' : ''}`
+		});
+
+		const pendingById = await pendingRows(envIdNum ?? null);
+		// The host this environment is reached through: when it names a container,
+		// that container carries the connection and must not be stopped mid-update.
+		const env = envIdNum == null ? null : await getEnvironment(envIdNum).catch(() => null);
+		const envHost = env?.host ?? null;
+		// Only a TCP connection is reached THROUGH a port. A socket or edge environment
+		// still stores 2375 in that column (the schema defaults it), and acting on it
+		// would skip any container that merely publishes 2375 alongside the socket.
+		const reachedOverTcp = env?.connectionType === 'direct' || env?.connectionType === 'hawser-standard';
+		const envPort = reachedOverTcp ? (env?.port ?? null) : null;
+
+		// Process containers sequentially
+		for (let i = 0; i < containerIds.length; i++) {
+			const containerId = containerIds[i];
+			let containerName = 'unknown';
+
+			try {
+				// Find container
+				const containers = await listContainers(true, envIdNum);
+				// An update recreates the container under a new id, so a selection made
+				// before one ran holds an id that no longer exists. The pending row keeps
+				// the NAME, which survives, so the same container is still reachable.
+				const pending = pendingById.get(containerId) ?? null;
+				const pendingName = pending?.name ?? null;
+				const container = resolveContainer(containers, containerId, pendingName);
+
+				if (!container) {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName: labelForMissing(pendingName),
+						step: 'failed',
+						current: i + 1,
+						total: containerIds.length,
+						success: false,
+						error: 'Container not found'
+					});
+					failCount++;
+					continue;
+				}
+
+				containerName = container.name;
+				// Everything from here talks to the daemon, so it uses the id the
+				// container HAS. `containerId` is what the caller selected and stays the
+				// key in the progress events the UI is keyed on.
+				const liveId = container.id;
+
+				// Get full container config
+				const inspectData = await inspectContainer(liveId, envIdNum) as any;
+				const config = inspectData.Config;
+				const imageName = trackedImageReference(config.Image, config.Labels);
+				const currentImageId = inspectData.Image;
+
+				// Capture the OLD image's Env/Labels BEFORE pulling — once the tag is
+				// repointed the old digest may be untagged/GC'd and un-inspectable.
+				// Used by the env/label rebase in recreateContainer (#1226, #1256).
+				let oldImageConfig: { Env?: string[]; Labels?: Record<string, string>; Cmd?: string[] | null; Entrypoint?: string[] | null } | null = null;
+				try {
+					const oldImg = await inspectImage(currentImageId, envIdNum) as any;
+					oldImageConfig = { Env: oldImg?.Config?.Env, Labels: oldImg?.Config?.Labels, Cmd: oldImg?.Config?.Cmd ?? null, Entrypoint: oldImg?.Config?.Entrypoint ?? null };
+				} catch {
+					// Best-effort; rebase will fall back if unavailable.
+				}
+
+				// Skip system containers (Dockhand, Hawser)
+				const systemType = isSystemContainer(imageName);
+				if (systemType) {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'skipped',
+						current: i + 1,
+						total: containerIds.length,
+						success: true,
+						message: `Skipping ${containerName} - cannot update ${systemType} container`
+					});
+					skippedCount++;
+					continue;
+				}
+
+				// The selection came from a list the browser already had. Updating a
+				// container outside Dockhand leaves its pending row behind, so verify
+				// it still runs what the check recorded before pulling (#1689).
+				if (!batchUpdateStillApplies(pending?.image, imageName)) {
+					// The row described a container that is gone, so retire it: leaving it
+					// would keep the badge lit and skip every later attempt the same way.
+					if (envIdNum != null) {
+						await removePendingContainerUpdateByName(envIdNum, containerName).catch(() => {});
+					}
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'skipped',
+						current: i + 1,
+						total: containerIds.length,
+						success: true,
+						message: `Skipping ${containerName} - already updated outside Dockhand (was ${pending?.image}, now ${imageName})`
+					});
+					skippedCount++;
+					continue;
+				}
+
+				// Skip the container Dockhand reaches this environment through: stopping
+				// it severs the connection the update runs over (#1689).
+				if (isEnvironmentTransportContainer({
+					name: containerName,
+					mountSources: (inspectData.Mounts ?? []).map((m: any) => m?.Source),
+					// Ports maps "<containerPort>/tcp" -> [{ HostIp, HostPort }]. The HOST side
+					// is what the environment is reached on; the container port may differ.
+					publishedPorts: Object.values(inspectData.NetworkSettings?.Ports ?? {})
+						.flatMap((b: any) => (b ?? []).map((x: any) => ({ port: Number(x?.HostPort), hostIp: x?.HostIp })))
+				}, envHost, envPort)) {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'skipped',
+						current: i + 1,
+						total: containerIds.length,
+						success: true,
+						message: `Skipping ${containerName} - Dockhand reaches this environment through it`
+					});
+					skippedCount++;
+					continue;
+				}
+
+				// Skip containers with dockhand.update=false label
+				if (isUpdateDisabledByLabel(config.Labels)) {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'skipped',
+						current: i + 1,
+						total: containerIds.length,
+						success: true,
+						message: `Skipping ${containerName} - dockhand.update=false label`
+					});
+					skippedCount++;
+					continue;
+				}
+
+				// Skip digest-pinned images - they are explicitly locked to a specific version
+				if (isDigestBasedImage(imageName)) {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'skipped',
+						current: i + 1,
+						total: containerIds.length,
+						success: true,
+						message: `Skipping ${containerName} - image pinned to specific digest`
+					});
+					skippedCount++;
+					continue;
+				}
+
+				// Step 1: Pull latest image
+				sendData({
+					type: 'progress',
+					containerId,
+					containerName,
+					step: 'pulling',
+					current: i + 1,
+					total: containerIds.length,
+					message: `Pulling ${imageName}...`
+				});
+
+				try {
+					await pullImage(imageName, (data: any) => {
+						if (data.status) {
+							sendData({
+								type: 'pull_log',
+								containerId,
+								containerName,
+								pullStatus: data.status,
+								pullMessage: data.message,
+								pullId: data.id,
+								pullProgress: data.progress
+							});
+						}
+					}, envIdNum);
+				} catch (pullError: any) {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'failed',
+						current: i + 1,
+						total: containerIds.length,
+						success: false,
+						error: `Pull failed: ${pullError.message}`
+					});
+					failCount++;
+					continue;
+				}
+
+				// SAFE-PULL FLOW with vulnerability scanning
+				if (shouldScan && !isDigestBasedImage(imageName)) {
+					const tempTag = getTempImageTag(imageName);
+
+					// Get new image ID
+					const newImageId = await getImageIdByTag(imageName, envIdNum);
+					if (!newImageId) {
+						sendData({
+							type: 'progress',
+							containerId,
+							containerName,
+							step: 'failed',
+							current: i + 1,
+							total: containerIds.length,
+							success: false,
+							error: 'Failed to get new image ID after pull'
+						});
+						failCount++;
+						continue;
+					}
+
+					// Restore original tag to old image (safety)
+					const [oldRepo, oldTag] = parseImageNameAndTag(imageName);
+					try {
+						await tagImage(currentImageId, oldRepo, oldTag, envIdNum);
+					} catch {
+						// Ignore - old image might have been removed
+					}
+
+					// Tag new image with temp suffix
+					const [tempRepo, tempTagName] = parseImageNameAndTag(tempTag);
+					await tagImage(newImageId, tempRepo, tempTagName, envIdNum);
+
+					// Step 2: Scan temp image
+					sendData({
+						type: 'scan_start',
+						containerId,
+						containerName,
+						step: 'scanning',
+						current: i + 1,
+						total: containerIds.length,
+						message: `Scanning ${imageName} for vulnerabilities...`
+					});
+
+					let scanBlocked = false;
+					let blockReason = '';
+					let individualScannerResults: ScannerResult[] = [];
+
+					try {
+						const scanResults = await scanImage(tempTag, envIdNum, (progress) => {
+							if (progress.output || progress.message) {
+								sendData({
+									type: 'scan_log',
+									containerId,
+									containerName,
+									scanner: progress.scanner,
+									message: progress.output || progress.message
+								});
+							}
+						});
+
+						if (scanResults.length > 0) {
+							// Build individual scanner results (used by frontend)
+							individualScannerResults = scanResults.map(result => ({
+								scanner: result.scanner as 'grype' | 'trivy',
+								critical: result.summary.critical,
+								high: result.summary.high,
+								medium: result.summary.medium,
+								low: result.summary.low,
+								negligible: result.summary.negligible,
+								unknown: result.summary.unknown
+							}));
+
+							// Save scan results
+							for (const result of scanResults) {
+								try {
+									await saveVulnerabilityScan({
+										environmentId: envIdNum,
+										imageId: newImageId,
+										imageName: result.imageName,
+										scanner: result.scanner,
+										scannedAt: result.scannedAt,
+										scanDuration: result.scanDuration,
+										criticalCount: result.summary.critical,
+										highCount: result.summary.high,
+										mediumCount: result.summary.medium,
+										lowCount: result.summary.low,
+										negligibleCount: result.summary.negligible,
+										unknownCount: result.summary.unknown,
+										vulnerabilities: result.vulnerabilities,
+										error: result.error ?? null
+									});
+								} catch { /* ignore save errors */ }
+							}
+
+							// Check if blocked (combineScanSummaries uses Math.max for security check)
+							const combinedForBlockCheck = combineScanSummaries(scanResults);
+							const { blocked, reason } = shouldBlockUpdate(vulnerabilityCriteria, combinedForBlockCheck, undefined);
+							if (blocked) {
+								scanBlocked = true;
+								blockReason = reason;
+							}
+						}
+
+						// Collect vulnerabilities from all scanners (sort by severity, cap at 100)
+						const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, negligible: 4, unknown: 5 };
+						const vulnerabilities = scanResults
+							.flatMap(r => r.vulnerabilities || [])
+							.sort((a, b) => (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9))
+							.slice(0, 100)
+							.map(v => ({
+								id: v.id,
+								severity: v.severity,
+								package: v.package,
+								version: v.version,
+								fixedVersion: v.fixedVersion,
+								link: v.link,
+								scanner: v.scanner
+							}));
+
+						// Derive combined totals from the displayed (sliced) array so summary matches the table
+						const totalCritical = vulnerabilities.filter(v => v.severity === 'critical').length;
+						const totalHigh = vulnerabilities.filter(v => v.severity === 'high').length;
+						const totalMedium = vulnerabilities.filter(v => v.severity === 'medium').length;
+						const totalLow = vulnerabilities.filter(v => v.severity === 'low').length;
+						const hasVulns = totalCritical + totalHigh + totalMedium + totalLow > 0;
+
+						sendData({
+							type: 'scan_complete',
+							containerId,
+							containerName,
+							scannerResults: individualScannerResults.length > 0 ? individualScannerResults : undefined,
+							vulnerabilities: vulnerabilities.length > 0 ? vulnerabilities : undefined,
+							message: hasVulns
+								? `Scan complete: ${totalCritical} critical, ${totalHigh} high, ${totalMedium} medium, ${totalLow} low`
+								: 'Scan complete: no vulnerabilities found'
+						});
+
+					} catch (scanErr: any) {
+						sendData({
+							type: 'progress',
+							containerId,
+							containerName,
+							step: 'failed',
+							current: i + 1,
+							total: containerIds.length,
+							success: false,
+							error: `Scan failed: ${scanErr.message}`
+						});
+
+						// Clean up temp image on scan failure
+						try {
+							await removeTempImage(newImageId, envIdNum);
+						} catch { /* ignore cleanup errors */ }
+
+						failCount++;
+						continue;
+					}
+
+					if (scanBlocked) {
+						// BLOCKED - Remove temp image and skip this container
+						sendData({
+							type: 'blocked',
+							containerId,
+							containerName,
+							step: 'blocked',
+							current: i + 1,
+							total: containerIds.length,
+							success: false,
+							scannerResults: individualScannerResults.length > 0 ? individualScannerResults : undefined,
+							blockReason,
+							message: `Update blocked: ${blockReason}`
+						});
+
+						try {
+							await removeTempImage(newImageId, envIdNum);
+						} catch { /* ignore cleanup errors */ }
+
+						blockedCount++;
+						continue;
+					}
+
+					// APPROVED - Re-tag to original
+					await tagImage(newImageId, oldRepo, oldTag, envIdNum);
+					try {
+						await removeTempImage(tempTag, envIdNum);
+					} catch { /* ignore cleanup errors */ }
+				}
+
+				// Progress logging function for shared functions
+				const logProgress = (message: string) => {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'creating',
+						current: i + 1,
+						total: containerIds.length,
+						message
+					});
+				};
+
+				let newContainerId = liveId;
+
+				sendData({
+					type: 'progress',
+					containerId,
+					containerName,
+					step: 'creating',
+					current: i + 1,
+					total: containerIds.length,
+					message: `Recreating ${containerName}...`
+				});
+
+				const recreateResult = await recreateContainer(containerName, envIdNum, {
+					log: logProgress,
+					imageNameOverride: imageName,
+					oldImageConfig
+				});
+				if (recreateResult.success) {
+					const updatedContainers = await listContainers(true, envIdNum);
+					const updatedContainer = updatedContainers.find(c => c.name === containerName);
+					if (updatedContainer) {
+						newContainerId = updatedContainer.id;
+					}
+				}
+
+				if (!recreateResult.success) {
+					sendData({
+						type: 'progress',
+						containerId,
+						containerName,
+						step: 'failed',
+						current: i + 1,
+						total: containerIds.length,
+						success: false,
+						error: recreateResult.error || 'Container recreation failed'
+					});
+					failCount++;
+					continue;
+				}
+
+				// Audit log
+				await auditContainer(event, 'update', newContainerId, containerName, envIdNum, { batchUpdate: true });
+
+				// Done with this container - use original containerId for UI consistency
+				sendData({
+					type: 'progress',
+					containerId,
+					containerName,
+					step: 'done',
+					current: i + 1,
+					total: containerIds.length,
+					success: true,
+					message: `${containerName} updated successfully`
+				});
+				successCount++;
+
+				// Clear pending update indicator from database. By name, because the
+				// row may have been written against an id this container no longer has -
+				// which is how a spent row survives to fail the next batch.
+				if (envIdNum) {
+					await removePendingContainerUpdateByName(envIdNum, containerName).catch(() => {
+						// Ignore errors - record may not exist
+					});
+				}
+
+			} catch (error: any) {
+				sendData({
+					type: 'progress',
+					containerId,
+					containerName,
+					step: 'failed',
+					current: i + 1,
+					total: containerIds.length,
+					success: false,
+					error: error.message
+				});
+				failCount++;
+			}
+		}
+
+		// Send complete event
+		const completeData: UpdateProgress = {
+			type: 'complete',
+			summary: {
+				total: containerIds.length,
+				success: successCount,
+				failed: failCount,
+				blocked: blockedCount,
+				skipped: skippedCount
+			},
+			message: skippedCount > 0 || blockedCount > 0
+				? `Updated ${successCount} of ${containerIds.length} containers${blockedCount > 0 ? ` (${blockedCount} blocked)` : ''}${skippedCount > 0 ? ` (${skippedCount} skipped)` : ''}`
+				: `Updated ${successCount} of ${containerIds.length} containers`
+		};
+		sendData(completeData);
+		completeJob(job, completeData);
+	})().catch((err) => {
+		failJob(job, err instanceof Error ? err.message : String(err));
+	});
+
+	return json({ jobId: job.id });
+};

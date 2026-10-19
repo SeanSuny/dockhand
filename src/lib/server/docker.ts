@@ -4269,7 +4269,9 @@ export interface ImageUpdateCheckResult {
 export async function checkImageUpdateAvailable(
 	imageName: string,
 	currentImageId: string,
-	envId?: number
+	envId?: number,
+	reportPinnedDigest = true,
+	skipCooldown = false
 ): Promise<ImageUpdateCheckResult> {
 	// A digest with no tag names one manifest, so there is nothing to follow. A tag that
 	// records its digest - the shape a base image patched for a CVE takes - is checked by
@@ -4277,19 +4279,29 @@ export async function checkImageUpdateAvailable(
 	// means "a newer digest exists but the compose pins the old one", so the caller
 	// reports the move without applying it. A pinned tag whose digest has NOT moved is
 	// simply up to date and carries no flag, so the pin marker and the update counters
-	// never fire on a quiet pin.
+	// never fire on a quiet pin. `reportPinnedDigest` is the admin opt-out (#1780): off,
+	// the move is not flagged at all - for someone who pins deliberately and never acts
+	// on it. The digest check itself still runs (hasUpdate reflects it); only the pinned
+	// FLAG is withheld, so the pulled-manifest-is-the-pinned-one logic is unchanged.
 	const plan = imageCheckPlan(imageName);
 	if (plan.skip) {
 		return { hasUpdate: false, currentDigest: imageName.split('@')[1] };
 	}
-	const result = await checkTagForUpdate(plan.reference, currentImageId, envId);
-	return resolvePinnedToDigest(plan, result.hasUpdate) ? { ...result, pinnedToDigest: true } : result;
+	const result = await checkTagForUpdate(plan.reference, currentImageId, envId, skipCooldown);
+	if (!resolvePinnedToDigest(plan, result.hasUpdate)) return result;
+	// A moved digest on a pinned tag. Report it (pinned flag, never applied) unless the
+	// admin opted out (#1780), in which case it goes fully silent: clear hasUpdate too,
+	// so a suppressed pin is NOT mistaken for an applicable update and recreated.
+	return reportPinnedDigest
+		? { ...result, pinnedToDigest: true }
+		: { ...result, hasUpdate: false };
 }
 
 async function checkTagForUpdate(
 	checkedReference: string,
 	currentImageId: string,
-	envId?: number
+	envId?: number,
+	skipCooldown = false
 ): Promise<ImageUpdateCheckResult> {
 	const imageName = checkedReference;
 	try {
@@ -4344,7 +4356,7 @@ async function checkTagForUpdate(
 			const { hasUpdate, isLocalImage, registryDigest: rd } = classifyEmptyDigestImage(registryDigest);
 			if (hasUpdate && rd) {
 				const remaining = await imageCooldownRemainingMs(checkedReference, rd, envId);
-				if (remaining > 0) return { hasUpdate: false, currentDigest: currentImageId, registryDigest: rd, releaseAgeRemainingHours: Math.ceil(remaining / 3600000) };
+				if (remaining > 0 && !skipCooldown) return { hasUpdate: false, currentDigest: currentImageId, registryDigest: rd, releaseAgeRemainingHours: Math.ceil(remaining / 3600000) };
 			}
 			return { hasUpdate, isLocalImage, currentDigest: currentImageId, registryDigest: rd };
 		}
@@ -4378,7 +4390,7 @@ async function checkTagForUpdate(
 			return { hasUpdate: false, currentDigest: currentRepoDigests[0], localDigests };
 		}
 		const remaining = await imageCooldownRemainingMs(checkedReference, registryDigest, envId);
-		if (remaining > 0) {
+		if (remaining > 0 && !skipCooldown) {
 			return { hasUpdate: false, currentDigest: currentRepoDigests[0], registryDigest, localDigests, releaseAgeRemainingHours: Math.ceil(remaining / 3600000) };
 		}
 

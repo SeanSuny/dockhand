@@ -11,6 +11,7 @@ import { join, resolve, relative, dirname, basename, isAbsolute, normalize as pa
 import { judgeSymlink } from './stack-symlinks';
 import { spawn as nodeSpawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import type { StackSourceWithRepo } from './db';
 import { redactSecretVars } from './secret-redact';
 import { collectProcess } from './process-output-core';
 import { dockerTlsEnv } from './docker-tls-env';
@@ -29,7 +30,7 @@ import { findStackNameCollision, getStackPathHintsFromContainers, moveStackFileP
 import { isValidStackName } from './stack-name-guard';
 import { db, environments, eq } from './db/drizzle.js';
 import { isAllowedStackFilename } from './stack-filename';
-import { coolingDown as coolingDownRows } from '$lib/utils/pending-update-rows';
+import { coolingDown as coolingDownRows, containerCooldownFields } from '$lib/utils/pending-update-rows';
 import { getMinimumReleaseAgeConfig } from './minimum-release-age';
 
 import { deriveStackStatus, deriveStackHealth } from './stack-status';
@@ -56,6 +57,8 @@ import {
 } from './db';
 import { getProvider } from './secretproviders';
 import { stripSurroundingQuotes } from './secretproviders/shared';
+import { envFileKeys, isSopsDotenv, mergeDecryptedEnvFile, withoutSopsArtifacts } from './secretproviders/sops-core';
+import { gitStackEnvFileRelPath } from './git-stack-env-path';
 import { resolveComposeDockerHost, buildComposeBaseArgs } from './compose-docker-args';
 import { unregisterSchedule } from './scheduler';
 import { sendEventNotification } from './notifications';
@@ -146,6 +149,10 @@ export interface ContainerDetail {
 	labels: Record<string, string>;
 	/** The tag's digest moved but this container pins the old one (reported, not applied). */
 	pinnedToDigest?: boolean;
+	/** An update exists but the image is too young to apply (waiting out the minimum age). */
+	coolingDown?: boolean;
+	/** Hours still left on that minimum-age wait. */
+	coolingDownHours?: number;
 }
 
 /**
@@ -1915,7 +1922,12 @@ async function executeComposeCommand(
 			if (envPath && existsSync(envPath)) {
 				try {
 					const envFileContent = readFileSync(envPath, 'utf-8');
-					const envFileVars = parseEnvFileContent(envFileContent, stackName);
+					const parsedEnvFileVars = parseEnvFileContent(envFileContent, stackName);
+					// A SOPS file's metadata and ciphertext are no values to inject; its
+					// decrypted values arrive as secretVars.
+					const envFileVars = isSopsDotenv(envFileContent)
+						? withoutSopsArtifacts(parsedEnvFileVars)
+						: parsedEnvFileVars;
 					// Merge: envFileVars (lowest) < envVars (DB overrides)
 					// secretVars are handled separately in executeComposeViaHawser
 					hawserEnvVars = { ...envFileVars, ...(envVars || {}) };
@@ -2094,7 +2106,7 @@ export async function listComposeStacks(envId?: number | null): Promise<ComposeS
 	const newerVersionIds = new Set<string>();
 	// A held update: an update exists but the image is too young to apply. Counted
 	// separately so it never reaches updateCount, which offers a redeploy.
-	const coolingDownIds = new Set<string>();
+	const coolingDownHoursById = new Map<string, number>();
 	// The tag's digest moved but the image pins the old one. Reported, never applied
 	// (the compose file is what has to change), so kept out of updateCount too.
 	const pinnedDigestIds = new Set<string>();
@@ -2106,7 +2118,7 @@ export async function listComposeStacks(envId?: number | null): Promise<ComposeS
 			pending.forEach((p) => {
 				if (p.hasImageUpdate) pendingUpdateIds.add(p.containerId);
 				if (p.pinnedToDigest) pinnedDigestIds.add(p.containerId);
-				if (heldIds.has(p.containerId)) coolingDownIds.add(p.containerId);
+				if (heldIds.has(p.containerId)) coolingDownHoursById.set(p.containerId, heldIds.get(p.containerId)!);
 				if (p.newerVersion) {
 					newerVersionIds.add(p.containerId);
 					try {
@@ -2182,6 +2194,7 @@ export async function listComposeStacks(envId?: number | null): Promise<ComposeS
 					labels: c.labels || {},
 					updateAvailable: pendingUpdateIds.has(c.id),
 					pinnedToDigest: pinnedDigestIds.has(c.id),
+					...containerCooldownFields(coolingDownHoursById, c.id),
 					newerVersion: newerVersionById.get(c.id) ?? null
 				};
 			})
@@ -2200,7 +2213,7 @@ export async function listComposeStacks(envId?: number | null): Promise<ComposeS
 			// Newer-version-tag (semver) suggestions in this stack - drives the Tag badge.
 			newerVersionCount: stackContainers.filter((c) => newerVersionIds.has(c.id)).length,
 			// Held updates in this stack - shown as waiting, never offered for redeploy.
-			coolingDownCount: stackContainers.filter((c) => coolingDownIds.has(c.id)).length,
+			coolingDownCount: stackContainers.filter((c) => coolingDownHoursById.has(c.id)).length,
 			// Containers whose pinned digest moved - reported, never applied.
 			pinnedDigestCount: stackContainers.filter((c) => pinnedDigestIds.has(c.id)).length,
 			status: deriveStackStatus({
@@ -2479,6 +2492,9 @@ export async function redeployStackFromDir(
 	const hasEnv = existsSync(envPath);
 	const envFileContent = hasEnv ? readFileSync(envPath, 'utf-8') : undefined;
 	let envVars = envFileContent ? parseEnvFileContent(envFileContent, stackName) : undefined;
+	// A SOPS .env's metadata is no value, and its ciphertext is replaced by the
+	// decrypted values the resolver below adds as secrets.
+	if (envVars && isSopsDotenv(envFileContent)) envVars = withoutSopsArtifacts(envVars);
 	// Secret env vars are stored encrypted in the DB and deliberately never written
 	// to the snapshot's .env, so the extracted dir has no copy of them. Load them
 	// from the DB and inject them like every other compose path does (#1329) —
@@ -2494,7 +2510,8 @@ export async function redeployStackFromDir(
 		`[Stack:${stackName}]`,
 		source?.secretProviderId,
 		envFileContent,
-		{ stackName, envId: envId ?? undefined }
+		{ stackName, envId: envId ?? undefined },
+		readConfiguredGitEnvFile(source, stackDir, envPath, `[Stack:${stackName}]`)
 	);
 	envVars = resolved.dbNonSecretVars;
 	secretVars = resolved.secretVars;
@@ -3338,6 +3355,19 @@ export async function deployStack(options: DeployStackOptions): Promise<StackOpe
 		const initialDbNonSecretVars = await getNonSecretEnvVarsAsRecord(name, envId);
 		const initialSecretVars = await getSecretEnvVarsAsRecord(name, envId);
 
+		// A Git stack's configured env file is not necessarily the .env read above: a
+		// repo can carry both, and only the configured one may be SOPS-encrypted.
+		// Only a file inside the stack directory: one outside it (an env file path above
+		// the compose directory) was never copied from the repository.
+		let configuredEnvFileContent: string | undefined;
+		if (sourceDir && envFileName && !envFileName.startsWith('..') && actualEnvPath && existsSync(actualEnvPath)) {
+			try {
+				configuredEnvFileContent = readFileSync(actualEnvPath, 'utf-8');
+			} catch (err) {
+				console.warn(`${logPrefix} Failed to read env file at ${actualEnvPath}:`, err);
+			}
+		}
+
 		// Add environment variables from 1Password
 		const source = await getStackSource(name, envId);
 		const { dbNonSecretVars, secretVars } = await resolveProviderEnvVars(
@@ -3346,7 +3376,8 @@ export async function deployStack(options: DeployStackOptions): Promise<StackOpe
 			logPrefix,
 			source?.secretProviderId,
 			envFileContent,
-			{ stackName: name, envId }
+			{ stackName: name, envId },
+			configuredEnvFileContent
 		);
 		console.log(`${logPrefix} DB non-secret override vars:`, Object.keys(dbNonSecretVars).length);
 		console.log(`${logPrefix} DB secret vars:`, Object.keys(secretVars).length);
@@ -3715,7 +3746,10 @@ async function resolveProviderEnvVars(
 	logPrefix: string,
 	secretProviderId?: number | null,
 	stackEnvFileContent?: string,
-	persistTo?: { stackName: string; envId: number | null | undefined }
+	persistTo?: { stackName: string; envId: number | null | undefined },
+	// A Git stack's configured env file when it is not the .env read above (e.g.
+	// secrets.sops.env). Only consulted for whole-file decryption.
+	configuredEnvFileContent?: string
 ): Promise<EnrichedEnvVars> {
 	const envFileVars = stackEnvFileContent ? parseEnvFileContent(stackEnvFileContent) : {};
 
@@ -3740,6 +3774,40 @@ async function resolveProviderEnvVars(
 
 	const providerRow = secretProviderId ? await getSecretProviderById(secretProviderId) : undefined;
 	const provider = providerRow ? getProvider(providerRow.type) : undefined;
+
+	// --- Encrypted env file (SOPS) -------------------------------------------
+	// A provider that decrypts whole env files gets the stack's env file(s) when
+	// they are in its format; see mergeDecryptedEnvFile for the precedence. Compose
+	// reads `--env-file .env` before the configured file and the later one wins, so
+	// the configured file is merged first (the first merged wins), and a key a
+	// later-read plain file defines is left to that file rather than overridden
+	// from the shell.
+	const envFiles = [configuredEnvFileContent, stackEnvFileContent].filter(
+		(content, i, all): content is string => !!content && all.indexOf(content) === i
+	);
+	if (envFiles.some(isSopsDotenv)) {
+		if (!providerRow || !provider?.decryptEnvFile) {
+			console.warn(`${logPrefix} The env file is SOPS-encrypted but no SOPS secret provider is bound to this stack; its values stay encrypted`);
+		} else {
+			const definedByPlainFile = new Set<string>();
+			for (const content of envFiles) {
+				if (!isSopsDotenv(content)) {
+					for (const key of envFileKeys(content)) definedByPlainFile.add(key);
+					continue;
+				}
+				let decrypted: Record<string, string>;
+				try {
+					decrypted = await provider.decryptEnvFile(providerRow.config, content, logPrefix);
+				} catch (e: unknown) {
+					const msg = e instanceof Error ? e.message : String(e);
+					throw new Error(`Failed to decrypt the env file: ${msg}`);
+				}
+				for (const key of definedByPlainFile) delete decrypted[key];
+				const injected = mergeDecryptedEnvFile(decrypted, dbNonSecretVars, secretVars);
+				console.log(`${logPrefix} ${provider.label} decrypted ${injected} secret(s) from the env file`);
+			}
+		}
+	}
 
 	// --- Bulk pull (environment / path) --------------------------------------
 	// Priority: secrets > DB non-secrets > .env file (each overrides the previous)
@@ -3860,6 +3928,31 @@ async function resolveProviderEnvVars(
 }
 
 /**
+ * A Git stack's configured env file (possibly SOPS-encrypted) as a deploy copied it
+ * into `stackDir`, for the paths that otherwise only read the .env beside the
+ * compose file (`alreadyReadPath`). Undefined when no provider is bound - only a
+ * provider consumes it - or when there is no such file to read.
+ */
+function readConfiguredGitEnvFile(
+	source: StackSourceWithRepo | null | undefined,
+	stackDir: string,
+	alreadyReadPath: string | null | undefined,
+	logPrefix: string
+): string | undefined {
+	if (!source?.secretProviderId || !source.gitStack) return undefined;
+	const rel = gitStackEnvFileRelPath(source.gitStack);
+	if (!rel) return undefined;
+	const path = join(stackDir, rel);
+	if (path === alreadyReadPath || !existsSync(path)) return undefined;
+	try {
+		return readFileSync(path, 'utf-8');
+	} catch (err) {
+		console.warn(`${logPrefix} Failed to read env file at ${path}:`, err);
+		return undefined;
+	}
+}
+
+/**
  * Resolve the bound provider's secrets over a raw (nonSecretVars, secretVars) pair.
  * Returns the merged vars. bestEffort=true (lifecycle paths that must not be blocked by
  * an unreachable provider: stop/restart/down/remove) logs and returns the inputs
@@ -3887,13 +3980,17 @@ async function resolveProviderVarsBestEffort(
 
 	try {
 		const source = await getStackSource(stackName, envId ?? undefined);
+		const configuredEnvFileContent = source?.gitStack
+			? readConfiguredGitEnvFile(source, await getStackDir(stackName, envId), envPath, logPrefix)
+			: undefined;
 		const resolved = await resolveProviderEnvVars(
 			{ ...nonSecretVars },
 			{ ...secretVars },
 			logPrefix,
 			source?.secretProviderId,
 			envFileContent,
-			{ stackName, envId: envId ?? undefined }
+			{ stackName, envId: envId ?? undefined },
+			configuredEnvFileContent
 		);
 		return { nonSecretVars: resolved.dbNonSecretVars, secretVars: resolved.secretVars };
 	} catch (err) {

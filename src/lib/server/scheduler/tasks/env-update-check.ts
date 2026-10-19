@@ -10,6 +10,7 @@ import type { ScheduleTrigger, VulnerabilityCriteria } from '../../db';
 import {
 	getEnvUpdateCheckSettings,
 	getGlobalSemverConfig,
+	getPinnedDigestReportEnabled,
 	getEnvironment,
 	createScheduleExecution,
 	updateScheduleExecution,
@@ -43,8 +44,9 @@ import { sendEventNotification } from '../../notifications';
 import { getScannerSettings, scanImage, type VulnerabilitySeverity } from '../../scanner';
 import { parseImageNameAndTag, combineScanSummaries, isSystemContainer, isPodmanInfraContainer } from './update-utils';
 import { resolveBlockDecision } from './block-decision';
-import { isUpdateDisabledByLabel, isHiddenByLabel, getVersionPatternOverride, getVersionPatternRejection, digestUpdateVisible } from '../../container-labels';
+import { isUpdateDisabledByLabel, isHiddenByLabel, getVersionPatternOverride, getVersionPatternRejection, digestUpdateVisible, pinnedDigestReportVisible, isCooldownSkippedByLabel } from '../../container-labels';
 import { tagFilterFromLabels } from '$lib/server/semver/tag-filter-labels';
+import { tagTransformFromLabels } from '$lib/server/semver/tag-transform';
 import { recreateContainer } from './container-update';
 
 interface UpdateInfo {
@@ -126,6 +128,9 @@ export async function runEnvUpdateCheckJob(
 			matchFlavor: semverConfig.matchFlavor,
 			includePrerelease: semverConfig.includePrerelease
 		} as const;
+		// The global opt-out for moved-digest reports on pinned images (#1780); the
+		// per-container label can still override it either way.
+		const reportPinnedGlobal = await getPinnedDigestReportEnabled();
 		// Remember the target we last surfaced per container, so we only notify when
 		// a NEW newer version appears - not on every scheduled run. Read before clear.
 		const previousSemverTargets = new Map<string, string>();
@@ -193,7 +198,11 @@ export async function runEnvUpdateCheckJob(
 				checkedCount++;
 				await log(`  Checking: ${container.name} (${imageName})`);
 
-				const result = await checkImageUpdateAvailable(imageName, currentImageId, environmentId);
+				const result = await checkImageUpdateAvailable(
+					imageName, currentImageId, environmentId,
+					pinnedDigestReportVisible(reportPinnedGlobal, inspectData.Config?.Labels),
+					isCooldownSkippedByLabel(inspectData.Config?.Labels)
+				);
 
 				if (result.isLocalImage) {
 					await log(`    Local image - skipping update check`);
@@ -290,7 +299,7 @@ export async function runEnvUpdateCheckJob(
 					}
 					const newer = await checkNewerVersion(
 						imageName,
-						{ ...semverOptions, versionPattern, tagFilter: tagFilterFromLabels(inspectData.Config?.Labels) },
+						{ ...semverOptions, versionPattern, tagFilter: tagFilterFromLabels(inspectData.Config?.Labels), tagTransform: tagTransformFromLabels(inspectData.Config?.Labels) },
 						getTagArtifactKind,
 						result.localDigests ?? [],
 						staleCheck

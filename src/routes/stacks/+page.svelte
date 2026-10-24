@@ -1029,6 +1029,7 @@
 	// Counts for the compact dismiss: stacks with a digest update, and total containers
 	// with a newer version tag - each shown with its icon, mirroring the containers page.
 	const stackDigestCount = $derived(stacks.filter((s) => s.updatesAvailable).length);
+	const stackContainerIds = $derived(new Set(stacks.flatMap((s) => (s.containerDetails ?? []).map((c) => c.id))));
 	// Containers waiting out the minimum image age, across every stack.
 	const stackCoolingDownCount = $derived(
 		stacks.reduce((sum, s) => sum + (s.coolingDownCount ?? 0), 0)
@@ -1273,7 +1274,7 @@
 		}
 	}
 
-	async function redeployStack(name: string, options: { pull: boolean; build: boolean; forceRecreate: boolean }) {
+	async function redeployStack(name: string, options: { pull: boolean; respectPullPolicy?: boolean; build: boolean; forceRecreate: boolean }) {
 		operationError = null;
 		stackActionLoading = name;
 		startComposeOutput(m.stacks_list_output_redeploying({ name }), name, 'deploy');
@@ -1281,6 +1282,7 @@
 		// otherwise visible once the popover closes).
 		const chosen = [
 			options.pull && m.stacks_list_output_option_pull(),
+			options.respectPullPolicy && m.stacks_redeploy_respect_pull_policy(),
 			options.build && m.stacks_list_output_option_build(),
 			options.forceRecreate && m.stacks_list_output_option_force_recreate()
 		].filter(Boolean);
@@ -1813,6 +1815,7 @@
 			<CheckUpdatesButton
 				{envId}
 				hasPendingUpdates={stacks.some((s) => s.updatesAvailable)}
+				containerIds={loading ? undefined : stackContainerIds}
 				onComplete={(result) => {
 					// Record failed checks so stack containers show a "check failed" state
 					// instead of masquerading as up to date (#1255). Session-only.

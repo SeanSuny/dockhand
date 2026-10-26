@@ -51,10 +51,14 @@ jobs:
           git checkout HEAD -- .github/ 2>/dev/null || true
           git clean -fd .github/ 2>/dev/null || true
           
-          # ==================== 下载并覆盖自定义中文语言包 ====================
-          echo "📥 正在下载并覆盖 zh-CN.json 翻译文件..."
-          curl -sSL "https://raw.githubusercontent.com/maicent/dockhand/zh-part10/src/lib/i18n/messages/zh-CN.json" -o src/lib/i18n/messages/zh-CN.json
-          git add src/lib/i18n/messages/zh-CN.json
+          # ==================== 使用本地 .github 目录下的翻译文件覆盖 ====================
+          if [ -f .github/zh-CN.json ]; then
+            echo "📋 正在应用本地的 zh-CN.json 翻译文件..."
+            cp .github/zh-CN.json src/lib/i18n/messages/zh-CN.json
+            git add src/lib/i18n/messages/zh-CN.json
+          else
+            echo "⚠️ 未在 .github/ 目录下找到 zh-CN.json 文件，跳过覆盖"
+          fi
           # ===================================================================
 
           # 检查暂存区
@@ -65,7 +69,7 @@ jobs:
           fi
           
           # 完成合并并提交
-          git commit -m "Auto sync from upstream & update zh-CN translation: $(git log --format=%h -n 1 upstream/$UPSTREAM_BRANCH)"
+          git commit -m "Auto sync from upstream & apply local zh-CN translation: $(git log --format=%h -n 1 upstream/$UPSTREAM_BRANCH)"
           
           # 推送变更到目标分支
           git push origin temp-sync-branch:"$TARGET_BRANCH"

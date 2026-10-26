@@ -1,17 +1,21 @@
 name: Auto Sync and Docker Push
+
 on:
   schedule:
     - cron: '0 20 * * *'
   workflow_dispatch:
+
 env:
   UPSTREAM_REPO: https://github.com/Finsys/dockhand.git
   UPSTREAM_BRANCH: main
   TARGET_BRANCH: main
   # 替换为你的 Docker Hub 仓库名，格式为：用户名/项目名
   DOCKERHUB_REPO: ${{ secrets.DOCKER_USERNAME }}/dockhand
+
 permissions:
   contents: write  # 允许读写仓库内容以同步代码
   actions: write  # 允许操作 Actions
+
 jobs:
   sync-and-build:
     runs-on: ubuntu-latest
@@ -21,6 +25,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+
       - name: Configure Git and sync upstream
         id: sync_check # 添加 ID 以便后续步骤引用输出
         env:
@@ -45,15 +50,22 @@ jobs:
           git reset HEAD .github/ 2>/dev/null || true
           git checkout HEAD -- .github/ 2>/dev/null || true
           git clean -fd .github/ 2>/dev/null || true
+          
+          # ==================== 下载并覆盖自定义中文语言包 ====================
+          echo "📥 正在下载并覆盖 zh-CN.json 翻译文件..."
+          curl -sSL "https://raw.githubusercontent.com/maicent/dockhand/zh-part10/src/lib/i18n/messages/zh-CN.json" -o src/lib/i18n/messages/zh-CN.json
+          git add src/lib/i18n/messages/zh-CN.json
+          # ===================================================================
+
           # 检查暂存区
           if git diff --cached --quiet; then
-            echo "🛑 上游无新源码变更，直接退出工作流"
+            echo "🛑 上游无新源码变更且翻译文件无更新，直接退出工作流"
             echo "should_build=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           
           # 完成合并并提交
-          git commit -m "Auto sync from upstream: $(git log --format=%h -n 1 upstream/$UPSTREAM_BRANCH)"
+          git commit -m "Auto sync from upstream & update zh-CN translation: $(git log --format=%h -n 1 upstream/$UPSTREAM_BRANCH)"
           
           # 推送变更到目标分支
           git push origin temp-sync-branch:"$TARGET_BRANCH"
@@ -63,7 +75,8 @@ jobs:
           
           # 标记需要构建镜像
           echo "should_build=true" >> $GITHUB_OUTPUT
-# ==================== 动态注入内存配置到 Dockerfile ====================
+
+      # ==================== 动态注入内存配置到 Dockerfile ====================
       - name: Inject NODE_OPTIONS to Dockerfile
         if: steps.sync_check.outputs.should_build == 'true'
         run: |
@@ -78,28 +91,33 @@ jobs:
           else
             echo "⚠️ 未找到 Dockerfile"
           fi
+
       # ==================== Docker Hub 构建与推送步骤 ====================
       - name: Set up QEMU
         if: steps.sync_check.outputs.should_build == 'true'
         uses: docker/setup-qemu-action@v4
+
       - name: Set up Docker Buildx
         if: steps.sync_check.outputs.should_build == 'true'
         uses: docker/setup-buildx-action@v4
+
       - name: Generate package-lock.json
         if: steps.sync_check.outputs.should_build == 'true'
         run: npm install --package-lock-only --ignore-scripts
+
       - name: Login to Docker Hub
         if: steps.sync_check.outputs.should_build == 'true'
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
+
       - name: Set up Swap Space
         if: steps.sync_check.outputs.should_build == 'true'
         uses: actionhippie/swap-space@v1
         with:
           size: 8G
-    
+     
       - name: Build and push Docker image
         if: steps.sync_check.outputs.should_build == 'true'
         uses: docker/build-push-action@v7
